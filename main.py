@@ -80,20 +80,18 @@ def get_from_osm(bbox=[16.3,54.25,16.834,54.5]):
     return result
 
 def coord_to_point(coords, bbox, img_size, castint=True):
-    # todo: reproject bbox and coords to UTM, to avoid geodetic distortion
-
     lon = coords[0]
     lat = coords[1]
-    x = (lon-bbox[0])/(bbox[2]-bbox[0])*img_size[0]
-    y = (lat-bbox[1])/(bbox[3]-bbox[1])*img_size[1]
+    x = (lon-bbox[0]) / (bbox[2]-bbox[0]) * img_size[0]
+    y = (lat-bbox[1]) / (bbox[3]-bbox[1]) * img_size[1]
     y = img_size[1]-y
     if castint:
         x = int(x)
         y = int(y)
     return (x,y)
 
-def paint_rivers(json_data, bbox=[16.3,54.25,16.834,54.5], img_size=(1000,1000)):
-    image = np.zeros(shape=img_size, dtype=np.uint8)
+def paint_rivers(json_data, bbox=[16.3333,54.25,16.8333333,54.5], img_size=(1000,850)):
+    image = np.zeros(shape=img_size[::-1], dtype=np.uint8)
     # print(image.shape)
     for feature in json_data["features"]:
         if feature["geometry"]["type"] == "LineString":
@@ -127,7 +125,7 @@ if __name__ == "__main__":
     parser.add_argument("percent", help="threshold", default=5,type=int)
     args = parser.parse_args()
 
-    bbox = [16.3,54.25,16.834,54.5]
+    bbox = [16.3333,54.25,16.8333333,54.5]
     print("UTM zone:", which_utm_zone(bbox))
 
     rivers_json = get_from_osm(bbox)

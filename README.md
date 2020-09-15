@@ -21,6 +21,5 @@ Requires
 
 ## To Do
 * automagically adjust segmentation parameters depending on image resolution
-* reprojection to avoid warping when drawing reference river image
 * matching
 * bbox selection
