@@ -3,7 +3,7 @@ import argparse
 import numpy as np
 import overpass
 import json
-from matplotlib import pyplot as plt
+# from matplotlib import pyplot as plt
 
 from simple_cb import simplest_cb
 
