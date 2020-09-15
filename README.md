@@ -10,6 +10,7 @@ WIP.
 
 Requires
 * Python3
+* python-opencv
 
 ```$ python3 -m pip install -r requirements.txt ```
 
