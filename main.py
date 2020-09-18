@@ -2,11 +2,11 @@ import cv2
 import argparse
 import numpy as np
 import json
-import os
 
 import find_sheet
 import osm
 import segmentation
+import registration
 from matching import feature_matching_brief
 
 def coord_to_point(coords, bbox, img_size, castint=True):
@@ -66,7 +66,8 @@ def retrieve_best_match(query_image, bboxes):
         rivers_json = osm.get_from_osm(bbox)
         reference_river_image = paint_features(rivers_json, bbox)
         
-        # todo: detect border in query image
+        # todo: roughly detect border in query image?
+        # maybe it is not necessary with more robust matching technique
         # reference_river_image = cv2.copyMakeBorder(reference_river_image, 50,150,50,50, cv2.BORDER_CONSTANT, None, 0)
 
         distances = compute_similarities(water_mask, reference_river_image)
@@ -83,14 +84,6 @@ def retrieve_best_match(query_image, bboxes):
     print("time spent:", end_time - start_time)
 
     return closest_image,closest_bbox,best_dist
-
-def georeference(inputfile, outputfile, bbox):
-
-    left, top, right, bottom = (bbox[0], bbox[3], bbox[2], bbox[1])
-
-    command = "gdal_translate -of GTiff -a_ullr %f %f %f %f -a_srs EPSG:4269 %s %s" % (left, top, right, bottom, inputfile, outputfile)
-    print(command)
-    os.system(command)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -116,36 +109,19 @@ if __name__ == "__main__":
     # cv2.imshow("img", cv2.resize(img, (500,500)))
     # cv2.imshow("water mask from map", cv2.resize(water_mask, (500,500)))
     # cv2.imshow("closest reference rivers from OSM", cv2.resize(closest_image, (500,500)))
-    # cv2.waitKey()
 
     cv2.imwrite("refimg_%s_%s.jpg" % (sheet_name, "-".join(map(str,closest_bbox))), closest_image)
 
-    # todo: register query and retrieved reference image for fine alignment
-    import registration
-    query_image_small = cv2.resize(water_mask,(500,500))
-    closest_image_border = cv2.copyMakeBorder(closest_image, 150,150,150,150, cv2.BORDER_CONSTANT, None, 0)
-    reference_image_small = cv2.resize(closest_image_border,(500,500))
-    warp_matrix = registration.register_ECC(query_image_small,reference_image_small)
-    # crop out border
-    # aligned_query = aligned_query[border_x:aligned_query.shape[1]-border_x, border_y:aligned_query.shape[0]-border_y]
-    # cv2.imshow("aligned query", aligned_query)
-    # cv2.imwrite("aligned_%s_%s.jpg" % (sheet_name, "-".join(map(str,closest_bbox))), closest_image)
-    # query_scale_x = water_mask.shape[1] / query_image_small.shape[1]
-    # query_scale_y = water_mask.shape[0] / query_image_small.shape[0]
-    query_aligned = registration.warp(query_image_small,warp_matrix)
-    orig_small = cv2.resize(img,(500,500))
-    im_aligned = registration.warp(orig_small,warp_matrix)
-    border_x = int(150 * reference_image_small.shape[1] / closest_image_border.shape[1])
-    border_y = int(150 * reference_image_small.shape[0] / closest_image_border.shape[0])
-    print(closest_image.shape,reference_image_small.shape,border_x,border_y)
-    im_aligned = im_aligned[border_y:im_aligned.shape[0]-border_y, border_x:im_aligned.shape[1]-border_x]
-    # im_aligned = cv2.warpAffine(orig_small, warp_matrix, (500,500,3), flags=cv2.INTER_LINEAR + cv2.WARP_INVERSE_MAP)
-    cv2.imshow("query aligned", query_aligned)
-    cv2.imshow("aligned orig", im_aligned)
-    aligned_path = "aligned_%s_%s.jpg" % (sheet_name, "-".join(map(str,closest_bbox)))
-    cv2.imwrite(aligned_path, im_aligned)
+    # align map image
+    map_img_aligned = registration.align_map_image(img, water_mask, closest_image)
+    
+    cv2.imshow("aligned map", map_img_aligned)
+
+    # save aligned map image
+    aligned_map_path = "aligned_%s_%s.jpg" % (sheet_name, "-".join(map(str,closest_bbox)))
+    cv2.imwrite(aligned_map_path, map_img_aligned)
 
     # georeference aligned query image with bounding box
-    georeference(aligned_path, "georef_sheet_%s.tif" % sheet_name, closest_bbox)
+    registration.georeference(aligned_map_path, "georef_sheet_%s.tif" % sheet_name, closest_bbox)
 
     cv2.waitKey(0)

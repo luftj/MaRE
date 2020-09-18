@@ -22,3 +22,4 @@ Requires
 ## To Do
 * automagically adjust segmentation parameters depending on image resolution
 * better matching
+* collect and evaluate all parameters
