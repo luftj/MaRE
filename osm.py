@@ -8,7 +8,7 @@ def get_from_osm(bbox=[16.3,54.25,16.834,54.5]):
     data_path = "data/osm/rivers_%s.geojson" % "_".join(map(str,bbox))
 
     # don't query if we already have the data on disk
-    if os.path.isdir( data_path ):
+    if os.path.isfile( data_path ):
         with open(data_path, encoding="utf-8") as file:
             json_data = json.load(file)
             return json_data

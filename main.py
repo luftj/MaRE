@@ -2,7 +2,7 @@ import cv2
 import argparse
 import numpy as np
 import json
-from matplotlib import pyplot as plt
+import os
 
 import find_sheet
 import osm
@@ -53,37 +53,44 @@ def compute_similarities(query_image, reference_image):
     # ssim_v = ssim(query_image_resized, reference_image, data_range=reference_image.max() - reference_image.min())
     return [n_matches]
 
-def calculate_HOG(image):
-    import matplotlib.pyplot as plt
+def retrieve_best_match(query_image, bboxes):
+    closest_image = None
+    closest_bbox = None
+    best_dist = -1
 
-    from skimage.feature import hog
-    from skimage import exposure
+    import time
+    start_time = time.time()
 
-    image = cv2.resize(image,(1000,1000))
+    for idx,bbox in enumerate(bboxes):
+        time_now = time.time()
+        rivers_json = osm.get_from_osm(bbox)
+        reference_river_image = paint_features(rivers_json, bbox)
+        
+        # todo: detect border in query image
+        # reference_river_image = cv2.copyMakeBorder(reference_river_image, 50,150,50,50, cv2.BORDER_CONSTANT, None, 0)
 
-    image = np.array(image,dtype=np.float)
-    image /= 255
+        distances = compute_similarities(water_mask, reference_river_image)
 
-    fd, hog_image = hog(image, orientations=8, pixels_per_cell=(16, 16),
-                        cells_per_block=(1, 1), visualize=True, feature_vector=False)
-    nz = np.where(fd != 0)
-    
-    print(len(fd),len(nz[0]),nz)
+        if closest_image is None or distances[0] > best_dist:
+            closest_image = reference_river_image
+            closest_bbox = bbox
+            best_dist = distances[0]
 
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(8, 4), sharex=True, sharey=True)
+        print("%d/%d" % (idx, len(bboxes)),"Distances:", *distances, bbox, time.time()-time_now)
+        time_now = time.time()
 
-    ax1.axis('off')
-    ax1.imshow(image, cmap=plt.cm.gray)
-    ax1.set_title('Input image')
+    end_time = time.time()
+    print("time spent:", end_time - start_time)
 
-    # Rescale histogram for better display
-    hog_image_rescaled = exposure.rescale_intensity(hog_image, in_range=(0, 10))
+    return closest_image,closest_bbox,best_dist
 
-    ax2.axis('off')
-    ax2.imshow(hog_image_rescaled, cmap=plt.cm.gray)
-    ax2.set_title('Histogram of Oriented Gradients')
-    plt.show()
-    return fd
+def georeference(inputfile, outputfile, bbox):
+
+    left, top, right, bottom = (bbox[0], bbox[3], bbox[2], bbox[1])
+
+    command = "gdal_translate -of GTiff -a_ullr %f %f %f %f -a_srs EPSG:4269 %s %s" % (left, top, right, bottom, inputfile, outputfile)
+    print(command)
+    os.system(command)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -92,46 +99,53 @@ if __name__ == "__main__":
     parser.add_argument("percent", help="threshold", default=5, type=int)
     args = parser.parse_args()
 
-    bboxes = find_sheet.get_bboxes_from_json("data/blattschnitt_dr100.geojson")
-    bboxes = bboxes[610:750]
+    sheets_file = "data/blattschnitt_dr100.geojson"
+    bboxes = find_sheet.get_bboxes_from_json(sheets_file)
+    bboxes = bboxes[624:627]
 
     img = cv2.imread(args.input)
 
     water_mask = segmentation.extract_blue(img, args.percent)
 
-    closest_image = None
-    closest_bbox = None
-    min_dist = -1
+    # find the bbox for this query image
+    closest_image, closest_bbox, dist = retrieve_best_match(water_mask, bboxes)
+    
+    sheet_name = find_sheet.find_name_for_bbox(sheets_file, closest_bbox)
+    print("best sheet:", sheet_name, "with", dist)
 
-    import time
-    start_time = time.time()
+    # cv2.imshow("img", cv2.resize(img, (500,500)))
+    # cv2.imshow("water mask from map", cv2.resize(water_mask, (500,500)))
+    # cv2.imshow("closest reference rivers from OSM", cv2.resize(closest_image, (500,500)))
+    # cv2.waitKey()
 
-    for bbox in bboxes:
-        time_now = time.time()
-        rivers_json = osm.get_from_osm(bbox)
-        reference_river_image = paint_features(rivers_json, bbox)
-        
-        reference_river_image = cv2.copyMakeBorder(reference_river_image,50,150,50,50,cv2.BORDER_CONSTANT,None,0)
+    cv2.imwrite("refimg_%s_%s.jpg" % (sheet_name, "-".join(map(str,closest_bbox))), closest_image)
 
-        distances = compute_similarities(water_mask, reference_river_image)
+    # todo: register query and retrieved reference image for fine alignment
+    import registration
+    query_image_small = cv2.resize(water_mask,(500,500))
+    closest_image_border = cv2.copyMakeBorder(closest_image, 150,150,150,150, cv2.BORDER_CONSTANT, None, 0)
+    reference_image_small = cv2.resize(closest_image_border,(500,500))
+    warp_matrix = registration.register_ECC(query_image_small,reference_image_small)
+    # crop out border
+    # aligned_query = aligned_query[border_x:aligned_query.shape[1]-border_x, border_y:aligned_query.shape[0]-border_y]
+    # cv2.imshow("aligned query", aligned_query)
+    # cv2.imwrite("aligned_%s_%s.jpg" % (sheet_name, "-".join(map(str,closest_bbox))), closest_image)
+    # query_scale_x = water_mask.shape[1] / query_image_small.shape[1]
+    # query_scale_y = water_mask.shape[0] / query_image_small.shape[0]
+    query_aligned = registration.warp(query_image_small,warp_matrix)
+    orig_small = cv2.resize(img,(500,500))
+    im_aligned = registration.warp(orig_small,warp_matrix)
+    border_x = int(150 * reference_image_small.shape[1] / closest_image_border.shape[1])
+    border_y = int(150 * reference_image_small.shape[0] / closest_image_border.shape[0])
+    print(closest_image.shape,reference_image_small.shape,border_x,border_y)
+    im_aligned = im_aligned[border_y:im_aligned.shape[0]-border_y, border_x:im_aligned.shape[1]-border_x]
+    # im_aligned = cv2.warpAffine(orig_small, warp_matrix, (500,500,3), flags=cv2.INTER_LINEAR + cv2.WARP_INVERSE_MAP)
+    cv2.imshow("query aligned", query_aligned)
+    cv2.imshow("aligned orig", im_aligned)
+    aligned_path = "aligned_%s_%s.jpg" % (sheet_name, "-".join(map(str,closest_bbox)))
+    cv2.imwrite(aligned_path, im_aligned)
 
-        if closest_image is None or distances[0] > min_dist:
-            closest_image= reference_river_image
-            closest_bbox = bbox
-            min_dist = distances[0]
+    # georeference aligned query image with bounding box
+    georeference(aligned_path, "georef_sheet_%s.tif" % sheet_name, closest_bbox)
 
-        print("Distances:",*distances, bbox,time.time()-time_now)
-        time_now = time.time()
-
-    end_time = time.time()
-    print("time spent:",end_time - start_time)
-    print("best sheet:", find_sheet.find_name_for_bbox("data/blattschnitt_dr100.geojson",closest_bbox),"with",min_dist)
-
-    cv2.imshow("img", cv2.resize(img,(img.shape[1]//4,img.shape[0]//4)))
-    cv2.imshow("water mask from map", cv2.resize(water_mask,(water_mask.shape[1]//4,water_mask.shape[0]//4)))
-    cv2.imshow("closest reference rivers from OSM", cv2.resize(closest_image,(closest_image.shape[1]//2,closest_image.shape[0]//2)))
-    cv2.waitKey()
-
-    # cv2.imwrite(args.output, out)
-
-    cv2.waitKey(20)
+    cv2.waitKey(0)
