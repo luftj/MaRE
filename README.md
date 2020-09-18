@@ -21,5 +21,4 @@ Requires
 
 ## To Do
 * automagically adjust segmentation parameters depending on image resolution
-* matching
-* bbox selection
+* better matching

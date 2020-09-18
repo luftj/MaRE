@@ -1,83 +1,13 @@
 import cv2
 import argparse
 import numpy as np
-import overpass
 import json
-# from matplotlib import pyplot as plt
+from matplotlib import pyplot as plt
 
-from simple_cb import simplest_cb
-
-def extract_blue(img):
-    img_cb = simplest_cb(img, args.percent)
-    img_cie = cv2.cvtColor(img, cv2.COLOR_BGR2Lab)
-
-    img_cie = simplest_cb(img_cie, args.percent)
-
-    # TODO: adjust kernel sizes to image resolution
-    ksize = (5, 5) 
-    img_cie = cv2.blur(img_cie, ksize)  
-
-    l,a,b = cv2.split(img_cie)
-
-    # cv2.imshow("b",cv2.resize(b,(b.shape[1]//2,b.shape[0]//2)))
-
-    lowerBound = (10, 0, 0)
-    upperBound = (255, 90, 70)
-
-    img_thresh = cv2.inRange(img_cie, lowerBound, upperBound)
-    # cv.Not(cv_rgb_thresh, cv_rgb_thresh)
-
-    # retm,b_threshold = cv2.threshold(b,5,255,cv2.THRESH_BINARY)
-    # cv2.imshow("b_threshold",cv2.resize(b_threshold,(b_threshold.shape[1]//2,b_threshold.shape[0]//2)))
-    # retm,a_threshold = cv2.threshold(a,5,255,cv2.THRESH_BINARY)
-    # cv2.imshow("a_threshold",cv2.resize(a_threshold,(a_threshold.shape[1]//2,a_threshold.shape[0]//2)))
-
-    # plt.subplot(2,2,1), plt.imshow(img)
-    # plt.title('Original Image'), plt.xticks([]), plt.yticks([])
-    # plt.subplot(2,2,2), plt.imshow(img_cie)
-    # plt.title('LAB Image'), plt.xticks([]), plt.yticks([])
-    # plt.subplot(2,2,3), plt.imshow(img_thresh)
-    # plt.title('thresh Image'), plt.xticks([]), plt.yticks([])
-    # plt.subplot(2,2,4), plt.hist((b.ravel(),a.ravel()), 256)
-    # plt.title('b Histogram'), plt.xticks([]), plt.yticks([])
-    # plt.show()
-
-    # ksize = (5, 5) 
-    # opening = cv2.morphologyEx(img_thresh, cv2.MORPH_OPEN, ksize)
-    # # cv2.imshow("opening",cv2.resize(opening,(opening.shape[1]//2,opening.shape[0]//2)))
-
-    # ksize = (33, 33) 
-    # # closing = cv2.morphologyEx(img_thresh, cv2.MORPH_CLOSE, ksize)
-    # # cv2.imshow("closing",cv2.resize(closing,(closing.shape[1]//2,closing.shape[0]//2)))
-
-    # dilation = cv2.dilate(img_thresh,ksize,iterations = 4)
-    # cv2.imshow("dilation",cv2.resize(dilation,(dilation.shape[1]//2,dilation.shape[0]//2)))
-
-    return img_thresh
-
-def get_from_osm(bbox=[16.3,54.25,16.834,54.5]):
-    sorted_bbox = ",".join(map(str,[bbox[1],bbox[0],bbox[3],bbox[2]]))
-    query = '(way (%s) [water=lake]; way (%s) [natural=water] [name]; way (%s) [type=waterway] [name]; way (%s) [waterway=river] [name];);out geom;' % (sorted_bbox,sorted_bbox,sorted_bbox,sorted_bbox) # ; (._;>;)
-
-    print(query)
-    api = overpass.API()
-    result = api.get(query)
-    
-    print("#raw features:",len(result["features"]))
-    # clean up geojson: no empty geometries
-    result["features"] = [ f for f in result["features"] if len(f["geometry"]["coordinates"]) > 0]
-    # filter geojson: no point features
-    result["features"] = [ f for f in result["features"] if f["geometry"]["type"] != "Point"]
-    for feat in result["features"]:
-        if feat["geometry"]["coordinates"][0] == feat["geometry"]["coordinates"][-1]:
-            feat["geometry"]["type"] = "Polygon"
-            feat["geometry"]["coordinates"] = [feat["geometry"]["coordinates"]]
-    print("#line+poly features:",len(result["features"]))
-    
-    with open("rivers_%s.geojson" % "_".join(map(str,bbox)),mode="w") as f:
-        json.dump(result,f)
-
-    return result
+import find_sheet
+import osm
+import segmentation
+from matching import feature_matching_brief
 
 def coord_to_point(coords, bbox, img_size, castint=True):
     lon = coords[0]
@@ -90,7 +20,7 @@ def coord_to_point(coords, bbox, img_size, castint=True):
         y = int(y)
     return (x,y)
 
-def paint_rivers(json_data, bbox=[16.3333,54.25,16.8333333,54.5], img_size=(1000,850)):
+def paint_features(json_data, bbox=[16.3333,54.25,16.8333333,54.5], img_size=(1000,850)):
     image = np.zeros(shape=img_size[::-1], dtype=np.uint8)
     # print(image.shape)
     for feature in json_data["features"]:
@@ -108,36 +38,100 @@ def paint_rivers(json_data, bbox=[16.3333,54.25,16.8333333,54.5], img_size=(1000
             raise NotImplementedError("drawing feature type not implemented %s!" % feature["geometry"]["type"])
     return image
 
-def which_utm_zone(bbox):
-    if bbox[2] < bbox[0]:
-        raise ValueError("maxx < minx! bbox in wrong order or across antemeridian")
+def compute_similarities(query_image, reference_image):
+    # from skimage.metrics import structural_similarity as ssim
+    # from skimage.metrics import mean_squared_error
+    
+    if cv2.countNonZero(query_image) == 0 or cv2.countNonZero(reference_image) == 0:
+        # empty image
+        return [0]
+    
+    query_image_resized = cv2.resize(query_image,reference_image.shape[::-1])
+    n_matches = feature_matching_brief(query_image_resized,reference_image)
+    
+    # mse = mean_squared_error(query_image_resized, reference_image)
+    # ssim_v = ssim(query_image_resized, reference_image, data_range=reference_image.max() - reference_image.min())
+    return [n_matches]
 
-    lon,lat = ((bbox[0]+bbox[2])/2, (bbox[1]+bbox[3])/2) # WARNING: won't work when crossing the antemeridian!
-    num = (lon + 180) // 6 + 1
-    n_s = "N" if lat > 0 else "S"
-    zone = "%d%s" % (num, n_s)
-    return zone
+def calculate_HOG(image):
+    import matplotlib.pyplot as plt
+
+    from skimage.feature import hog
+    from skimage import exposure
+
+    image = cv2.resize(image,(1000,1000))
+
+    image = np.array(image,dtype=np.float)
+    image /= 255
+
+    fd, hog_image = hog(image, orientations=8, pixels_per_cell=(16, 16),
+                        cells_per_block=(1, 1), visualize=True, feature_vector=False)
+    nz = np.where(fd != 0)
+    
+    print(len(fd),len(nz[0]),nz)
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(8, 4), sharex=True, sharey=True)
+
+    ax1.axis('off')
+    ax1.imshow(image, cmap=plt.cm.gray)
+    ax1.set_title('Input image')
+
+    # Rescale histogram for better display
+    hog_image_rescaled = exposure.rescale_intensity(hog_image, in_range=(0, 10))
+
+    ax2.axis('off')
+    ax2.imshow(hog_image_rescaled, cmap=plt.cm.gray)
+    ax2.set_title('Histogram of Oriented Gradients')
+    plt.show()
+    return fd
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("input", help="input file path string")
     # parser.add_argument("output", help="output file path string")
-    parser.add_argument("percent", help="threshold", default=5,type=int)
+    parser.add_argument("percent", help="threshold", default=5, type=int)
     args = parser.parse_args()
 
-    bbox = [16.3333,54.25,16.8333333,54.5]
-    print("UTM zone:", which_utm_zone(bbox))
-
-    rivers_json = get_from_osm(bbox)
-    reference_river_image = paint_rivers(rivers_json, bbox)
+    bboxes = find_sheet.get_bboxes_from_json("data/blattschnitt_dr100.geojson")
+    bboxes = bboxes[610:750]
 
     img = cv2.imread(args.input)
-    cv2.imshow("img", cv2.resize(img,(img.shape[1]//4,img.shape[0]//4)))
 
-    water_mask = extract_blue(img)
+    water_mask = segmentation.extract_blue(img, args.percent)
+
+    closest_image = None
+    closest_bbox = None
+    min_dist = -1
+
+    import time
+    start_time = time.time()
+
+    for bbox in bboxes:
+        time_now = time.time()
+        rivers_json = osm.get_from_osm(bbox)
+        reference_river_image = paint_features(rivers_json, bbox)
+        
+        reference_river_image = cv2.copyMakeBorder(reference_river_image,50,150,50,50,cv2.BORDER_CONSTANT,None,0)
+
+        distances = compute_similarities(water_mask, reference_river_image)
+
+        if closest_image is None or distances[0] > min_dist:
+            closest_image= reference_river_image
+            closest_bbox = bbox
+            min_dist = distances[0]
+
+        print("Distances:",*distances, bbox,time.time()-time_now)
+        time_now = time.time()
+
+    end_time = time.time()
+    print("time spent:",end_time - start_time)
+    print("best sheet:", find_sheet.find_name_for_bbox("data/blattschnitt_dr100.geojson",closest_bbox),"with",min_dist)
+
+    cv2.imshow("img", cv2.resize(img,(img.shape[1]//4,img.shape[0]//4)))
     cv2.imshow("water mask from map", cv2.resize(water_mask,(water_mask.shape[1]//4,water_mask.shape[0]//4)))
+    cv2.imshow("closest reference rivers from OSM", cv2.resize(closest_image,(closest_image.shape[1]//2,closest_image.shape[0]//2)))
+    cv2.waitKey()
 
     # cv2.imwrite(args.output, out)
 
-    cv2.imshow("reference rivers from OSM", cv2.resize(reference_river_image,(reference_river_image.shape[1]//2,reference_river_image.shape[0]//2)))
-    cv2.waitKey()
+    cv2.waitKey(20)
