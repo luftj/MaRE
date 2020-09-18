@@ -1,4 +1,4 @@
-*.geojson
+data/osm/*.geojson
 
 
 
