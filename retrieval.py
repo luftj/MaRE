@@ -1,5 +1,8 @@
 import numpy as np
 import cv2
+import time
+
+import osm
 
 def compute_hausdorff(query_image, reference_image, dist_fxn="cosine"):
     from hausdorff import hausdorff_distance
@@ -69,3 +72,49 @@ def feature_matching_brief(img1, img2):
     ax.set_title("Query Image vs. Reference Image")
 
     # plt.show()
+
+def compute_similarities(query_image, reference_image):
+    # from skimage.metrics import structural_similarity as ssim
+    # from skimage.metrics import mean_squared_error
+    
+    if cv2.countNonZero(query_image) == 0 or cv2.countNonZero(reference_image) == 0:
+        # empty image
+        return [0]
+    
+    query_image_resized = cv2.resize(query_image,reference_image.shape[::-1])
+    n_matches = feature_matching_brief(query_image_resized,reference_image)
+    
+    # mse = mean_squared_error(query_image_resized, reference_image)
+    # ssim_v = ssim(query_image_resized, reference_image, data_range=reference_image.max() - reference_image.min())
+    return [n_matches]
+
+def retrieve_best_match(query_image, bboxes):
+    closest_image = None
+    closest_bbox = None
+    best_dist = -1
+
+    start_time = time.time()
+
+    for idx,bbox in enumerate(bboxes):
+        time_now = time.time()
+        rivers_json = osm.get_from_osm(bbox)
+        reference_river_image = osm.paint_features(rivers_json, bbox)
+        
+        # todo: roughly detect border in query image?
+        # maybe it is not necessary with more robust matching technique
+        # reference_river_image = cv2.copyMakeBorder(reference_river_image, 50,150,50,50, cv2.BORDER_CONSTANT, None, 0)
+
+        distances = compute_similarities(query_image, reference_river_image)
+
+        if closest_image is None or distances[0] > best_dist:
+            closest_image = reference_river_image
+            closest_bbox = bbox
+            best_dist = distances[0]
+
+        print("%d/%d" % (idx, len(bboxes)),"Distances:", *distances, bbox, time.time()-time_now)
+        time_now = time.time()
+
+    end_time = time.time()
+    print("time spent:", end_time - start_time)
+
+    return closest_image,closest_bbox,best_dist
