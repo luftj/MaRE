@@ -192,13 +192,13 @@ def plot_template(query_image, reference_image_border, template, x, y, match_x, 
     ax[3].add_patch(rect)
     plt.show()
 
-def plot_template_matches(keypoints_q,keypoints_r, descs_q, descs_r, inliers,query_image, reference_image_border):
+def plot_template_matches(keypoints_q,keypoints_r, inliers,query_image, reference_image_border):
     import matplotlib.pyplot as plt
     from skimage.feature import plot_matches
 
     matches = np.array(list(zip(range(len(keypoints_q)),range(len(keypoints_q)))))
-    inlier_keypoints_left = descs_q[matches[inliers, 0]]
-    inlier_keypoints_right = descs_r[matches[inliers, 1]]
+    # inlier_keypoints_left = descs_q[matches[inliers, 0]]
+    # inlier_keypoints_right = descs_r[matches[inliers, 1]]
 
     print(f"Number of matches: {matches.shape[0]}")
     print(f"Number of inliers: {inliers.sum()}")
@@ -212,6 +212,22 @@ def plot_template_matches(keypoints_q,keypoints_r, descs_q, descs_r, inliers,que
                 matches[inliers])
 
     plt.show()
+
+def match_templates(templates,reference_image_border, window_size):
+    keypoints_r = []
+    matching_score = 0
+    for template in templates:      
+        # optional: reduce search space by only looking at/around interest points in reference image
+        # find query template in reference image
+        match_x, match_y, score = match_template(reference_image_border, template)
+        keypoints_r.append([match_y+window_size, match_x+window_size])
+        # store best matching score
+        matching_score += score
+        
+    # calculate metric from all matching scores for all samples. e.g. average
+    matching_score /= len(keypoints_r)
+
+    return keypoints_r, matching_score
 
 def template_matching(query_image, reference_image, n_samples=50, window_size=30, patch_min_area=0.1, patch_max_area=0.8):
     import cv2
@@ -234,6 +250,7 @@ def template_matching(query_image, reference_image, n_samples=50, window_size=30
     # make border of window size around reference image, to catch edge cases
     reference_image_border = cv2.copyMakeBorder(reference_image, window_size,window_size,window_size,window_size, cv2.BORDER_CONSTANT, None, 0)
     
+    scores = []
     # match all sample points
     for sample_point in corners:
         x,y = sample_point[0], sample_point[1]
@@ -255,8 +272,11 @@ def template_matching(query_image, reference_image, n_samples=50, window_size=30
         match_x, match_y, score = match_template(reference_image_border, template)
         keypoints_r.append([match_y+window_size, match_x+window_size])
         
+        scores.append(score)
         # print("R,M,S:",(x,y),(match_x,match_y),score)
         # plot_template()
+
+    # optional: filter matches by score
 
     # ransac those template matches!
     keypoints_q = np.array(keypoints_q)
@@ -268,17 +288,21 @@ def template_matching(query_image, reference_image, n_samples=50, window_size=30
 
     if inliers is None:
         num_inliers = 0
+        ransac_matching_score = 0
     else:
         num_inliers = inliers.sum()
+        scores = np.array(scores)
+        ransac_matching_score = sum(scores[inliers]) / num_inliers
 
-    # plot_template_matches()
+    # plot_template_matches(keypoints_q,keypoints_r, inliers, query_image, reference_image_border)
 
     # store best matching score
     matching_score += score
 
     # calculate metric from all matching scores for all samples. e.g. average
-    matching_score /= n_samples
-    return matching_score, num_inliers
+    matching_score /= len(keypoints_r)
+
+    return matching_score, ransac_matching_score, num_inliers
 
 def retrieve_best_match(query_image, bboxes):
     closest_image = None
@@ -289,18 +313,21 @@ def retrieve_best_match(query_image, bboxes):
 
     score_list = []
 
+    window_size = 30
+    query_image_small = cv2.resize(query_image, (500,500))
+
     for idx,bbox in enumerate(bboxes):
         time_now = time.time()
         rivers_json = osm.get_from_osm(bbox)
         reference_river_image = osm.paint_features(rivers_json, bbox)
 
-        query_image_small = cv2.resize(query_image, (500,500))
-        reference_image_small = cv2.resize(reference_river_image, (500,500))
+        reference_image_small = cv2.resize(reference_river_image, (500-window_size*2,500-window_size*2))
 
-        matching_score, num_inliers = template_matching(query_image_small, reference_image_small)
+        matching_score, ransac_matching_score, num_inliers = template_matching(query_image_small, reference_image_small, window_size=window_size)
+        # matching_score, num_inliers = template_matching(keypoints_q,templates, query_image_small, reference_image_small)
 
-        distances = [num_inliers, matching_score]
-        score_list.append((distances[0], idx))
+        distances = [num_inliers, matching_score, ransac_matching_score]
+        score_list.append((*distances, idx))
         if closest_image is None or distances[0] > best_dist:
             closest_image = reference_river_image
             closest_bbox = bbox

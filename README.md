@@ -22,3 +22,5 @@ Requires
 ## To Do
 * automagically adjust segmentation parameters depending on image resolution
 * collect and evaluate all parameters
+* auto resize input image
+* crop input image to remove scanning edge?

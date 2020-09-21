@@ -1,6 +1,6 @@
 numpy
-opencv
+opencv-python # opencv-contrib-python
 argparse
 overpass
-hausdorff
-numba
+# hausdorff
+# numba
