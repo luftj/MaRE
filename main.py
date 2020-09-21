@@ -9,23 +9,26 @@ from retrieval import retrieve_best_match
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("input", help="input file path string")
-    # parser.add_argument("output", help="output file path string")
-    parser.add_argument("percent", help="threshold", default=5, type=int)
+    parser.add_argument("sheets", help="sheets json file path string", default="data/blattschnitt_dr100.geojson")
+    parser.add_argument("percent", help="colour balancethreshold", default=5, type=int)
+    parser.add_argument("--noimg", help="", action="store_true")
     args = parser.parse_args()
 
-    sheets_file = "data/blattschnitt_dr100.geojson"
+    sheets_file = args.sheets
     bboxes = find_sheet.get_bboxes_from_json(sheets_file)
-    bboxes = bboxes[624:627]
+    # bboxes = bboxes[620:630] # gt-sheet 66 at idx 626
 
-    map_img = cv2.imread(args.input)
+    map_img = cv2.imread(args.input) # load map image
 
-    water_mask = segmentation.extract_blue(map_img, args.percent)
+    water_mask = segmentation.extract_blue(map_img, args.percent) # extract rivers
 
     # find the bbox for this query image
-    closest_image, closest_bbox, dist = retrieve_best_match(water_mask, bboxes)
+    closest_image, closest_bbox, dist, score_list = retrieve_best_match(water_mask, bboxes)
     
+    score_list= [(s[0],find_sheet.find_name_for_bbox(sheets_file, bboxes[s[1]])) for s in score_list]
     sheet_name = find_sheet.find_name_for_bbox(sheets_file, closest_bbox)
     print("best sheet:", sheet_name, "with", dist)
+    print("ground truth at position:", len(score_list) - [s[1] for s in score_list].index("66"))
 
     # cv2.imshow("map_img", cv2.resize(map_img, (500,500)))
     # cv2.imshow("water mask from map", cv2.resize(water_mask, (500,500)))

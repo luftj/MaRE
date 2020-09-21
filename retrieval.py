@@ -4,6 +4,72 @@ import time
 
 import osm
 
+def hist(ax, lbp):
+    print("start hists")
+    print(lbp.shape)
+    n_bins = int(lbp.max() + 1)
+    return ax.hist(lbp.ravel(), density=True, bins=n_bins, range=(0, n_bins),
+                facecolor='0.5')
+
+def lbp(image):
+    from skimage.transform import rotate
+    from skimage.feature import local_binary_pattern
+    from skimage import data
+    from skimage.color import label2rgb
+    from matplotlib import pyplot as plt
+
+    # settings for LBP
+    radius = 3
+    n_points = 8 * radius
+
+    image = cv2.resize(image,(250,212))
+
+
+    def overlay_labels(image, lbp, labels):
+        mask = np.logical_or.reduce([lbp == each for each in labels])
+        return label2rgb(mask, image=image, bg_label=0, alpha=0.5)
+
+
+    def highlight_bars(bars, indexes):
+        for i in indexes:
+            bars[i].set_facecolor('r')
+
+    lbp = local_binary_pattern(image, n_points, radius)
+    cv2.imshow("lbp",lbp)
+    cv2.waitKey(30)
+
+    # plot histograms of LBP of textures
+    fig, (ax_img, ax_hist) = plt.subplots(nrows=2, ncols=3, figsize=(9, 6))
+    plt.gray()
+
+    titles = ('edge', 'flat', 'corner')
+    w = width = radius - 1
+    edge_labels = range(n_points // 2 - w, n_points // 2 + w + 1)
+    flat_labels = list(range(0, w + 1)) + list(range(n_points - w, n_points + 2))
+    i_14 = n_points // 4            # 1/4th of the histogram
+    i_34 = 3 * (n_points // 4)      # 3/4th of the histogram
+    corner_labels = (list(range(i_14 - w, i_14 + w + 1)) +
+                    list(range(i_34 - w, i_34 + w + 1)))
+
+    label_sets = (edge_labels, flat_labels, corner_labels)
+
+    for ax, labels in zip(ax_img, label_sets):
+        ax.imshow(overlay_labels(image, lbp, labels))
+
+    print("start plots")
+    for ax, labels, name in zip(ax_hist, label_sets, titles):
+        print("a plots")
+        counts, _, bars = hist(ax, lbp)
+        print("b plots")
+        highlight_bars(bars, labels)
+        ax.set_ylim(top=np.max(counts[:-1]))
+        ax.set_xlim(right=n_points + 2)
+        ax.set_title(name)
+
+    ax_hist[0].set_ylabel('Percentage')
+    for ax in ax_img:
+        ax.axis('off')
+
 def compute_hausdorff(query_image, reference_image, dist_fxn="cosine"):
     from hausdorff import hausdorff_distance
 
@@ -17,7 +83,6 @@ def compute_hausdorff(query_image, reference_image, dist_fxn="cosine"):
     Y = np.array([ p[0] for p in reference_points])
 
     return  hausdorff_distance(Y, X, distance=dist_fxn)
-
 
 def feature_matching_brief(img1, img2):
     from skimage import data
@@ -88,6 +153,133 @@ def compute_similarities(query_image, reference_image):
     # ssim_v = ssim(query_image_resized, reference_image, data_range=reference_image.max() - reference_image.min())
     return [n_matches]
 
+def detect_corners(image):
+    from skimage.feature import corner_harris, corner_fast, corner_subpix, corner_peaks
+
+    coords = corner_peaks(corner_fast(image), min_distance=10, threshold_rel=0)
+    coords_subpix = corner_subpix(image, coords, window_size=13)
+    return coords, coords_subpix
+
+def match_template(image, template):
+    import matplotlib.pyplot as plt
+
+    from skimage import data
+    from skimage.feature import match_template
+
+    result = match_template(image, template)
+    ij = np.unravel_index(np.argmax(result), result.shape)
+    x, y = ij[::-1]
+    corr_coef = result[y,x]
+    return (x, y, corr_coef)
+
+def plot_template(query_image, reference_image_border, template, x, y, match_x, match_y, pixel_high_percent, score):
+    import matplotlib.pyplot as plt
+
+    fig, ax = plt.subplots(ncols=4)
+    ax[0].imshow(query_image)
+    htemplate, wtemplate = template.shape
+    rect = plt.Rectangle((x-wtemplate//2, y-htemplate//2), wtemplate, htemplate, edgecolor='r', facecolor='none')
+    ax[0].add_patch(rect)
+    ax[1].imshow(template)
+    ax[1].set_title("pixel %%: %f" % pixel_high_percent)
+    match = reference_image_border[match_y:match_y+htemplate, match_x:match_x+wtemplate]
+    ax[2].imshow(match)
+    ax[3].imshow(reference_image_border, cmap=plt.cm.gray)
+    ax[3].set_axis_off()
+    ax[3].set_title('score: %f' % (score))
+    # highlight matched region
+    rect = plt.Rectangle((match_x, match_y), wtemplate, htemplate, edgecolor='r', facecolor='none')
+    ax[3].add_patch(rect)
+    plt.show()
+
+def plot_template_matches(keypoints_q,keypoints_r, descs_q, descs_r, inliers,query_image, reference_image_border):
+    import matplotlib.pyplot as plt
+    from skimage.feature import plot_matches
+
+    matches = np.array(list(zip(range(len(keypoints_q)),range(len(keypoints_q)))))
+    inlier_keypoints_left = descs_q[matches[inliers, 0]]
+    inlier_keypoints_right = descs_r[matches[inliers, 1]]
+
+    print(f"Number of matches: {matches.shape[0]}")
+    print(f"Number of inliers: {inliers.sum()}")
+    fig, ax = plt.subplots(nrows=2, ncols=1)
+
+    plt.gray()
+
+    plot_matches(ax[0], (255-query_image), (255-reference_image_border), keypoints_q, keypoints_r,
+                matches)
+    plot_matches(ax[1], (255-query_image), (255-reference_image_border), keypoints_q, keypoints_r,
+                matches[inliers])
+
+    plt.show()
+
+def template_matching(query_image, reference_image, n_samples=50, window_size=30, patch_min_area=0.1, patch_max_area=0.8):
+    import cv2
+    import random
+    from skimage.measure import ransac
+    from skimage.transform import AffineTransform
+
+    matching_score = 0
+    keypoints_q = []
+    keypoints_r = []
+
+    # find interest points in query image (e.g. corners or white pixels)
+    # white_pixels = list(cv2.findNonZero(query_image)) # returns np.array([x,y],...)
+    # samples_positions = random.sample(white_pixels, k=n_samples)
+    # samples_positions = np.array(samples_positions)
+
+    # sample interest point
+    corners, subpix = detect_corners(query_image)
+
+    # make border of window size around reference image, to catch edge cases
+    reference_image_border = cv2.copyMakeBorder(reference_image, window_size,window_size,window_size,window_size, cv2.BORDER_CONSTANT, None, 0)
+    
+    # match all sample points
+    for sample_point in corners:
+        x,y = sample_point[0], sample_point[1]
+        # extract template from query image around sampled point
+        template = query_image[y-window_size:y+window_size, x-window_size:x+window_size]
+        # skip patches that are not very descriptive
+        num_pixels_high = cv2.countNonZero(template)
+        pixel_high_percent = num_pixels_high / window_size**2
+
+        if pixel_high_percent < patch_min_area or pixel_high_percent > patch_max_area:
+            # don't consider ambiguous patches
+            # newsample = corners[np.random.choice(corners.shape[0], 1, replace=False)]#[np.random.choice(list(corners), replace=False)]
+            continue
+
+        keypoints_q.append([y,x])
+        
+        # optional: reduce search space by only looking at/around interest points in reference image
+        # find query template in reference image
+        match_x, match_y, score = match_template(reference_image_border, template)
+        keypoints_r.append([match_y+window_size, match_x+window_size])
+        
+        # print("R,M,S:",(x,y),(match_x,match_y),score)
+        # plot_template()
+
+    # ransac those template matches!
+    keypoints_q = np.array(keypoints_q)
+    keypoints_r = np.array(keypoints_r)
+    
+    model, inliers = ransac((keypoints_q, keypoints_r),
+                        AffineTransform, min_samples=3,
+                        residual_threshold=5, max_trials=5000)
+
+    if inliers is None:
+        num_inliers = 0
+    else:
+        num_inliers = inliers.sum()
+
+    # plot_template_matches()
+
+    # store best matching score
+    matching_score += score
+
+    # calculate metric from all matching scores for all samples. e.g. average
+    matching_score /= n_samples
+    return matching_score, num_inliers
+
 def retrieve_best_match(query_image, bboxes):
     closest_image = None
     closest_bbox = None
@@ -95,26 +287,28 @@ def retrieve_best_match(query_image, bboxes):
 
     start_time = time.time()
 
+    score_list = []
+
     for idx,bbox in enumerate(bboxes):
         time_now = time.time()
         rivers_json = osm.get_from_osm(bbox)
         reference_river_image = osm.paint_features(rivers_json, bbox)
-        
-        # todo: roughly detect border in query image?
-        # maybe it is not necessary with more robust matching technique
-        # reference_river_image = cv2.copyMakeBorder(reference_river_image, 50,150,50,50, cv2.BORDER_CONSTANT, None, 0)
 
-        distances = compute_similarities(query_image, reference_river_image)
+        query_image_small = cv2.resize(query_image, (500,500))
+        reference_image_small = cv2.resize(reference_river_image, (500,500))
 
+        matching_score, num_inliers = template_matching(query_image_small, reference_image_small)
+
+        distances = [num_inliers, matching_score]
+        score_list.append((distances[0], idx))
         if closest_image is None or distances[0] > best_dist:
             closest_image = reference_river_image
             closest_bbox = bbox
             best_dist = distances[0]
 
-        print("%d/%d" % (idx, len(bboxes)),"Distances:", *distances, bbox, time.time()-time_now)
+        print("%d/%d" % (idx, len(bboxes)),"Distances:", *distances, "/", best_dist, bbox, time.time()-time_now)
         time_now = time.time()
-
     end_time = time.time()
     print("time spent:", end_time - start_time)
-
-    return closest_image,closest_bbox,best_dist
+    score_list.sort(key=lambda x: x[0])
+    return closest_image,closest_bbox,best_dist, score_list

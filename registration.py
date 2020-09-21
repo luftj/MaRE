@@ -3,6 +3,8 @@ import numpy as np
 import os
 
 def register_ECC(query_image, reference_image, warp_mode = cv2.MOTION_AFFINE):
+    # taken from https://www.learnopencv.com/image-alignment-ecc-in-opencv-c-python/
+    
     print("starting registration...")
     # Find size of image1
     sz = reference_image.shape
