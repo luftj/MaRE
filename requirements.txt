@@ -1,6 +1,7 @@
 numpy
 opencv-python # opencv-contrib-python
 argparse
-overpass
+osmtogeojson
+# overpass
 # hausdorff
 # numba
