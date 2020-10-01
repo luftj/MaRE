@@ -1,30 +1,32 @@
 import cv2
 import argparse
 from matplotlib import pyplot as plt
+from numpy import fromfile, uint8
 
 import find_sheet
 import segmentation
 import registration
 from retrieval import retrieve_best_match
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("input", help="input file path string")
-    parser.add_argument("sheets", help="sheets json file path string", default="data/blattschnitt_dr100.geojson")
-    parser.add_argument("--percent", help="colour balancethreshold", default=5, type=int)
-    parser.add_argument("--noimg", help="set this flag to save resulting image files to disk", action="store_true")
-    parser.add_argument("--plot", help="set this to true to show debugging plots", action="store_true")
-    args = parser.parse_args()
+def restrict__bboxes(sheets_path, target, num=10):
+    bboxes = find_sheet.get_bboxes_from_json(sheets_path)
+    idx = find_sheet.get_index_of_sheet(sheets_path, target)
+    print(target,idx)
+    start = max(0,idx-(num//2))
+    return bboxes[start:idx+(num//2)]
 
-    sheets_file = args.sheets
-    bboxes = find_sheet.get_bboxes_from_json(sheets_file)
-    # bboxes = bboxes[626:627] # gt-sheet 66 at idx 626
-    bboxes = bboxes[124:125] # gt-sheet 259 at idx 125
-    # bboxes = bboxes[90:93] # gt-sheet 258 at idx 92
+eval_results = []
 
-    map_img = cv2.imread(args.input) # load map image
+def process_sheet(img_path, sheets_path, cb_percent, plot=False, img=True, number=None):
+    if number:
+        bboxes = restrict__bboxes(sheets_path, number, 10)
+    else:
+        bboxes = find_sheet.get_bboxes_from_json(sheets_path)
 
-    water_mask = segmentation.extract_blue(map_img, args.percent) # extract rivers
+    map_img = cv2.imdecode(fromfile(img_path, dtype=uint8), cv2.IMREAD_UNCHANGED)
+    # map_img = cv2.imread(img_path) # load map image # WARNING: imread does not allow unicode file names!
+
+    water_mask = segmentation.extract_blue(map_img, cb_percent) # extract rivers
 
     # find the bbox for this query image
     closest_image, closest_bbox, dist, score_list = retrieve_best_match(water_mask, bboxes)
@@ -32,12 +34,10 @@ if __name__ == "__main__":
     score_list= [(*s[:-1], find_sheet.find_name_for_bbox(sheets_file, bboxes[s[-1]])) for s in score_list]
     sheet_name = score_list[-1][-1] #find_sheet.find_name_for_bbox(sheets_file, closest_bbox)
     print("best sheet:", sheet_name, "with", dist)
-    # print("ground truth at position:", len(score_list) - [s[-1] for s in score_list].index("66"))
-    print("ground truth at position:", len(score_list) - [s[-1] for s in score_list].index("259"))
-    # print("ground truth at position:", len(score_list) - [s[-1] for s in score_list].index("258"))
+    if number:
+        print("ground truth at position:", len(score_list) - [s[-1] for s in score_list].index(number))
 
-
-    if args.plot:
+    if plot:
         # fig, ax = plt.subplots(nrows=1, ncols=1)
         
         plt.subplot(2, 3, 1)
@@ -70,11 +70,17 @@ if __name__ == "__main__":
         # cv2.imshow("water mask from map", cv2.resize(water_mask, (500,500)))
         # cv2.imshow("closest reference rivers from OSM", cv2.resize(closest_image, (500,500)))
 
-    if not args.noimg:
+    if img:
         cv2.imwrite("refimg_%s_%s.jpg" % (sheet_name, "-".join(map(str,closest_bbox))), closest_image)
 
         # align map image
-        map_img_aligned = registration.align_map_image(map_img, water_mask, closest_image)
+        try:
+            map_img_aligned = registration.align_map_image(map_img, water_mask, closest_image)
+        except cv2.error as e:
+            print(e)
+            print("could not register!")
+            eval_results.append(["pred:"+sheet_name,"gt:"+number,"dist %f"%dist,"gt ar pos %d"%(len(score_list) - [s[-1] for s in score_list].index(number)),"registration: fal","correct: no"])
+            return 
         
         if args.plot:
             plt.imshow(map_img_aligned)
@@ -89,3 +95,35 @@ if __name__ == "__main__":
         # georeference aligned query image with bounding box
         registration.georeference(aligned_map_path, "georef_sheet_%s.tif" % sheet_name, closest_bbox)
         print("done!")
+    eval_results.append(["gt:"+number,"pred:"+sheet_name,"dist %f"%dist,"gt ar pos %d"%(len(score_list) - [s[-1] for s in score_list].index(number)),"registration: succeess","correct %r"%str(number)==str(sheet_name)])
+
+def process_list(list_path, sheets_path, cb_percent, plot=False, img=True):
+    import os
+    list_dir = os.path.dirname(list_path) + "/"
+    with open(list_path, encoding="utf-8") as list_file:
+        for line in list_file:
+            line = line.strip()
+            img_path, ground_truth = line.split(",")
+            if not os.path.isabs(img_path[0]):
+                img_path = os.path.join(list_dir,img_path)
+            print(img_path,ground_truth)
+            process_sheet(img_path, sheets_path, cb_percent, plot=plot, img=img, number=str(ground_truth))
+            print(eval_results)
+
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("input", help="input file path string")
+    parser.add_argument("sheets", help="sheets json file path string", default="data/blattschnitt_dr100.geojson")
+    parser.add_argument("--percent", help="colour balancethreshold", default=5, type=int)
+    parser.add_argument("--noimg", help="set this flag to save resulting image files to disk", action="store_true")
+    parser.add_argument("--plot", help="set this to true to show debugging plots", action="store_true")
+    args = parser.parse_args()
+
+    sheets_file = args.sheets
+    
+    if args.input[-4:] == ".txt":
+        process_list(args.input, sheets_file, args.percent, plot=args.plot, img=(not args.noimg))
+    else:
+        process_sheet(args.input, sheets_file, args.percent, plot=args.plot, img=(not args.noimg))

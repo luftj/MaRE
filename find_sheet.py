@@ -38,6 +38,20 @@ def get_bboxes_from_json(filepath):
 
     return bboxes
 
+def get_index_of_sheet(sheetfile, sheet):
+    with open(sheetfile) as file:
+        json_data = json.load(file)
+
+        for idx,feature in enumerate(json_data["features"]):
+            if feature["properties"]["blatt_100"] == sheet:
+                return idx
+            if feature["properties"]["blatt_ostmark"] == sheet:
+                return idx
+            if feature["properties"]["blatt_polen"] == sheet:
+                return idx
+    
+    return None # not found
+
 def find_name_for_bbox(sheetfile, bbox):
     with open(sheetfile) as file:
         json_data = json.load(file)
