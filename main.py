@@ -17,7 +17,7 @@ def restrict__bboxes(sheets_path, target, num=10):
 
 eval_results = []
 
-def process_sheet(img_path, sheets_path, cb_percent, plot=False, img=True, number=None):
+def process_sheet(img_path, sheets_path, cb_percent, plot=False, img=True, number=None, resize=None):
     if number:
         bboxes = restrict__bboxes(sheets_path, number, 10)
     else:
@@ -25,6 +25,12 @@ def process_sheet(img_path, sheets_path, cb_percent, plot=False, img=True, numbe
 
     map_img = cv2.imdecode(fromfile(img_path, dtype=uint8), cv2.IMREAD_UNCHANGED)
     # map_img = cv2.imread(img_path) # load map image # WARNING: imread does not allow unicode file names!
+
+    if resize:
+        target_width = resize
+        f = target_width / map_img.shape[1]
+        target_height = int(f * map_img.shape[0])
+        map_img = cv2.resize(map_img, (target_width, target_height), cv2.INTER_AREA if f < 1 else cv2.INTER_CUBIC) # area interpolation for downisizing, cubic upscaling
 
     water_mask = segmentation.extract_blue(map_img, cb_percent) # extract rivers
 
@@ -79,7 +85,7 @@ def process_sheet(img_path, sheets_path, cb_percent, plot=False, img=True, numbe
         except cv2.error as e:
             print(e)
             print("could not register!")
-            eval_results.append(["pred:"+sheet_name,"gt:"+number,"dist %f"%dist,"gt ar pos %d"%(len(score_list) - [s[-1] for s in score_list].index(number)),"registration: fal","correct: no"])
+            eval_results.append(["pred:"+sheet_name,"gt:"+number,"dist %f"%dist,"gt ar pos %d"%(len(score_list) - [s[-1] for s in score_list].index(number)),"registration: fail","correct: no"])
             return 
         
         if args.plot:
@@ -95,9 +101,10 @@ def process_sheet(img_path, sheets_path, cb_percent, plot=False, img=True, numbe
         # georeference aligned query image with bounding box
         registration.georeference(aligned_map_path, "georef_sheet_%s.tif" % sheet_name, closest_bbox)
         print("done!")
-    eval_results.append(["gt:"+number,"pred:"+sheet_name,"dist %f"%dist,"gt ar pos %d"%(len(score_list) - [s[-1] for s in score_list].index(number)),"registration: succeess","correct %r"%str(number)==str(sheet_name)])
+    print(number,sheet_name,str(number),str(sheet_name),str(number)==str(sheet_name))
+    eval_results.append(["gt:"+number,"pred:"+sheet_name,"dist %f"%dist,"gt ar pos %d"%(len(score_list) - [s[-1] for s in score_list].index(number)),"registration: success","correct %r"%str(number)==str(sheet_name)])
 
-def process_list(list_path, sheets_path, cb_percent, plot=False, img=True):
+def process_list(list_path, sheets_path, cb_percent, plot=False, img=True, resize=None):
     import os
     list_dir = os.path.dirname(list_path) + "/"
     with open(list_path, encoding="utf-8") as list_file:
@@ -107,7 +114,7 @@ def process_list(list_path, sheets_path, cb_percent, plot=False, img=True):
             if not os.path.isabs(img_path[0]):
                 img_path = os.path.join(list_dir,img_path)
             print(img_path,ground_truth)
-            process_sheet(img_path, sheets_path, cb_percent, plot=plot, img=img, number=str(ground_truth))
+            process_sheet(img_path, sheets_path, cb_percent, plot=plot, img=img, number=str(ground_truth), resize=resize)
             print(eval_results)
 
 
@@ -117,6 +124,7 @@ if __name__ == "__main__":
     parser.add_argument("input", help="input file path string")
     parser.add_argument("sheets", help="sheets json file path string", default="data/blattschnitt_dr100.geojson")
     parser.add_argument("--percent", help="colour balancethreshold", default=5, type=int)
+    parser.add_argument("--resize", help="resize to target width", default=None, type=int)
     parser.add_argument("--noimg", help="set this flag to save resulting image files to disk", action="store_true")
     parser.add_argument("--plot", help="set this to true to show debugging plots", action="store_true")
     args = parser.parse_args()
@@ -124,6 +132,6 @@ if __name__ == "__main__":
     sheets_file = args.sheets
     
     if args.input[-4:] == ".txt":
-        process_list(args.input, sheets_file, args.percent, plot=args.plot, img=(not args.noimg))
+        process_list(args.input, sheets_file, args.percent, plot=args.plot, img=(not args.noimg), resize=args.resize)
     else:
-        process_sheet(args.input, sheets_file, args.percent, plot=args.plot, img=(not args.noimg))
+        process_sheet(args.input, sheets_file, args.percent, plot=args.plot, img=(not args.noimg), resize=args.resize, number="5")

@@ -22,5 +22,8 @@ Requires
 ## To Do
 * automagically adjust segmentation parameters depending on image resolution
 * collect and evaluate all parameters
-* auto resize input image
 * crop input image to remove scanning edge?
+* log eval: avg time per sheet/target, number success, number correct
+* move output to dir
+* more descriptive output file names
+* use original resolution map image for georeferencing
