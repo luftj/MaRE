@@ -1,11 +1,12 @@
 import cv2
 import numpy as np
 import os
+import logging
 
 def register_ECC(query_image, reference_image, warp_mode = cv2.MOTION_AFFINE):
     # taken from https://www.learnopencv.com/image-alignment-ecc-in-opencv-c-python/
     
-    print("starting registration...")
+    logging.debug("starting registration...")
     # Find size of image1
     sz = reference_image.shape
 
@@ -45,7 +46,7 @@ def georeference(inputfile, outputfile, bbox):
     left, top, right, bottom = (bbox[0], bbox[3], bbox[2], bbox[1])
 
     command = "gdal_translate -of GTiff -a_ullr %f %f %f %f -a_srs EPSG:4269 %s %s" % (left, top, right, bottom, inputfile, outputfile)
-    print(command)
+    logging.debug("gdal command: %s" % command)
     os.system(command)
 
 def align_map_image(map_image, query_image, reference_image):

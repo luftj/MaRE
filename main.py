@@ -1,5 +1,9 @@
+
+import sys
 import cv2
 import argparse
+import logging
+from datetime import datetime
 from matplotlib import pyplot as plt
 from numpy import fromfile, uint8
 
@@ -8,18 +12,24 @@ import segmentation
 import registration
 from retrieval import retrieve_best_match
 
-def restrict__bboxes(sheets_path, target, num=10):
+def restrict__bboxes(sheets_path, target, num=4):
+    # for debugging: don't check against all possible sheet locations, but only a subset
     bboxes = find_sheet.get_bboxes_from_json(sheets_path)
     idx = find_sheet.get_index_of_sheet(sheets_path, target)
-    print(target,idx)
+    if not idx:
+        raise ValueError("ground truth name %s not found" % target)
+    logging.debug("restricted bbox %s around idx %s" %(target,idx))
     start = max(0,idx-(num//2))
     return bboxes[start:idx+(num//2)]
 
 eval_results = []
 
 def process_sheet(img_path, sheets_path, cb_percent, plot=False, img=True, number=None, resize=None):
+    logging.info("Processing file %s with gt: %s" % (img_path,number))
+    print("Processing file %s with gt: %s" % (img_path,number))
+
     if number:
-        bboxes = restrict__bboxes(sheets_path, number, 10)
+        bboxes = restrict__bboxes(sheets_path, number)
     else:
         bboxes = find_sheet.get_bboxes_from_json(sheets_path)
 
@@ -34,14 +44,16 @@ def process_sheet(img_path, sheets_path, cb_percent, plot=False, img=True, numbe
 
     water_mask = segmentation.extract_blue(map_img, cb_percent) # extract rivers
 
-    # find the bbox for this query image
+    # find the best bbox for this query image
     closest_image, closest_bbox, dist, score_list = retrieve_best_match(water_mask, bboxes)
     
+    # find sheet name for prediction
     score_list= [(*s[:-1], find_sheet.find_name_for_bbox(sheets_file, bboxes[s[-1]])) for s in score_list]
     sheet_name = score_list[-1][-1] #find_sheet.find_name_for_bbox(sheets_file, closest_bbox)
-    print("best sheet:", sheet_name, "with", dist)
+    logging.info("best sheet: %s with score %f" %(sheet_name, dist))
+
     if number:
-        print("ground truth at position:", len(score_list) - [s[-1] for s in score_list].index(number))
+        logging.info("ground truth at position: %d" % (len(score_list) - [s[-1] for s in score_list].index(number)))
 
     if plot:
         # fig, ax = plt.subplots(nrows=1, ncols=1)
@@ -77,15 +89,15 @@ def process_sheet(img_path, sheets_path, cb_percent, plot=False, img=True, numbe
         # cv2.imshow("closest reference rivers from OSM", cv2.resize(closest_image, (500,500)))
 
     if img:
-        cv2.imwrite("refimg_%s_%s.jpg" % (sheet_name, "-".join(map(str,closest_bbox))), closest_image)
+        cv2.imwrite("data/output/refimg_%s_%s.jpg" % (sheet_name, "-".join(map(str,closest_bbox))), closest_image)
 
         # align map image
         try:
             map_img_aligned = registration.align_map_image(map_img, water_mask, closest_image)
         except cv2.error as e:
-            print(e)
-            print("could not register!")
-            eval_results.append(["pred:"+sheet_name,"gt:"+number,"dist %f"%dist,"gt ar pos %d"%(len(score_list) - [s[-1] for s in score_list].index(number)),"registration: fail","correct: no"])
+            # print(e)
+            logging.warning("%s - could not register %s with prediction %s!" % (e, img_path, sheet_name))
+            eval_results.append(["pred:"+sheet_name,"gt:"+number,"dist %f"%dist,"gt ar pos %d" % (len(score_list) - [s[-1] for s in score_list].index(number)),"registration: fail","correct: no"])
             return 
         
         if args.plot:
@@ -95,14 +107,17 @@ def process_sheet(img_path, sheets_path, cb_percent, plot=False, img=True, numbe
             # cv2.imshow("aligned map", map_img_aligned)
 
         # save aligned map image
-        aligned_map_path = "aligned_%s_%s.jpg" % (sheet_name, "-".join(map(str,closest_bbox)))
+        aligned_map_path = "data/output/aligned_%s_%s.jpg" % (sheet_name, "-".join(map(str,closest_bbox)))
         cv2.imwrite(aligned_map_path, map_img_aligned)
 
         # georeference aligned query image with bounding box
-        registration.georeference(aligned_map_path, "georef_sheet_%s.tif" % sheet_name, closest_bbox)
-        print("done!")
-    print(number,sheet_name,str(number),str(sheet_name),str(number)==str(sheet_name))
-    eval_results.append(["gt:"+number,"pred:"+sheet_name,"dist %f"%dist,"gt ar pos %d"%(len(score_list) - [s[-1] for s in score_list].index(number)),"registration: success","correct %r"%str(number)==str(sheet_name)])
+        outpath = "data/output/georef_sheet_%s.tif" % sheet_name
+        registration.georeference(aligned_map_path, outpath, closest_bbox)
+        logging.info("saved georeferenced file to: %s" % outpath)
+    
+    eval_entry = ["gt:"+number,"pred:"+sheet_name,"dist %f"%dist,"gt at pos %d"%(len(score_list) - [s[-1] for s in score_list].index(number)),"registration: success","correct %r"%(str(number)==str(sheet_name))]
+    logging.info("result: %s" % eval_entry)
+    eval_results.append(eval_entry)
 
 def process_list(list_path, sheets_path, cb_percent, plot=False, img=True, resize=None):
     import os
@@ -113,9 +128,8 @@ def process_list(list_path, sheets_path, cb_percent, plot=False, img=True, resiz
             img_path, ground_truth = line.split(",")
             if not os.path.isabs(img_path[0]):
                 img_path = os.path.join(list_dir,img_path)
-            print(img_path,ground_truth)
             process_sheet(img_path, sheets_path, cb_percent, plot=plot, img=img, number=str(ground_truth), resize=resize)
-            print(eval_results)
+            # print(eval_results)
 
 
 
@@ -127,11 +141,19 @@ if __name__ == "__main__":
     parser.add_argument("--resize", help="resize to target width", default=None, type=int)
     parser.add_argument("--noimg", help="set this flag to save resulting image files to disk", action="store_true")
     parser.add_argument("--plot", help="set this to true to show debugging plots", action="store_true")
+    parser.add_argument("-v", help="set this to true to print log info to stdout", action="store_true")
     args = parser.parse_args()
+    
+    logging.basicConfig(filename=('logs/%s.log' % datetime.now().isoformat(timespec='minutes')).replace(":","-"), 
+                        level=logging.DEBUG, 
+                        format="%(asctime)s [%(threadName)-12.12s] [%(levelname)-5.5s]  %(message)s") # gimme all your loggin'!
+    if args.v:
+        logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
+    logging.info("new experiment with: %s" % sys.argv)
 
     sheets_file = args.sheets
     
     if args.input[-4:] == ".txt":
         process_list(args.input, sheets_file, args.percent, plot=args.plot, img=(not args.noimg), resize=args.resize)
     else:
-        process_sheet(args.input, sheets_file, args.percent, plot=args.plot, img=(not args.noimg), resize=args.resize, number="5")
+        process_sheet(args.input, sheets_file, args.percent, plot=args.plot, img=(not args.noimg), resize=args.resize, number="1-2")

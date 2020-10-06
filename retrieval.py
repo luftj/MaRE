@@ -1,8 +1,10 @@
 import numpy as np
 import cv2
 import time
+import logging
 
 import osm
+import progressbar
 
 def hist(ax, lbp):
     print("start hists")
@@ -316,7 +318,8 @@ def retrieve_best_match(query_image, bboxes):
     window_size = 30
     query_image_small = cv2.resize(query_image, (500,500))
 
-    for idx,bbox in enumerate(bboxes):
+    progress = progressbar.ProgressBar(maxval=len(bboxes))
+    for idx,bbox in progress(enumerate(bboxes)):
         time_now = time.time()
         rivers_json = osm.get_from_osm(bbox)
         reference_river_image = osm.paint_features(rivers_json, bbox)
@@ -333,9 +336,8 @@ def retrieve_best_match(query_image, bboxes):
             closest_bbox = bbox
             best_dist = distances[0]
 
-        print("%d/%d" % (idx, len(bboxes)),"Distances:", *distances, "/", best_dist, bbox, time.time()-time_now)
-        time_now = time.time()
+        logging.info("target %d/%d Score %d Best %d, bbox: %s, time: %f" % (idx+1, len(bboxes), distances[0], best_dist, bbox, time.time()-time_now))
     end_time = time.time()
-    print("time spent:", end_time - start_time)
+    logging.info("total time spent: %f" % (end_time - start_time))
     score_list.sort(key=lambda x: x[0])
     return closest_image,closest_bbox,best_dist, score_list

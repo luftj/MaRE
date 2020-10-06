@@ -4,6 +4,7 @@ import cv2
 import numpy as np
 from time import sleep
 import requests
+import logging
 from osmtogeojson import osmtogeojson
 
 def query_overpass(query):
@@ -54,7 +55,7 @@ def get_from_osm(bbox=[16.3,54.25,16.834,54.5], url = "http://overpass-api.de/ap
                 out body;
                 >;
                 out skel qt;""" % (sorted_bbox,sorted_bbox,sorted_bbox,sorted_bbox) # ; (._;>;)
-    # print(query)
+    logging.debug("osm query: %s" % query)
 
     while True:
         try:
@@ -65,16 +66,18 @@ def get_from_osm(bbox=[16.3,54.25,16.834,54.5], url = "http://overpass-api.de/ap
             import re
             error_msg = re.findall("error[^<]*",result.text)
             if len(error_msg) == 0:
+                logging.critical(result.text)
                 print(result.text)
                 raise(e)
-            print(error_msg)
+            logging.error(error_msg)
             if "rate_limited" in error_msg[0] or "timeout" in error_msg[0]:
+                logging.warning("timeout or rate limited, retrying in 5 sec...")
                 sleep(5)
                 continue
             else:
-                print(result.text)
-                print("unknown error")
-                raise e
+                print("unknown error" + result.text)
+                ogging.critical("unknown error" + result.text)
+                raise(e)
     gj = osmtogeojson.process_osm_json(result)
     
     with open(data_path, mode="w", encoding="utf-8") as f:
@@ -95,7 +98,6 @@ def coord_to_point(coords, bbox, img_size, castint=True):
 
 def paint_features(json_data, bbox=[16.3333,54.25,16.8333333,54.5], img_size=(1000,850)):
     image = np.zeros(shape=img_size[::-1], dtype=np.uint8)
-    # print(image.shape)
     for feature in json_data["features"]:
         try:
             if feature["geometry"]["type"] == "LineString":
@@ -117,9 +119,9 @@ def paint_features(json_data, bbox=[16.3333,54.25,16.8333333,54.5], img_size=(10
             else:
                 raise NotImplementedError("drawing feature type not implemented %s!" % feature["geometry"]["type"])
         except Exception as e:
-            print(e)
+            logging.error(e)
             errortext = "Error parsing feature at "+ ",".join(map(str,bbox)) + json.dumps(feature["properties"]) + feature["geometry"]["type"]
-            print(errortext)
+            logging.error(errortext)
             with open("osmerrors.txt","a",encoding="utf-8") as log:
                 log.write(errortext)
     return image
