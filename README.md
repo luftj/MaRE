@@ -25,5 +25,5 @@ Requires
 * crop input image to remove scanning edge?
 * log eval: avg time per sheet/target, number success, number correct
 * more descriptive output file names
-* use original resolution map image for georeferencing
 * harmonise cv2/skimage usage where possible
+* allow to keep map margins during georeferencing (map edges don't always line up properly)
