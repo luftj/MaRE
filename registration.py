@@ -88,7 +88,7 @@ def align_map_image(map_image, query_image, reference_image, target_size=(500,50
     
     # crop out border
     border_x = int(150 * reference_image_small.shape[1] / reference_image_border.shape[1] * map_image.shape[1] / target_size[0])
-    border_y = int(150 * reference_image_small.shape[0] / reference_image_border.shape[0] * map_image.shape[1] / target_size[0])
+    border_y = int(150 * reference_image_small.shape[0] / reference_image_border.shape[0] * map_image.shape[0] / target_size[1])
     map_img_aligned = map_img_aligned[border_y:map_img_aligned.shape[0]-border_y, border_x:map_img_aligned.shape[1]-border_x]
     
     time_passed = time() - time_start

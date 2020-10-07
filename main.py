@@ -157,4 +157,4 @@ if __name__ == "__main__":
     if args.input[-4:] == ".txt":
         process_list(args.input, sheets_file, args.percent, plot=args.plot, img=(not args.noimg), resize=args.isize, rsize=args.rsize)
     else:
-        process_sheet(args.input, sheets_file, args.percent, plot=args.plot, img=(not args.noimg), resize=args.isize, rsize=args.rsize, number="408")
+        process_sheet(args.input, sheets_file, args.percent, plot=args.plot, img=(not args.noimg), resize=args.isize, rsize=args.rsize, number="382")
