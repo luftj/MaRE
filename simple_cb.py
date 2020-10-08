@@ -28,6 +28,7 @@ def apply_threshold(matrix, low_value, high_value):
 def simplest_cb(img, percent):
     assert(img.shape[2] == 3)
     assert(percent > 0 and percent < 100)
+    logging.debug("Colour balance: treshold %0.2f%" % (percent))
 
     half_percent = percent / 200.0
 

@@ -22,7 +22,7 @@ def restrict__bboxes(sheets_path, target, num=1):
     start = max(0,idx-(num//2))
     return bboxes[start:idx+(num//2)+1]
 
-def process_sheet(img_path, sheets_path, cb_percent, plot=False, img=True, number=None, resize=None, rsize=None):
+def process_sheet(img_path, sheets_path, cb_percent, plot=False, img=True, number=None, resize=None, rsize=None, crop=False):
     logging.info("Processing file %s with gt: %s" % (img_path,number))
     print("Processing file %s with gt: %s" % (img_path,number))
 
@@ -95,7 +95,7 @@ def process_sheet(img_path, sheets_path, cb_percent, plot=False, img=True, numbe
 
         # align map image
         try:
-            map_img_aligned = registration.align_map_image(map_img, water_mask, closest_image, (output_width,output_height))
+            map_img_aligned, border = registration.align_map_image(map_img, water_mask, closest_image, (output_width,output_height), crop)
         except cv2.error as e:
             logging.warning("%s - could not register %s with prediction %s!" % (e, img_path, sheet_name))
             eval_entry = ["pred:"+sheet_name,"gt:"+number,"dist %f"%dist,"gt ar pos %d" % (len(score_list) - [s[-1] for s in score_list].index(number)),"registration: fail","correct: no"]
@@ -114,13 +114,16 @@ def process_sheet(img_path, sheets_path, cb_percent, plot=False, img=True, numbe
 
         # georeference aligned query image with bounding box
         outpath = "data/output/georef_sheet_%s.tif" % sheet_name
-        registration.georeference(aligned_map_path, outpath, closest_bbox)
+        if crop:
+            registration.georeference(aligned_map_path, outpath, closest_bbox)
+        else:
+            registration.georeference(aligned_map_path, outpath, closest_bbox, border)
         logging.info("saved georeferenced file to: %s" % outpath)
     
     eval_entry = ["gt:"+number,"pred:"+sheet_name,"dist %f"%dist,"gt at pos %d"%(len(score_list) - [s[-1] for s in score_list].index(number)),"registration: success","correct %r"%(str(number)==str(sheet_name))]
     logging.info("result: %s" % eval_entry)
 
-def process_list(list_path, sheets_path, cb_percent, plot=False, img=True, resize=None, rsize=None):
+def process_list(list_path, sheets_path, cb_percent, plot=False, img=True, resize=None, rsize=None, crop=False):
     import os
     list_dir = os.path.dirname(list_path) + "/"
     with open(list_path, encoding="utf-8") as list_file:
@@ -129,7 +132,7 @@ def process_list(list_path, sheets_path, cb_percent, plot=False, img=True, resiz
             img_path, ground_truth = line.split(",")
             if not os.path.isabs(img_path[0]):
                 img_path = os.path.join(list_dir,img_path)
-            process_sheet(img_path, sheets_path, cb_percent, plot=plot, img=img, number=str(ground_truth), resize=resize, rsize=rsize)
+            process_sheet(img_path, sheets_path, cb_percent, plot=plot, img=img, number=str(ground_truth), resize=resize, rsize=rsize, crop=crop)
 
 
 
@@ -140,6 +143,7 @@ if __name__ == "__main__":
     parser.add_argument("--percent", help="colour balancethreshold", default=5, type=int)
     parser.add_argument("--isize", help="resize input image to target width", default=None, type=int)
     parser.add_argument("--rsize", help="resize registration image to target width", default=None, type=int)
+    parser.add_argument("--crop", help="set this to true to crop the map margins", action="store_true")
     parser.add_argument("--noimg", help="set this flag to save resulting image files to disk", action="store_true")
     parser.add_argument("--plot", help="set this to true to show debugging plots", action="store_true")
     parser.add_argument("-v", help="set this to true to print log info to stdout", action="store_true")
@@ -155,6 +159,6 @@ if __name__ == "__main__":
     sheets_file = args.sheets
     
     if args.input[-4:] == ".txt":
-        process_list(args.input, sheets_file, args.percent, plot=args.plot, img=(not args.noimg), resize=args.isize, rsize=args.rsize)
+        process_list(args.input, sheets_file, args.percent, plot=args.plot, img=(not args.noimg), resize=args.isize, rsize=args.rsize, crop=args.crop)
     else:
-        process_sheet(args.input, sheets_file, args.percent, plot=args.plot, img=(not args.noimg), resize=args.isize, rsize=args.rsize, number="382")
+        process_sheet(args.input, sheets_file, args.percent, plot=args.plot, img=(not args.noimg), resize=args.isize, rsize=args.rsize, crop=args.crop, number="383")
