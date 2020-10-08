@@ -248,6 +248,7 @@ def template_matching(query_image, reference_image, n_samples=50, window_size=30
 
     # sample interest point
     corners, subpix = detect_corners(query_image)
+    logging.info("number of corners detected: %d" % len(corners))
 
     # make border of window size around reference image, to catch edge cases
     reference_image_border = cv2.copyMakeBorder(reference_image, window_size,window_size,window_size,window_size, cv2.BORDER_CONSTANT, None, 0)
@@ -283,6 +284,8 @@ def template_matching(query_image, reference_image, n_samples=50, window_size=30
     # ransac those template matches!
     keypoints_q = np.array(keypoints_q)
     keypoints_r = np.array(keypoints_r)
+
+    logging.info("number of matched templates: %d", len(keypoints_q))
     
     model, inliers = ransac((keypoints_q, keypoints_r),
                         AffineTransform, min_samples=3,
@@ -306,7 +309,8 @@ def template_matching(query_image, reference_image, n_samples=50, window_size=30
 
     return matching_score, ransac_matching_score, num_inliers
 
-def retrieve_best_match(query_image, bboxes):
+def retrieve_best_match(query_image, bboxes, processing_size):
+    width, height = processing_size
     closest_image = None
     closest_bbox = None
     best_dist = -1
@@ -316,7 +320,8 @@ def retrieve_best_match(query_image, bboxes):
     score_list = []
 
     window_size = 30
-    query_image_small = cv2.resize(query_image, (500,500))
+    # reduce image size for performance with fixed aspect ratio
+    query_image_small = cv2.resize(query_image, (width,height))
 
     progress = progressbar.ProgressBar(maxval=len(bboxes))
     for idx,bbox in progress(enumerate(bboxes)):
@@ -324,7 +329,8 @@ def retrieve_best_match(query_image, bboxes):
         rivers_json = osm.get_from_osm(bbox)
         reference_river_image = osm.paint_features(rivers_json, bbox)
 
-        reference_image_small = cv2.resize(reference_river_image, (500-window_size*2,500-window_size*2))
+        # reduce image size for performance with fixed aspect ratio. approx- same size as query, to make tempalte amtching work
+        reference_image_small = cv2.resize(reference_river_image, (width-window_size*2,height-window_size*2))
 
         matching_score, ransac_matching_score, num_inliers = template_matching(query_image_small, reference_image_small, window_size=window_size)
         # matching_score, num_inliers = template_matching(keypoints_q,templates, query_image_small, reference_image_small)

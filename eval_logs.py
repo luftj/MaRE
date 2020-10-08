@@ -1,6 +1,34 @@
 from os import listdir
 from os.path import isfile, join
 import re
+import json
+
+def dump_csv(experiments):
+    print("writing to file...")
+    with open("eval_result.csv", "w", encoding="utf-8") as eval_fp:
+        # header
+        eval_fp.write("ground truth; prediction; ground truth position; georef success; avg time per sheet; times; scores; number of detected keypoints; registration time; command\n")
+
+        for exp in experiments.values():
+            print(exp)
+            try:
+                eval_fp.write("%s; %s; %d; %s; %.2f; %s; %s; %d; %.2f; %s\n" % (exp["ground_truth"],
+                                                                exp["prediction"],
+                                                                exp["gt_pos"],
+                                                                exp["georef_success"],
+                                                                exp["avg_time"],
+                                                                exp["times"],
+                                                                exp["scores"],
+                                                                exp["num_keypoints"],
+                                                                exp["register_time"],
+                                                                exp["command"]))
+            except KeyError as e:
+                print(e)
+                print("skipping exp for %s" % exp.get("ground_truth",None))
+
+def dump_json(experiments):
+    with open("eval_result.json", "w", encoding="utf-8") as eval_fp:
+        json.dump(experiments, eval_fp)
 
 if __name__ == "__main__":
     logs_path = "logs/"
@@ -28,7 +56,9 @@ if __name__ == "__main__":
 
                 # get experiment command for reproducing
                 if "new experiment with" in line:
-                    experiment_data["command"] = line.split("with: ")[-1]
+                    s = line.split("with: ")[-1].replace("'","\"")
+                    l = json.loads(s)
+                    experiment_data["command"] = " ".join(l)
 
                 # get ground truth
                 elif "with gt:" in line:
@@ -53,32 +83,23 @@ if __name__ == "__main__":
                 elif "ground truth at position" in line:
                     experiment_data["gt_pos"] = int(line.split(" ")[-1])
 
-                    
                 # get georef success
                 elif "saved georeferenced file" in line:
                     experiment_data["georef_success"] = True
+
+                # get georef time
+                elif "s for registration" in line:
+                    time = float(re.search(r"(?<=time:\s)[0-9]*\.[0-9]*", line)[0])
+                    experiment_data["register_time"] = time
+                    
+                # get num interest points
+                elif "number of corners" in line:
+                    experiment_data["num_keypoints"] = int(line.split(" ")[-1])
 
         if "times" in experiment_data:
             experiment_data["avg_time"] = sum(experiment_data["times"])/len(experiment_data["times"])
 
         experiments[experiment_data["ground_truth"]] = experiment_data
 
-    with open("eval_result.csv", "w", encoding="utf-8") as eval_fp:
-        print("writing to file...")
-        # header
-        eval_fp.write("ground truth; prediction; gt pos; georef success; avg_time; times; scores; command\n")
-
-        for exp in experiments.values():
-            print(exp)
-            try:
-                eval_fp.write("%s; %s; %d, %s, %f, %s, %s, %s\n" % (exp["ground_truth"],
-                                                                exp["prediction"],
-                                                                exp["gt_pos"],
-                                                                exp["georef_success"],
-                                                                exp["avg_time"],
-                                                                exp["times"],
-                                                                exp["scores"],
-                                                                exp["command"]))
-            except KeyError as e:
-                print(e)
-                print("skipping exp for %s", exp.get("ground_truth",None))
+    dump_csv(experiments)
+    dump_json(experiments)

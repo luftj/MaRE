@@ -12,14 +12,14 @@ import segmentation
 import registration
 from retrieval import retrieve_best_match
 
-def restrict__bboxes(sheets_path, target, num=1):
+def restrict__bboxes(sheets_path, target, num=4):
     # for debugging: don't check against all possible sheet locations, but only a subset
     bboxes = find_sheet.get_bboxes_from_json(sheets_path)
     idx = find_sheet.get_index_of_sheet(sheets_path, target)
     if not idx:
         raise ValueError("ground truth name %s not found" % target)
-    logging.debug("restricted bbox %s by %d around idx %s" %(target,num,idx))
-    start = max(0,idx-(num//2))
+    logging.debug("restricted bbox %s by %d around idx %s" %(target, num, idx))
+    start = max(0, idx-(num//2))
     return bboxes[start:idx+(num//2)+1]
 
 def process_sheet(img_path, sheets_path, cb_percent, plot=False, img=True, number=None, resize=None, rsize=None, crop=False):
@@ -42,8 +42,13 @@ def process_sheet(img_path, sheets_path, cb_percent, plot=False, img=True, numbe
 
     water_mask = segmentation.extract_blue(map_img, cb_percent) # extract rivers
 
+    # image size for intermediate processing
+    processing_width = rsize if rsize else 500
+    f = processing_width / map_img.shape[1]
+    processing_height = int(f * map_img.shape[0])
+    
     # find the best bbox for this query image
-    closest_image, closest_bbox, dist, score_list = retrieve_best_match(water_mask, bboxes)
+    closest_image, closest_bbox, dist, score_list = retrieve_best_match(water_mask, bboxes, (processing_width, processing_height))
     
     # find sheet name for prediction
     score_list = [(*s[:-1], find_sheet.find_name_for_bbox(sheets_file, bboxes[s[-1]])) for s in score_list]
@@ -89,13 +94,9 @@ def process_sheet(img_path, sheets_path, cb_percent, plot=False, img=True, numbe
     if img:
         cv2.imwrite("data/output/refimg_%s_%s.jpg" % (sheet_name, "-".join(map(str,closest_bbox))), closest_image)
 
-        output_width = rsize if rsize else 500
-        f = output_width / map_img.shape[1]
-        output_height = int(f * map_img.shape[0])
-
         # align map image
         try:
-            map_img_aligned, border = registration.align_map_image(map_img, water_mask, closest_image, (output_width,output_height), crop)
+            map_img_aligned, border = registration.align_map_image(map_img, water_mask, closest_image, (processing_width,processing_height), crop)
         except cv2.error as e:
             logging.warning("%s - could not register %s with prediction %s!" % (e, img_path, sheet_name))
             eval_entry = ["pred:"+sheet_name,"gt:"+number,"dist %f"%dist,"gt ar pos %d" % (len(score_list) - [s[-1] for s in score_list].index(number)),"registration: fail","correct: no"]
@@ -138,19 +139,21 @@ def process_list(list_path, sheets_path, cb_percent, plot=False, img=True, resiz
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("input", help="input file path string")
+    parser.add_argument("input", help="input file path string or .txt list of images")
     parser.add_argument("sheets", help="sheets json file path string", default="data/blattschnitt_dr100.geojson")
-    parser.add_argument("--percent", help="colour balancethreshold", default=5, type=int)
+    parser.add_argument("--percent", help="colour balance threshold", default=5, type=int)
     parser.add_argument("--isize", help="resize input image to target width", default=None, type=int)
     parser.add_argument("--rsize", help="resize registration image to target width", default=None, type=int)
     parser.add_argument("--crop", help="set this to true to crop the map margins", action="store_true")
-    parser.add_argument("--noimg", help="set this flag to save resulting image files to disk", action="store_true")
+    parser.add_argument("--noimg", help="match sheet only, don't save registered image files", action="store_true")
     parser.add_argument("--plot", help="set this to true to show debugging plots", action="store_true")
     parser.add_argument("-v", help="set this to true to print log info to stdout", action="store_true")
+    parser.add_argument("-ll", help="set this to get additional debug logging", action="store_true")
+    parser.add_argument("--gt", help="ground truth sheet name", default=None)
     args = parser.parse_args()
     
     logging.basicConfig(filename=('logs/%s.log' % datetime.now().isoformat(timespec='minutes')).replace(":","-"), 
-                        level=logging.DEBUG, 
+                        level=(logging.DEBUG if args.ll else logging.INFO), 
                         format="%(asctime)s [%(threadName)-12.12s] [%(levelname)-7.7s]  %(message)s") # gimme all your loggin'!
     if args.v:
         logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
@@ -161,4 +164,4 @@ if __name__ == "__main__":
     if args.input[-4:] == ".txt":
         process_list(args.input, sheets_file, args.percent, plot=args.plot, img=(not args.noimg), resize=args.isize, rsize=args.rsize, crop=args.crop)
     else:
-        process_sheet(args.input, sheets_file, args.percent, plot=args.plot, img=(not args.noimg), resize=args.isize, rsize=args.rsize, crop=args.crop, number="383")
+        process_sheet(args.input, sheets_file, args.percent, plot=args.plot, img=(not args.noimg), resize=args.isize, rsize=args.rsize, crop=args.crop, number=args.gt)

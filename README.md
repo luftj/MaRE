@@ -17,13 +17,10 @@ Requires
 
 ## Usage
 
-`$ python3 main.py [image path] [colour balance percent]`
+`$ python3 main.py [image path] [sheets geojson path]`
 
 ## To Do
-* automagically adjust segmentation parameters depending on image resolution
 * collect and evaluate all parameters
-* crop input image to remove scanning edge?
-* log eval: avg time per sheet/target, number success, number correct
 * more descriptive output file names
 * harmonise cv2/skimage usage where possible
-* allow to keep map margins during georeferencing (map edges don't always line up properly)
+* when not cropping map margins, remove as much of the nodata pixels as possible (least bbox)
