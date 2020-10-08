@@ -20,7 +20,7 @@ def dump_csv(experiments):
                                                                 exp["times"],
                                                                 exp["scores"],
                                                                 exp["num_keypoints"],
-                                                                exp["register_time"],
+                                                                exp.get("register_time",-1), # might not have been registered
                                                                 exp["command"]))
             except KeyError as e:
                 print(e)
@@ -43,7 +43,7 @@ if __name__ == "__main__":
         experiment_data = {}
         experiment_data["georef_success"] = False
 
-        with open(file_path, encoding="utf-8") as log_fp:
+        with open(file_path) as log_fp:
 
             for line in log_fp:
                 if not "[INFO" in line:

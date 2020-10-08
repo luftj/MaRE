@@ -24,3 +24,4 @@ Requires
 * more descriptive output file names
 * harmonise cv2/skimage usage where possible
 * when not cropping map margins, remove as much of the nodata pixels as possible (least bbox)
+* check if chunking image helps performance

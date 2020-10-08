@@ -172,7 +172,7 @@ def match_template(image, template):
     ij = np.unravel_index(np.argmax(result), result.shape)
     x, y = ij[::-1]
     corr_coef = result[y,x]
-    return (x, y, corr_coef)
+    return (x, y)
 
 def plot_template(query_image, reference_image_border, template, x, y, match_x, match_y, pixel_high_percent, score):
     import matplotlib.pyplot as plt
@@ -215,27 +215,12 @@ def plot_template_matches(keypoints_q,keypoints_r, inliers,query_image, referenc
 
     plt.show()
 
-def match_templates(templates,reference_image_border, window_size):
-    keypoints_r = []
-    matching_score = 0
-    for template in templates:      
-        # optional: reduce search space by only looking at/around interest points in reference image
-        # find query template in reference image
-        match_x, match_y, score = match_template(reference_image_border, template)
-        keypoints_r.append([match_y+window_size, match_x+window_size])
-        # store best matching score
-        matching_score += score
-        
-    # calculate metric from all matching scores for all samples. e.g. average
-    matching_score /= len(keypoints_r)
-
-    return keypoints_r, matching_score
-
 def template_matching(query_image, reference_image, n_samples=50, window_size=30, patch_min_area=0.1, patch_max_area=0.8):
     import cv2
     import random
     from skimage.measure import ransac
     from skimage.transform import AffineTransform
+    import dask
 
     matching_score = 0
     keypoints_q = []
@@ -255,6 +240,7 @@ def template_matching(query_image, reference_image, n_samples=50, window_size=30
     
     scores = []
     # match all sample points
+    lazy_r = []
     for sample_point in corners:
         x,y = sample_point[0], sample_point[1]
         # extract template from query image around sampled point
@@ -271,12 +257,17 @@ def template_matching(query_image, reference_image, n_samples=50, window_size=30
         keypoints_q.append([y,x])
         
         # optional: reduce search space by only looking at/around interest points in reference image
+
         # find query template in reference image
-        match_x, match_y, score = match_template(reference_image_border, template)
+        x = dask.delayed(match_template)(reference_image_border, template)
+        lazy_r.append(x)
+
+    
+    results = dask.compute(*lazy_r)
+    for x in results:
+        match_x, match_y = x
         keypoints_r.append([match_y+window_size, match_x+window_size])
-        
-        scores.append(score)
-        # print("R,M,S:",(x,y),(match_x,match_y),score)
+        # print("R,M:",(x,y),(match_x,match_y))
         # plot_template()
 
     # optional: filter matches by score
@@ -285,7 +276,7 @@ def template_matching(query_image, reference_image, n_samples=50, window_size=30
     keypoints_q = np.array(keypoints_q)
     keypoints_r = np.array(keypoints_r)
 
-    logging.info("number of matched templates: %d", len(keypoints_q))
+    logging.info("number of matched templates: %d", len(keypoints_r))
     
     model, inliers = ransac((keypoints_q, keypoints_r),
                         AffineTransform, min_samples=3,
@@ -293,21 +284,12 @@ def template_matching(query_image, reference_image, n_samples=50, window_size=30
 
     if inliers is None:
         num_inliers = 0
-        ransac_matching_score = 0
     else:
         num_inliers = inliers.sum()
-        scores = np.array(scores)
-        ransac_matching_score = sum(scores[inliers]) / num_inliers
 
     # plot_template_matches(keypoints_q,keypoints_r, inliers, query_image, reference_image_border)
 
-    # store best matching score
-    matching_score += score
-
-    # calculate metric from all matching scores for all samples. e.g. average
-    matching_score /= len(keypoints_r)
-
-    return matching_score, ransac_matching_score, num_inliers
+    return  num_inliers
 
 def retrieve_best_match(query_image, bboxes, processing_size):
     width, height = processing_size
@@ -332,17 +314,15 @@ def retrieve_best_match(query_image, bboxes, processing_size):
         # reduce image size for performance with fixed aspect ratio. approx- same size as query, to make tempalte amtching work
         reference_image_small = cv2.resize(reference_river_image, (width-window_size*2,height-window_size*2))
 
-        matching_score, ransac_matching_score, num_inliers = template_matching(query_image_small, reference_image_small, window_size=window_size)
-        # matching_score, num_inliers = template_matching(keypoints_q,templates, query_image_small, reference_image_small)
+        num_inliers = template_matching(query_image_small, reference_image_small, window_size=window_size)
 
-        distances = [num_inliers, matching_score, ransac_matching_score]
-        score_list.append((*distances, idx))
-        if closest_image is None or distances[0] > best_dist:
+        score_list.append((num_inliers, idx))
+        if closest_image is None or num_inliers > best_dist:
             closest_image = reference_river_image
             closest_bbox = bbox
-            best_dist = distances[0]
+            best_dist = num_inliers
 
-        logging.info("target %d/%d Score %d Best %d, bbox: %s, time: %f" % (idx+1, len(bboxes), distances[0], best_dist, bbox, time.time()-time_now))
+        logging.info("target %d/%d Score %d Best %d, bbox: %s, time: %f" % (idx+1, len(bboxes), num_inliers, best_dist, bbox, time.time()-time_now))
     end_time = time.time()
     logging.info("total time spent: %f" % (end_time - start_time))
     score_list.sort(key=lambda x: x[0])

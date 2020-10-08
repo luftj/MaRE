@@ -99,7 +99,7 @@ def process_sheet(img_path, sheets_path, cb_percent, plot=False, img=True, numbe
             map_img_aligned, border = registration.align_map_image(map_img, water_mask, closest_image, (processing_width,processing_height), crop)
         except cv2.error as e:
             logging.warning("%s - could not register %s with prediction %s!" % (e, img_path, sheet_name))
-            eval_entry = ["pred:"+sheet_name,"gt:"+number,"dist %f"%dist,"gt ar pos %d" % (len(score_list) - [s[-1] for s in score_list].index(number)),"registration: fail","correct: no"]
+            eval_entry = ["pred:"+sheet_name,"gt:"+number,"dist %d"%dist,"gt ar pos %d" % (len(score_list) - [s[-1] for s in score_list].index(number)),"registration: fail","correct: no"]
             logging.info("result: %s" % eval_entry)
             return 
         
