@@ -40,8 +40,7 @@ if __name__ == "__main__":
     for log_file in log_files:
         file_path = join(logs_path, log_file)
 
-        experiment_data = {}
-        experiment_data["georef_success"] = False
+        experiment_data = None
 
         with open(file_path) as log_fp:
 
@@ -54,19 +53,34 @@ if __name__ == "__main__":
 
                 # print(line)
 
+                if "Processing file" in line:
+                    if experiment_data:
+                        if "times" in experiment_data:
+                            experiment_data["avg_time"] = sum(experiment_data["times"])/len(experiment_data["times"])
+
+                        if "ground_truth" in experiment_data:
+                            experiments[experiment_data["ground_truth"]] = experiment_data
+
+                    experiment_data = {}
+                    experiment_data["georef_success"] = False
+                    experiment_data["command"] = command
+
                 # get experiment command for reproducing
                 if "new experiment with" in line:
                     s = line.split("with: ")[-1].replace("'","\"")
                     l = json.loads(s)
-                    experiment_data["command"] = " ".join(l)
+                    command = " ".join(l)
 
                 # get ground truth
-                elif "with gt:" in line:
-                    experiment_data["ground_truth"] = line.split("with gt: ")[-1]
+                # elif "with gt:" in line:
+                #     experiment_data["ground_truth"] = line.split("with gt: ")[-1]
 
                 # get result
                 elif "result:" in line:
-                    experiment_data["prediction"] = line.split(",")[1][2:-1].replace("pred:","")
+                    pred = re.search(r"(?<=pred:)[^,']*", line)[0]
+                    experiment_data["prediction"] = pred
+                    gt = re.search(r"(?<=gt:)[^,']*", line)[0]
+                    experiment_data["ground_truth"] = gt
 
                 # get distance distribution
                 elif "target" in line:
@@ -96,10 +110,6 @@ if __name__ == "__main__":
                 elif "number of corners" in line:
                     experiment_data["num_keypoints"] = int(line.split(" ")[-1])
 
-        if "times" in experiment_data:
-            experiment_data["avg_time"] = sum(experiment_data["times"])/len(experiment_data["times"])
-
-        experiments[experiment_data["ground_truth"]] = experiment_data
 
     dump_csv(experiments)
     dump_json(experiments)

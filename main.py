@@ -16,7 +16,7 @@ def restrict__bboxes(sheets_path, target, num=4):
     # for debugging: don't check against all possible sheet locations, but only a subset
     bboxes = find_sheet.get_bboxes_from_json(sheets_path)
     idx = find_sheet.get_index_of_sheet(sheets_path, target)
-    if not idx:
+    if idx is None:
         raise ValueError("ground truth name %s not found" % target)
     logging.debug("restricted bbox %s by %d around idx %s" %(target, num, idx))
     start = max(0, idx-(num//2))
@@ -114,10 +114,11 @@ def process_sheet(img_path, sheets_path, cb_percent, plot=False, img=True, numbe
         cv2.imwrite(aligned_map_path, map_img_aligned)
 
         # georeference aligned query image with bounding box
-        outpath = "data/output/georef_sheet_%s.tif" % sheet_name
         if crop:
+            outpath = "data/output/georef_sheet_%s_crop.tif" % sheet_name
             registration.georeference(aligned_map_path, outpath, closest_bbox)
         else:
+            outpath = "data/output/georef_sheet_%s.tif" % sheet_name
             registration.georeference(aligned_map_path, outpath, closest_bbox, border)
         logging.info("saved georeferenced file to: %s" % outpath)
     

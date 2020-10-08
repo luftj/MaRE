@@ -60,7 +60,7 @@ def georeference(inputfile, outputfile, bbox, border=None):
         ]
         for gcp in gcps:
             command += "-gcp %d %d %f %f " % gcp # pixel line easting northing
-        command += "-of GTiff " + inputfile + " " + outputfile# " map-with-gcps.tif"
+        command += " -a_srs EPSG:4269 -of GTiff " + inputfile + " " + outputfile# " map-with-gcps.tif"
 
     logging.debug("gdal command: %s" % command)
     os.system(command)
