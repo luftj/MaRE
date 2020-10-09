@@ -139,7 +139,7 @@ def process_list(list_path, sheets_path, cb_percent, plot=False, img=True, restr
             img_path, ground_truth = line.split(",")
             if not os.path.isabs(img_path[0]):
                 img_path = os.path.join(list_dir,img_path)
-            process_sheet(img_path, sheets_path, cb_percent, plot=plot, img=img, number=str(ground_truth), resize=resize, rsize=rsize, crop=crop)
+            process_sheet(img_path, sheets_path, cb_percent, plot=plot, img=img, number=str(ground_truth), resize=resize, rsize=rsize, crop=crop, restrict=restrict)
 
 
 
