@@ -7,6 +7,8 @@ import requests
 import logging
 from osmtogeojson import osmtogeojson
 
+from config import path_osm
+
 def query_overpass(query):
     import overpass
     api = overpass.API()
@@ -37,7 +39,7 @@ def query_overpass(query):
     return result
 
 def get_from_osm(bbox=[16.3,54.25,16.834,54.5], url = "http://overpass-api.de/api/interpreter"):
-    data_path = "data/osm/rivers_%s.geojson" % "_".join(map(str,bbox))
+    data_path = path_osm + "rivers_%s.geojson" % "_".join(map(str,bbox))
 
     # don't query if we already have the data on disk
     if os.path.isfile( data_path ):
@@ -77,7 +79,7 @@ def get_from_osm(bbox=[16.3,54.25,16.834,54.5], url = "http://overpass-api.de/ap
                 continue
             else:
                 print("unknown error" + result.text)
-                ogging.critical("unknown error" + result.text)
+                logging.critical("unknown error" + result.text)
                 raise(e)
     gj = osmtogeojson.process_osm_json(result)
     
@@ -123,8 +125,6 @@ def paint_features(json_data, bbox=[16.3333,54.25,16.8333333,54.5], img_size=(10
             logging.error(e)
             errortext = "Error parsing feature at "+ ",".join(map(str,bbox)) + json.dumps(feature["properties"]) + feature["geometry"]["type"]
             logging.error(errortext)
-            with open("osmerrors.txt","a",encoding="utf-8") as log:
-                log.write(errortext)
     return image
 
 if __name__ == "__main__":

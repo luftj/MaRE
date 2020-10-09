@@ -4,6 +4,8 @@ import os
 import logging
 from time import time
 
+import config
+
 def register_ECC(query_image, reference_image, warp_mode = cv2.MOTION_AFFINE):
     # taken from https://www.learnopencv.com/image-alignment-ecc-in-opencv-c-python/
     
@@ -49,9 +51,9 @@ def georeference(inputfile, outputfile, bbox, border=None):
     left, top, right, bottom = (bbox[0], bbox[3], bbox[2], bbox[1])
 
     if not border:
-        command = "gdal_translate -of GTiff -a_ullr %f %f %f %f -a_srs EPSG:4269 %s %s" % (left, top, right, bottom, inputfile, outputfile)
+        command = "gdal_translate %s -a_ullr %f %f %f %f %s %s" % (config.gdal_output_options,left, top, right, bottom, inputfile, outputfile)
     else:
-        command = "gdal_translate "
+        command = "gdal_translate " + config.gdal_output_options + " "
         gcps = [
             (border[0],border[3],bbox[0],bbox[3]), # top left
             (border[0],border[1],bbox[0],bbox[1]), # bottom left
@@ -60,7 +62,7 @@ def georeference(inputfile, outputfile, bbox, border=None):
         ]
         for gcp in gcps:
             command += "-gcp %d %d %f %f " % gcp # pixel line easting northing
-        command += " -a_srs EPSG:4269 -of GTiff " + inputfile + " " + outputfile# " map-with-gcps.tif"
+        command += inputfile + " " + outputfile# " map-with-gcps.tif"
 
     logging.debug("gdal command: %s" % command)
     os.system(command)
