@@ -1,6 +1,8 @@
 import cv2
 from simple_cb import simplest_cb
 
+import logging
+
 def extract_blue(img, cb_percent):
     # img_cb = simplest_cb(img, args.percent)
     img_cie = cv2.cvtColor(img, cv2.COLOR_BGR2Lab)
@@ -19,7 +21,10 @@ def extract_blue(img, cb_percent):
     upperBound = (255, 90, 80) # (255, 90, 70)
 
     img_thresh = cv2.inRange(img_cie, lowerBound, upperBound)
-    # cv.Not(cv_rgb_thresh, cv_rgb_thresh)
+
+    num_blue_pixels = cv2.countNonZero(img_thresh)
+    percent_blue_pixels = num_blue_pixels / (img_thresh.shape[0] * img_thresh.shape[1]) * 100
+    logging.info("segmented %d pixels, %.2f percent" % (num_blue_pixels, percent_blue_pixels))
 
     # retm,b_threshold = cv2.threshold(b,5,255,cv2.THRESH_BINARY)
     # cv2.imshow("b_threshold",cv2.resize(b_threshold,(b_threshold.shape[1]//2,b_threshold.shape[0]//2)))

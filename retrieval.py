@@ -172,6 +172,7 @@ def match_template(image, template):
     ij = np.unravel_index(np.argmax(result), result.shape)
     x, y = ij[::-1]
     corr_coef = result[y,x]
+    logging.info("template matching score: %f" % corr_coef)
     return (x, y)
 
 def plot_template(query_image, reference_image_border, template, x, y, match_x, match_y, pixel_high_percent, score):
@@ -233,7 +234,7 @@ def template_matching(query_image, reference_image, n_samples=50, window_size=30
 
     # sample interest point
     corners, subpix = detect_corners(query_image)
-    logging.info("number of corners detected: %d" % len(corners))
+    logging.debug("number of corners detected: %d" % len(corners))
 
     # make border of window size around reference image, to catch edge cases
     reference_image_border = cv2.copyMakeBorder(reference_image, window_size,window_size,window_size,window_size, cv2.BORDER_CONSTANT, None, 0)
@@ -276,7 +277,8 @@ def template_matching(query_image, reference_image, n_samples=50, window_size=30
     keypoints_q = np.array(keypoints_q)
     keypoints_r = np.array(keypoints_r)
 
-    logging.info("number of matched templates: %d", len(keypoints_r))
+    logging.info("number of used keypoints: %d", len(keypoints_q))
+    #logging.info("number of matched templates: %d", len(keypoints_r)) # all get matched
     
     model, inliers = ransac((keypoints_q, keypoints_r),
                         AffineTransform, min_samples=3,

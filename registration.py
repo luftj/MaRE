@@ -31,6 +31,7 @@ def register_ECC(query_image, reference_image, warp_mode = cv2.MOTION_AFFINE):
 
     # Run the ECC algorithm. The results are stored in warp_matrix.
     (cc, warp_matrix) = cv2.findTransformECC(reference_image, query_image, warp_matrix, warp_mode, criteria)
+    logging.info("found registration with score: %f" % cc)
 
     return warp_matrix
 

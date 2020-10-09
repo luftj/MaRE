@@ -72,9 +72,6 @@ if __name__ == "__main__":
                     command = " ".join(l)
 
                 # get ground truth
-                # elif "with gt:" in line:
-                #     experiment_data["ground_truth"] = line.split("with gt: ")[-1]
-
                 # get result
                 elif "result:" in line:
                     pred = re.search(r"(?<=pred:)[^,']*", line)[0]
