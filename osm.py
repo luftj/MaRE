@@ -54,10 +54,11 @@ def get_from_osm(bbox=[16.3,54.25,16.834,54.5], url = "http://overpass-api.de/ap
                 way (%s) [natural=water] [name]; 
                 way (%s) [type=waterway] [name]; 
                 way (%s) [waterway=river] [name];
+                way (%s) [natural=coastline];
                 );
                 out body;
                 >;
-                out skel qt;""" % (sorted_bbox,sorted_bbox,sorted_bbox,sorted_bbox) # ; (._;>;)
+                out skel qt;""" % (sorted_bbox,sorted_bbox,sorted_bbox,sorted_bbox,sorted_bbox) # ; (._;>;)
     logging.debug("osm query: %s" % query)
 
     while True:
@@ -105,7 +106,12 @@ def paint_features(json_data, bbox=[16.3333,54.25,16.8333333,54.5], img_size=(10
         try:
             if feature["geometry"]["type"] == "LineString":
                 points = [ coord_to_point(p,bbox,img_size) for p in feature["geometry"]["coordinates"] ]
-                thickness = 2 if ("waterway" in feature["properties"] and feature["properties"]["waterway"] == "river") else 1
+                if "waterway" in feature["properties"] and feature["properties"]["waterway"] == "river":
+                    thickness = 2  
+                elif "natural" in feature["properties"] and feature["properties"]["natural"] == "coastline":
+                    thickness = 5
+                else:
+                    thickness = 1
                 for idx in range(len(points)-1):
                     cv2.line(image, points[idx], points[idx+1], 255, thickness=thickness)
             elif feature["geometry"]["type"] == "Polygon":
