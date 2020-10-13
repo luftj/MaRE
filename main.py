@@ -14,6 +14,12 @@ from retrieval import retrieve_best_match
 
 import config
 
+def resize_by_width(shape, new_width):
+    width = new_width
+    f = width / shape[1]
+    height = int(f * shape[0])
+    return (width, height)
+
 def restrict__bboxes(sheets_path, target, num):
     # for debugging: don't check against all possible sheet locations, but only a subset
     bboxes = find_sheet.get_bboxes_from_json(sheets_path)
@@ -37,32 +43,26 @@ def process_sheet(img_path, sheets_path, cb_percent, plot=False, img=True, numbe
     # map_img = cv2.imread(img_path) # load map image # WARNING: imread does not allow unicode file names!
 
     if resize:
-        target_width = resize
-        f = target_width / map_img.shape[1]
-        target_height = int(f * map_img.shape[0])
-        map_img = cv2.resize(map_img, (target_width, target_height), cv2.INTER_AREA if f < 1 else cv2.INTER_CUBIC) # area interpolation for downisizing, cubic upscaling
+        target_size = resize_by_width(map_img.shape, resize)
+        map_img = cv2.resize(map_img, target_size, cv2.INTER_AREA if target_size[0] < map_img.shape[1] else cv2.INTER_CUBIC) # area interpolation for downisizing, cubic upscaling
 
     water_mask = segmentation.extract_blue(map_img, cb_percent) # extract rivers
 
     # image size for intermediate processing
-    processing_width = rsize if rsize else 500
-    f = processing_width / map_img.shape[1]
-    processing_height = int(f * map_img.shape[0])
+    processing_size = resize_by_width(map_img.shape, rsize if rsize else 500)
     
     # find the best bbox for this query image
-    closest_image, closest_bbox, dist, score_list = retrieve_best_match(water_mask, bboxes, (processing_width, processing_height))
+    closest_image, closest_bbox, dist, score_list, transform_model = retrieve_best_match(water_mask, bboxes, processing_size)
     
     # find sheet name for prediction
     score_list = [(*s[:-1], find_sheet.find_name_for_bbox(sheets_file, bboxes[s[-1]])) for s in score_list]
-    sheet_name = score_list[-1][-1] #find_sheet.find_name_for_bbox(sheets_file, closest_bbox)
-    logging.info("best sheet: %s with score %f" %(sheet_name, dist))
+    sheet_name = score_list[-1][-1]
+    logging.info("best sheet: %s with score %d" % (sheet_name, dist))
 
     if number:
         logging.info("ground truth at position: %d" % (len(score_list) - [s[-1] for s in score_list].index(number)))
 
     if plot:
-        # fig, ax = plt.subplots(nrows=1, ncols=1)
-        
         plt.subplot(2, 3, 1)
         map_img_rgb = cv2.cvtColor(map_img, cv2.COLOR_BGR2RGB)
         plt.imshow(cv2.resize(map_img_rgb, (500,500)))
@@ -83,29 +83,22 @@ def process_sheet(img_path, sheets_path, cb_percent, plot=False, img=True, numbe
         plt.hist(incidences, bins=max(incidences))
         plt.title("incidences of number of RANSAC inliers")
         
-        # plt.subplot(3, 1, 3)
-        # plt.plot(range(len(score_list)), [s[2] for s in score_list])
-        # plt.title("template matching scores, sorted by #inliers")
-
         plt.show()
-
-        # cv2.imshow("map_img", cv2.resize(map_img, (500,500)))
-        # cv2.imshow("water mask from map", cv2.resize(water_mask, (500,500)))
-        # cv2.imshow("closest reference rivers from OSM", cv2.resize(closest_image, (500,500)))
 
     if img:
         cv2.imwrite(config.path_output + "refimg_%s_%s.png" % (sheet_name, "-".join(map(str,closest_bbox))), closest_image)
 
         # align map image
         try:
-            map_img_aligned, border = registration.align_map_image(map_img, water_mask, closest_image, (processing_width,processing_height), crop)
+            map_img_aligned, border = registration.align_map_image(map_img, water_mask, closest_image, processing_size, crop)#, transform_model)
+            # map_img_aligned, border = registration.align_map_image_model(map_img, water_mask, closest_image, transform_model, processing_size, crop)
         except cv2.error as e:
             logging.warning("%s - could not register %s with prediction %s!" % (e, img_path, sheet_name))
             eval_entry = ["pred:"+sheet_name,"gt:"+number,"dist %d"%dist,"gt ar pos %d" % (len(score_list) - [s[-1] for s in score_list].index(number)),"registration: fail","correct: no"]
             logging.info("result: %s" % eval_entry)
             return 
         
-        if args.plot:
+        if plot:
             plt.imshow(map_img_aligned)
             plt.title("aligned map")
             plt.show()
@@ -140,8 +133,6 @@ def process_list(list_path, sheets_path, cb_percent, plot=False, img=True, restr
             if not os.path.isabs(img_path[0]):
                 img_path = os.path.join(list_dir,img_path)
             process_sheet(img_path, sheets_path, cb_percent, plot=plot, img=img, number=str(ground_truth), resize=resize, rsize=rsize, crop=crop, restrict=restrict)
-
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

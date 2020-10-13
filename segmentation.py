@@ -18,7 +18,7 @@ def extract_blue(img, cb_percent):
     # cv2.imshow("b",cv2.resize(b,(b.shape[1]//2,b.shape[0]//2)))
 
     lowerBound = (10, 0, 0)
-    upperBound = (255, 90, 80) # (255, 90, 70)
+    upperBound = (255, 90, 100) #(255, 90, 80) # (255, 90, 70)
 
     img_thresh = cv2.inRange(img_cie, lowerBound, upperBound)
 
@@ -56,15 +56,22 @@ def extract_blue(img, cb_percent):
 
 
 if __name__ == "__main__":
+    import argparse
+    from matplotlib import pyplot as plt
+
     parser = argparse.ArgumentParser()
     parser.add_argument("input", help="input file path string")
     parser.add_argument("--percent", help="colour balancethreshold", default=5, type=int)
     args = parser.parse_args()
-
-    from matplotlib import pyplot as plt
     
     map_img = cv2.imread(args.input) # load map image
+    
+    plt.subplot(1, 2, 1)
+    map_img_rgb = cv2.cvtColor(map_img, cv2.COLOR_BGR2RGB)
+    plt.imshow(map_img_rgb)
+    plt.subplot(1, 2, 2)
     segmented_image = extract_blue(map_img, args.percent)
     plt.gray()
     plt.imshow(segmented_image)
     plt.title("segmented map image")
+    plt.show()

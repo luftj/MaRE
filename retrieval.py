@@ -6,6 +6,8 @@ import logging
 import osm
 import progressbar
 
+import config
+
 def hist(ax, lbp):
     print("start hists")
     print(lbp.shape)
@@ -172,7 +174,7 @@ def match_template(image, template):
     ij = np.unravel_index(np.argmax(result), result.shape)
     x, y = ij[::-1]
     corr_coef = result[y,x]
-    logging.info("template matching score: %f" % corr_coef)
+    logging.info("best template matching score: %f" % corr_coef)
     return (x, y)
 
 def plot_template(query_image, reference_image_border, template, x, y, match_x, match_y, pixel_high_percent, score):
@@ -199,7 +201,9 @@ def plot_template_matches(keypoints_q,keypoints_r, inliers,query_image, referenc
     import matplotlib.pyplot as plt
     from skimage.feature import plot_matches
 
-    matches = np.array(list(zip(range(len(keypoints_q)),range(len(keypoints_q)))))
+    keypoints_q = np.fliplr(keypoints_q)
+    keypoints_r = np.fliplr(keypoints_r)
+    matches = np.array(list(zip(range(len(keypoints_q)),range(len(keypoints_r)))))
     # inlier_keypoints_left = descs_q[matches[inliers, 0]]
     # inlier_keypoints_right = descs_r[matches[inliers, 1]]
 
@@ -218,9 +222,8 @@ def plot_template_matches(keypoints_q,keypoints_r, inliers,query_image, referenc
 
 def template_matching(query_image, reference_image, n_samples=50, window_size=30, patch_min_area=0.1, patch_max_area=0.8):
     import cv2
-    import random
     from skimage.measure import ransac
-    from skimage.transform import AffineTransform
+    from skimage.transform import AffineTransform, EuclideanTransform
     import dask
 
     matching_score = 0
@@ -228,22 +231,20 @@ def template_matching(query_image, reference_image, n_samples=50, window_size=30
     keypoints_r = []
 
     # find interest points in query image (e.g. corners or white pixels)
-    # white_pixels = list(cv2.findNonZero(query_image)) # returns np.array([x,y],...)
-    # samples_positions = random.sample(white_pixels, k=n_samples)
-    # samples_positions = np.array(samples_positions)
-
-    # sample interest point
     corners, subpix = detect_corners(query_image)
     logging.debug("number of corners detected: %d" % len(corners))
 
+    height,width = query_image.shape
+    # reduce image size for performance with fixed aspect ratio. approx- same size as query, to make tempalte amtching work
+    reference_image = cv2.resize(reference_image, (width-window_size*2,height-window_size*2))
+
     # make border of window size around reference image, to catch edge cases
     reference_image_border = cv2.copyMakeBorder(reference_image, window_size,window_size,window_size,window_size, cv2.BORDER_CONSTANT, None, 0)
-    
-    scores = []
     # match all sample points
     lazy_r = []
     for sample_point in corners:
-        x,y = sample_point[0], sample_point[1]
+        # sample interest point
+        x,y = sample_point
         # extract template from query image around sampled point
         template = query_image[y-window_size:y+window_size, x-window_size:x+window_size]
         # skip patches that are not very descriptive
@@ -255,7 +256,8 @@ def template_matching(query_image, reference_image, n_samples=50, window_size=30
             # newsample = corners[np.random.choice(corners.shape[0], 1, replace=False)]#[np.random.choice(list(corners), replace=False)]
             continue
 
-        keypoints_q.append([y,x])
+        # keypoints_q.append([y,x])
+        keypoints_q.append([x,y])
         
         # optional: reduce search space by only looking at/around interest points in reference image
 
@@ -267,7 +269,8 @@ def template_matching(query_image, reference_image, n_samples=50, window_size=30
     results = dask.compute(*lazy_r)
     for x in results:
         match_x, match_y = x
-        keypoints_r.append([match_y+window_size, match_x+window_size])
+        # keypoints_r.append([match_y+window_size, match_x+window_size])
+        keypoints_r.append([match_x+window_size, match_y+window_size])
         # print("R,M:",(x,y),(match_x,match_y))
         # plot_template()
 
@@ -280,18 +283,28 @@ def template_matching(query_image, reference_image, n_samples=50, window_size=30
     logging.info("number of used keypoints: %d", len(keypoints_q))
     #logging.info("number of matched templates: %d", len(keypoints_r)) # all get matched
     
+    if config.warp_mode == "affine":
+        warp_mode = AffineTransform
+    elif config.warp_mode == "euclidean":
+        warp_mode = EuclideanTransform
+
     model, inliers = ransac((keypoints_q, keypoints_r),
-                        AffineTransform, min_samples=3,
-                        residual_threshold=5, max_trials=5000)
+                        warp_mode, min_samples=3,
+                        residual_threshold=5, max_trials=7000)
 
     if inliers is None:
         num_inliers = 0
     else:
         num_inliers = inliers.sum()
 
-    # plot_template_matches(keypoints_q,keypoints_r, inliers, query_image, reference_image_border)
+    plot_template_matches(keypoints_q,keypoints_r, inliers, query_image, reference_image_border)
 
-    return  num_inliers
+    # convert transform matrix to opencv format
+    model = model.params
+    model = np.delete(model, (2), axis=0) # drop homogeneous coordinates
+    model = model.astype(np.float32)
+
+    return  num_inliers, model
 
 def retrieve_best_match(query_image, bboxes, processing_size):
     width, height = processing_size
@@ -313,10 +326,7 @@ def retrieve_best_match(query_image, bboxes, processing_size):
         rivers_json = osm.get_from_osm(bbox)
         reference_river_image = osm.paint_features(rivers_json, bbox)
 
-        # reduce image size for performance with fixed aspect ratio. approx- same size as query, to make tempalte amtching work
-        reference_image_small = cv2.resize(reference_river_image, (width-window_size*2,height-window_size*2))
-
-        num_inliers = template_matching(query_image_small, reference_image_small, window_size=window_size)
+        num_inliers, transform_model = template_matching(query_image_small, reference_river_image, window_size=window_size)
 
         score_list.append((num_inliers, idx))
         if closest_image is None or num_inliers > best_dist:
@@ -328,4 +338,4 @@ def retrieve_best_match(query_image, bboxes, processing_size):
     end_time = time.time()
     logging.info("total time spent: %f" % (end_time - start_time))
     score_list.sort(key=lambda x: x[0])
-    return closest_image,closest_bbox,best_dist, score_list
+    return closest_image, closest_bbox, best_dist, score_list, transform_model
