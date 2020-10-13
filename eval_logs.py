@@ -3,16 +3,17 @@ from os.path import isfile, join
 import re
 import json
 
+from config import path_logs
+
 def dump_csv(experiments):
     print("writing to file...")
     with open("eval_result.csv", "w", encoding="utf-8") as eval_fp:
         # header
-        eval_fp.write("ground truth; prediction; ground truth position; georef success; avg time per sheet; times; scores; number of detected keypoints; registration time; command\n")
+        eval_fp.write("ground truth; prediction; ground truth position; georef success; avg time per sheet; times; scores; number of detected keypoints; template scores; registration time; command; percent segmented\n")
 
         for exp in experiments.values():
-            print(exp)
             try:
-                eval_fp.write("%s; %s; %d; %s; %.2f; %s; %s; %d; %.2f; %s\n" % (exp["ground_truth"],
+                eval_fp.write("%s; %s; %d; %s; %.2f; %s; %s; %d; %s; %.2f; %s; %s\n" % (exp["ground_truth"],
                                                                 exp["prediction"],
                                                                 exp["gt_pos"],
                                                                 exp["georef_success"],
@@ -20,8 +21,10 @@ def dump_csv(experiments):
                                                                 exp["times"],
                                                                 exp["scores"],
                                                                 exp["num_keypoints"],
+                                                                exp.get("template_scores","[]"),
                                                                 exp.get("register_time",-1), # might not have been registered
-                                                                exp["command"]))
+                                                                exp["command"],
+                                                                exp.get("percent_segmented",-1).replace(".",",")))
             except KeyError as e:
                 print(e)
                 print("skipping exp for %s" % exp.get("ground_truth",None))
@@ -31,16 +34,17 @@ def dump_json(experiments):
         json.dump(experiments, eval_fp)
 
 if __name__ == "__main__":
-    logs_path = "logs/"
-    log_files = [f for f in listdir(logs_path) if isfile(join(logs_path, f))]
+    log_files = [f for f in listdir(path_logs) if isfile(join(path_logs, f))]
 
 
     experiments = {}
 
     for log_file in log_files:
-        file_path = join(logs_path, log_file)
+        print(log_file)
+        file_path = join(path_logs, log_file)
 
         experiment_data = None
+        sum_template_score = 0
 
         with open(file_path) as log_fp:
 
@@ -54,13 +58,17 @@ if __name__ == "__main__":
                 # print(line)
 
                 if "Processing file" in line:
+                    # end previous entry
                     if experiment_data:
                         if "times" in experiment_data:
                             experiment_data["avg_time"] = sum(experiment_data["times"])/len(experiment_data["times"])
 
                         if "ground_truth" in experiment_data:
-                            experiments[experiment_data["ground_truth"]] = experiment_data
 
+                            experiments[experiment_data["ground_truth"]] = experiment_data
+                            print("end for gt", experiment_data["ground_truth"])
+
+                    # start new entry
                     experiment_data = {}
                     experiment_data["georef_success"] = False
                     experiment_data["command"] = command
@@ -79,16 +87,25 @@ if __name__ == "__main__":
                     gt = re.search(r"(?<=gt:)[^,']*", line)[0]
                     experiment_data["ground_truth"] = gt
 
+                elif "template matching score" in line:
+                    sum_template_score += float(line.split(":")[-1])
+
                 # get distance distribution
                 elif "target" in line:
                     if not "scores" in experiment_data:
                         experiment_data["scores"] = []
                         experiment_data["times"] = []
+                        experiment_data["template_scores"] = []
                     score = int(re.search(r"(?<=Score\s)[0-9]*", line)[0])
                     experiment_data["scores"].append(score)
 
                     time = float(re.search(r"(?<=time:\s)[0-9]*\.[0-9]*", line)[0])
                     experiment_data["times"].append(time)
+
+                    if "num_keypoints" in experiment_data:
+                        avg_template_score = sum_template_score/experiment_data["num_keypoints"]
+                        experiment_data["template_scores"].append(avg_template_score)
+                    sum_template_score = 0
 
                 # get distance distribution
                 elif "ground truth at position" in line:
@@ -104,8 +121,22 @@ if __name__ == "__main__":
                     experiment_data["register_time"] = time
                     
                 # get num interest points
-                elif "number of corners" in line:
+                elif "number of corners" in line or "number of used keypoints" in line:
                     experiment_data["num_keypoints"] = int(line.split(" ")[-1])
+
+                # get segmented pixels
+                elif "segmented" in line:
+                    experiment_data["percent_segmented"] = (line.split(" ")[-2])
+
+        
+        # end entry
+        if experiment_data:
+            if "times" in experiment_data:
+                experiment_data["avg_time"] = sum(experiment_data["times"])/len(experiment_data["times"])
+
+            if "ground_truth" in experiment_data:
+                experiments[experiment_data["ground_truth"]] = experiment_data
+                print("end for gt", experiment_data["ground_truth"])
 
 
     dump_csv(experiments)
