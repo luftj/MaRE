@@ -14,7 +14,7 @@ from PIL import Image
 
 from find_sheet import find_poly_for_name
 
-from config import path_output
+from config import path_output, proj_sheets, proj_out
 
 def match_sheet_name(img_name):
     # s = re.findall(r"(?<=_)[0-9][0-9][0-9a](?=_)",img_name)
@@ -96,6 +96,17 @@ def warp_images(filenames,inputpath):
         print("exec: %s" % command)
         os.system(command)
 
+def get_truth_bbox(sheets, sheet_name):
+    transform_sheet_to_out = pyproj.Transformer.from_proj(proj_sheets, proj_out, skip_equivalent=True, always_xy=True)
+
+    truth_bbox = find_poly_for_name(sheets, sheet_name)
+    
+    if len(truth_bbox) != 5:
+        raise ValueError("bbox should have 4 points, has %d" % len(truth_bbox))
+
+    truth_bbox = [transform_sheet_to_out.transform(x, y) for (x,y) in truth_bbox]
+    return truth_bbox
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("input", help="input file path string with corner annotations")
@@ -108,7 +119,7 @@ if __name__ == "__main__":
     inputpath = os.path.dirname(args.input)
 
     sheet_corners = read_corner_CSV(args.input)
-    img_list = list(sheet_corners.keys())[1:2]
+    img_list = list(sheet_corners.keys())#[-5:-4]
 
     if not args.nowarp:
         warp_images(img_list,inputpath) # this has to be done before calculating coords, because proj db breaks
@@ -121,7 +132,7 @@ if __name__ == "__main__":
     for img_name in img_list:
         print(img_name)
         sheet_name = match_sheet_name(img_name)
-        truth_bbox = find_poly_for_name(args.sheets, sheet_name)
+        truth_bbox = get_truth_bbox(args.sheets, sheet_name)
 
         img_path = inputpath + "/" + img_name
         img = imread(img_path, as_gray=True)
@@ -138,7 +149,7 @@ if __name__ == "__main__":
             match = match_corner(georef_img, template)
             coords = get_coords_from_raster(georef_path, match)
             corner_coords.append(coords)
-            print(point, match, coords)
+            print(point, match, coords, truth_bbox[idx])
 
             if args.plot:
                 # show corners
