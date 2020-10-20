@@ -3,6 +3,7 @@ import argparse
 import json
 import re
 import os
+import time
 
 import pyproj
 from matplotlib import pyplot as plt
@@ -11,9 +12,12 @@ from skimage.io import imread
 from skimage import data
 from skimage.feature import match_template
 from PIL import Image
+import dask_image.imread
+import dask.array
+import dask.delayed
+import skimage.util
 
 from find_sheet import find_poly_for_name
-
 from config import path_output
 
 def match_sheet_name(img_name):
@@ -48,7 +52,12 @@ def read_corner_CSV(filepath):
     return sheet_corners
 
 def match_corner(image, template):
-    result = match_template(image, template,pad_input=True)
+    # result = skimage.util.apply_parallel(match_template, image,
+    #                                 dtype=np.float64, chunks=None, #dtype requires skimage>=0.18
+    #                                 extra_keywords={"template":template,"pad_input":True})
+    
+    result = match_template(image, template, pad_input=True)
+    # print(result)
     ij = np.unravel_index(np.argmax(result), result.shape)
     x, y = ij[::-1]
     corr_coef = result[y,x]
@@ -96,35 +105,60 @@ def warp_images(filenames,inputpath):
         print("exec: %s" % command)
         os.system(command)
 
+def grayscale(rgb):
+    result = ((rgb[..., 0] * 0.2125) +
+              (rgb[..., 1] * 0.7154) +
+              (rgb[..., 2] * 0.0721))
+    return result
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("input", help="input file path string with corner annotations")
     parser.add_argument("sheets", help="sheets json file path string", default="data/blattschnitt_dr100.geojson")
     parser.add_argument("--plot", help="set this to true to show debugging plots", action="store_true")
+    parser.add_argument("--nowarp", help="set this to not update warped images", action="store_true")
     args = parser.parse_args()
     # python eval_georef.py /e/data/deutsches_reich/wiki/highres/382.csv data/blattschnitt_dr100_merged_digi.geojson
-    
+    t0=time.time()    
     inputpath = os.path.dirname(args.input)
 
     sheet_corners = read_corner_CSV(args.input)
-
-    warp_images(list(sheet_corners.keys()),inputpath) # this has to be done before calculating coords, because proj db breaks
-
+    img_names = list(sheet_corners.keys())[9:10]
+    t1=time.time()
+    print("time parse csv", t1-t0)
+    if not args.nowarp:
+        warp_images(img_names,inputpath) # this has to be done before calculating coords, because proj db breaks
+    print("time warp", time.time()-t1)
     error_results = []
     sheet_names = []
 
     template_size = 20
 
-    for img_name in list(sheet_corners.keys()):
+    times = []
+
+    for img_name in img_names:
+        time_start = time.time()
         print(img_name)
         sheet_name = match_sheet_name(img_name)
         truth_bbox = find_poly_for_name(args.sheets, sheet_name)
 
         img_path = inputpath + "/" + img_name
-        img = imread(img_path, as_gray=True)
+        img = dask.delayed(imread)(img_path, as_gray=True)
+        
+        # img = dask_image.imread.imread(img_path)
+        # img = grayscale(img)
+        # img = img[0, ...]
+        # img = img.rechunk("auto")
+        # print(img)
 
         georef_path = path_output + "/georef_sheet_%s_warp.tif" % sheet_name
-        georef_img = imread(georef_path, as_gray=True)
+        georef_img = dask.delayed(imread)(georef_path, as_gray=True)
+
+        # georef_img = dask_image.imread.imread(georef_path)
+        # georef_img = grayscale(georef_img)
+        # georef_img = georef_img[0, ...]
+        # georef_img = georef_img.rechunk("auto")
+        # print(georef_img)
 
         corner_coords = []
 
@@ -132,10 +166,10 @@ if __name__ == "__main__":
             y = point[1]
             x = point[0]
             template = img[y-template_size:y+template_size, x-template_size:x+template_size]
-            match = match_corner(georef_img, template)
+            match = dask.delayed(match_corner)(georef_img, template)
             coords = get_coords_from_raster(georef_path, match)
             corner_coords.append(coords)
-            print(point, match, coords)
+            # print(point, match, coords, truth_bbox[idx])
 
             if args.plot:
                 # show corners
@@ -146,16 +180,24 @@ if __name__ == "__main__":
                 plt.gray()
                 plt.imshow(georef_img[match[1]-template_size:match[1]+template_size, match[0]-template_size:match[0]+template_size])
 
-        mse = mean_squared_error(corner_coords[0:4], truth_bbox[0:4])
+        # corner_coords = dask.compute(*corner_coords)
+        print("\n\nresult", corner_coords, truth_bbox[0:4])
+        mse = mean_squared_error(corner_coords, truth_bbox[0:4]) # TODO: corners should be sorted, can't rely on order in sheets or annotation
         print("mean error: %f m" % mse)
         error_results.append(mse)
         sheet_names.append(sheet_name)
-
+        times.append(time.time() - time_start)
+        print("time taken: %f" % times[-1])
         if args.plot:
             plt.show()
     
     total_mean_error = sum(error_results)/len(error_results)
+    total_mean_error = total_mean_error.compute()
     print("total mean error: %f m" % total_mean_error)
+    
+    avg_time = sum(times)/len(times)
+    print("avg eval time per sheet: %f s" % avg_time)
+    print("total time",time.time()-t0)
 
     plt.bar(sheet_names, error_results)
     plt.title("average error per sheet")
