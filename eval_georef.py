@@ -8,8 +8,9 @@ import pyproj
 from matplotlib import pyplot as plt
 import numpy as np
 from skimage.io import imread
+from skimage import data
+from skimage.feature import match_template
 from PIL import Image
-import rasterio
 
 from find_sheet import find_poly_for_name
 
@@ -46,10 +47,7 @@ def read_corner_CSV(filepath):
     sheet_corners = { s:p for (s,p) in sheet_corners.items() if len(p) == 4}
     return sheet_corners
 
-def match_template(image, template):
-    from skimage import data
-    from skimage.feature import match_template
-
+def match_corner(image, template):
     result = match_template(image, template,pad_input=True)
     ij = np.unravel_index(np.argmax(result), result.shape)
     x, y = ij[::-1]
@@ -57,6 +55,7 @@ def match_template(image, template):
     return (x, y)
 
 def get_coords_from_raster(georef_image_path, point):
+    import rasterio # leave this in here, to avoid proj_db errors
     dataset = rasterio.open(georef_image_path)
 
     latlong = dataset.transform * point
@@ -92,7 +91,7 @@ def warp_images(filenames,inputpath):
         im = Image.open(img_path)
         width, height = im.size
 
-        georef_path = path_output + "/georef_sheet_%s_warp.tif" % sheet_name
+        georef_path = path_output + "georef_sheet_%s_warp.tif" % sheet_name
         command = "gdalwarp -t_srs EPSG:4326 -ts %d %d -overwrite %s/georef_sheet_%s.jp2 %s" %(width, height, path_output, sheet_name, georef_path)
         print("exec: %s" % command)
         os.system(command)
@@ -109,7 +108,7 @@ if __name__ == "__main__":
 
     sheet_corners = read_corner_CSV(args.input)
 
-    warp_images(list(sheet_corners.keys()),inputpath) # this has to be done before calculating error, because pyproj db breaks
+    warp_images(list(sheet_corners.keys()),inputpath) # this has to be done before calculating coords, because proj db breaks
 
     error_results = []
     sheet_names = []
@@ -133,7 +132,7 @@ if __name__ == "__main__":
             y = point[1]
             x = point[0]
             template = img[y-template_size:y+template_size, x-template_size:x+template_size]
-            match = match_template(georef_img, template)
+            match = match_corner(georef_img, template)
             coords = get_coords_from_raster(georef_path, match)
             corner_coords.append(coords)
             print(point, match, coords)
@@ -155,6 +154,9 @@ if __name__ == "__main__":
         if args.plot:
             plt.show()
     
+    total_mean_error = sum(error_results)/len(error_results)
+    print("total mean error: %f m" % total_mean_error)
+
     plt.bar(sheet_names, error_results)
     plt.title("average error per sheet")
     plt.show()
