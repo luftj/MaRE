@@ -165,8 +165,6 @@ def detect_corners(image):
     return coords, coords_subpix
 
 def match_template(image, template):
-    import matplotlib.pyplot as plt
-
     from skimage import data
     from skimage.feature import match_template
 

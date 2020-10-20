@@ -6,8 +6,13 @@ from time import sleep
 import requests
 import logging
 from osmtogeojson import osmtogeojson
+from pyproj import Transformer
 
-from config import path_osm
+from config import path_osm, proj_map, proj_osm, proj_sheets
+
+transform_osm_to_map = Transformer.from_proj(proj_osm, proj_map, skip_equivalent=True, always_xy=True)
+transform_sheet_to_osm = Transformer.from_proj(proj_sheets, proj_osm, skip_equivalent=True, always_xy=True)
+transform_sheet_to_map = Transformer.from_proj(proj_sheets, proj_map, skip_equivalent=True, always_xy=True)
 
 def query_overpass(query):
     import overpass
@@ -41,12 +46,16 @@ def query_overpass(query):
 def get_from_osm(bbox=[16.3,54.25,16.834,54.5], url = "http://overpass-api.de/api/interpreter"):
     data_path = path_osm + "rivers_%s.geojson" % "_".join(map(str,bbox))
 
+    minxy = transform_sheet_to_osm.transform(bbox[0], bbox[1]) # reproject lower left bbox corner
+    maxxy = transform_sheet_to_osm.transform(bbox[2], bbox[3]) # reproject upper right bbox corner
+    bbox = minxy+maxxy
+
     # don't query if we already have the data on disk
-    if os.path.isfile( data_path ):
-        logging.debug("fetching osm data from disk: %s" % data_path)
-        with open(data_path, encoding="utf-8") as file:
-            json_data = json.load(file)
-            return json_data
+    # if os.path.isfile( data_path ):
+    #     logging.debug("fetching osm data from disk: %s" % data_path)
+    #     with open(data_path, encoding="utf-8") as file:
+    #         json_data = json.load(file)
+    #         return json_data
 
     sorted_bbox = ",".join(map(str,[bbox[1], bbox[0], bbox[3], bbox[2]]))
     query = """[out:json];
@@ -90,6 +99,7 @@ def get_from_osm(bbox=[16.3,54.25,16.834,54.5], url = "http://overpass-api.de/ap
     return gj
 
 def coord_to_point(coords, bbox, img_size, castint=True):
+    coords = transform_osm_to_map.transform(coords[0], coords[1])
     lon = coords[0]
     lat = coords[1]
     x = (lon-bbox[0]) / (bbox[2]-bbox[0]) * img_size[0]
@@ -101,6 +111,10 @@ def coord_to_point(coords, bbox, img_size, castint=True):
     return (x,y)
 
 def paint_features(json_data, bbox=[16.3333,54.25,16.8333333,54.5], img_size=(1000,850)):
+    minxy = transform_sheet_to_map.transform(bbox[0], bbox[1]) # reproject lower left bbox corner
+    maxxy = transform_sheet_to_map.transform(bbox[2], bbox[3]) # reproject upper right bbox corner
+    bbox = minxy+maxxy
+
     image = np.zeros(shape=img_size[::-1], dtype=np.uint8)
     for feature in json_data["features"]:
         try:

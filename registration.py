@@ -19,7 +19,6 @@ def register_ECC(query_image, reference_image, warp_matrix=None, warp_mode = cv2
             warp_matrix = np.eye(3, 3, dtype=np.float32)
         else :
             warp_matrix = np.eye(2, 3, dtype=np.float32)
-    print(warp_matrix, warp_matrix.dtype)
 
     # Specify the number of iterations.
     number_of_iterations = 7000
@@ -48,8 +47,19 @@ def warp(image, warp_matrix, warp_mode = cv2.MOTION_AFFINE):
 
     return im2_aligned
 
+
+from pyproj import Transformer
+
+from config import path_osm, proj_sheets, proj_out
+
+transform_sheet_to_out = Transformer.from_proj(proj_sheets, proj_out, skip_equivalent=True, always_xy=True)
+
 def georeference(inputfile, outputfile, bbox, border=None):
     time_start = time()
+    minxy = transform_sheet_to_out.transform(bbox[0], bbox[1]) # reproject lower left bbox corner
+    maxxy = transform_sheet_to_out.transform(bbox[2], bbox[3]) # reproject upper right bbox corner
+    bbox = minxy+maxxy
+    print(bbox)
 
     left, top, right, bottom = (bbox[0], bbox[3], bbox[2], bbox[1])
 

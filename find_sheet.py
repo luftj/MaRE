@@ -66,3 +66,30 @@ def find_name_for_bbox(sheetfile, bbox):
                     return feature["properties"]["blatt_ostmark"]
                 if feature["properties"]["blatt_polen"]:
                     return feature["properties"]["blatt_polen"]
+
+def find_bbox_for_name(sheetfile, name):
+    with open(sheetfile) as file:
+        json_data = json.load(file)
+
+        for feature in json_data["features"]:
+
+            if feature["properties"]["blatt_100"] == name or feature["properties"]["blatt_ostmark"] == name or feature["properties"]["blatt_polen"] == name:
+                # found
+                
+                minx = min([p[0] for p in feature["geometry"]["coordinates"][0]])
+                maxx = max([p[0] for p in feature["geometry"]["coordinates"][0]])
+                miny = min([p[1] for p in feature["geometry"]["coordinates"][0]])
+                maxy = max([p[1] for p in feature["geometry"]["coordinates"][0]])
+
+                return [minx, miny, maxx, maxy]
+
+def find_poly_for_name(sheetfile, name):
+    with open(sheetfile) as file:
+        json_data = json.load(file)
+
+        for feature in json_data["features"]:
+
+            if feature["properties"]["blatt_100"] == name or feature["properties"]["blatt_ostmark"] == name or feature["properties"]["blatt_polen"] == name:
+                # found
+
+                return feature["geometry"]["coordinates"][0]
