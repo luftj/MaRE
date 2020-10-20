@@ -101,21 +101,24 @@ if __name__ == "__main__":
     parser.add_argument("input", help="input file path string with corner annotations")
     parser.add_argument("sheets", help="sheets json file path string", default="data/blattschnitt_dr100.geojson")
     parser.add_argument("--plot", help="set this to true to show debugging plots", action="store_true")
+    parser.add_argument("--nowarp", help="set this to not update warped images", action="store_true")
     args = parser.parse_args()
     # python eval_georef.py /e/data/deutsches_reich/wiki/highres/382.csv data/blattschnitt_dr100_merged_digi.geojson
     
     inputpath = os.path.dirname(args.input)
 
     sheet_corners = read_corner_CSV(args.input)
+    img_list = list(sheet_corners.keys())[1:2]
 
-    warp_images(list(sheet_corners.keys()),inputpath) # this has to be done before calculating coords, because proj db breaks
+    if not args.nowarp:
+        warp_images(img_list,inputpath) # this has to be done before calculating coords, because proj db breaks
 
     error_results = []
     sheet_names = []
 
     template_size = 20
 
-    for img_name in list(sheet_corners.keys()):
+    for img_name in img_list:
         print(img_name)
         sheet_name = match_sheet_name(img_name)
         truth_bbox = find_poly_for_name(args.sheets, sheet_name)
