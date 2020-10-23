@@ -3,6 +3,8 @@ import argparse
 import json
 import re
 import os
+import profile
+import time
 
 import pyproj
 from matplotlib import pyplot as plt
@@ -130,6 +132,7 @@ if __name__ == "__main__":
     template_size = 20
 
     for img_name in img_list:
+        t0 = time.time()
         print(img_name)
         sheet_name = match_sheet_name(img_name)
         truth_bbox = get_truth_bbox(args.sheets, sheet_name)
@@ -167,6 +170,8 @@ if __name__ == "__main__":
         print("mean error: %f m" % mse)
         error_results.append(mse)
         sheet_names.append(sheet_name)
+
+        print("time for image:", time.time() - t0, "s")
 
         if args.plot:
             plt.show()
