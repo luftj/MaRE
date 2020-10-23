@@ -140,6 +140,8 @@ if __name__ == "__main__":
         georef_path = path_output + "/georef_sheet_%s_warp.tif" % sheet_name
         georef_img = imread(georef_path, as_gray=True)
 
+        # TODO: can we find corners from downscaled iamges? would save a lot of time -> is it less precise?
+
         corner_coords = []
 
         for idx,point in enumerate(sheet_corners[img_name]):
@@ -159,6 +161,7 @@ if __name__ == "__main__":
                 plt.subplot(2, 4, (idx*2)+2)
                 plt.gray()
                 plt.imshow(georef_img[match[1]-template_size:match[1]+template_size, match[0]-template_size:match[0]+template_size])
+                # TODO: plot center point, to show pixel perfect location
 
         mse = mean_squared_error(corner_coords[0:4], truth_bbox[0:4])
         print("mean error: %f m" % mse)
@@ -171,8 +174,27 @@ if __name__ == "__main__":
     total_mean_error = sum(error_results)/len(error_results)
     print("total mean error: %f m" % total_mean_error)
 
-    plt.bar(sheet_names, error_results)
-    plt.title("average error per sheet")
+    results_sorted = sorted(zip(sheet_names,error_results), key=lambda tup: tup[1])
+    sheet_names_sorted = [x[0] for x in results_sorted]
+    error_sorted = [x[1] for x in results_sorted]
+
+    median_error = error_sorted[len(error_sorted)//2]
+    print("median error: %f m" % median_error)
+
+    plt.subplot(2, 1, 1)
+    plt.bar(sheet_names_sorted, error_sorted)
+    plt.axhline(total_mean_error, c="g", linestyle="--", label="mean")
+    plt.annotate("%.0f" % total_mean_error,(0,total_mean_error + 100))
+    plt.axhline(median_error, c="r", label="median")
+    plt.annotate("%.0f" % median_error,(0,median_error + 100))
+    plt.legend()
+    plt.title("average error per sheet [m]")
+    plt.subplot(2, 1, 2)
+    plt.title('error distribution total [m]')
+    plt.boxplot(error_sorted, vert=False, showmeans=True, medianprops={"color":"r"})
+    plt.axhline(total_mean_error, xmax=0, c="g", label="mean")
+    plt.axhline(median_error, xmax=0, c="r", label="median")
+    plt.legend()
     plt.show()
 
     

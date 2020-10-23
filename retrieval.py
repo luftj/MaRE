@@ -295,7 +295,7 @@ def template_matching(query_image, reference_image, n_samples=50, window_size=30
     else:
         num_inliers = inliers.sum()
 
-    plot_template_matches(keypoints_q,keypoints_r, inliers, query_image, reference_image_border)
+    # plot_template_matches(keypoints_q,keypoints_r, inliers, query_image, reference_image_border)
 
     # convert transform matrix to opencv format
     model = model.params
