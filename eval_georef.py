@@ -12,6 +12,7 @@ import numpy as np
 from skimage.io import imread
 from skimage import data
 from skimage.feature import match_template
+from skimage.transform import resize
 from PIL import Image
 
 from find_sheet import find_poly_for_name
@@ -109,6 +110,71 @@ def get_truth_bbox(sheets, sheet_name):
     truth_bbox = [transform_sheet_to_out.transform(x, y) for (x,y) in truth_bbox]
     return truth_bbox
 
+def findCorners(img, georef_img, ref_corners, plot=False, template_size = 20):
+    corner_points = []
+    for idx,point in enumerate(ref_corners):
+        y = point[1]
+        x = point[0]
+        template = img[y-template_size:y+template_size, x-template_size:x+template_size]
+        match = match_corner(georef_img, template)
+        corner_points.append(match)
+        # print(point, match, coords, truth_bbox[idx])
+
+        if plot:
+            # show corners
+            plt.subplot(2, 4, (idx*2)+1)
+            plt.gray()
+            plt.imshow(template)
+            plt.subplot(2, 4, (idx*2)+2)
+            plt.gray()
+            plt.imshow(georef_img[match[1]-template_size:match[1]+template_size, match[0]-template_size:match[0]+template_size])
+            # TODO: plot center point, to show pixel perfect location
+    if plot:
+        plt.show()
+    return corner_points
+
+def cascadeCorners(img_path, georef_path, truth_corners, plot):
+    img = imread(img_path, as_gray=True)
+    georef_img = imread(georef_path, as_gray=True)
+
+    # downscale images
+    small_width = 500
+    img_small = resize(img, (int(small_width/img.shape[1]*img.shape[0]), small_width), anti_aliasing=True)
+    georef_img_small = resize(georef_img, (int(small_width/georef_img.shape[1]*georef_img.shape[0]),small_width), anti_aliasing=True)
+    # rescale truth corners to small resolution
+    scaled_corners = [ (int(x * georef_img_small.shape[1]/georef_img.shape[1]), int(y  * georef_img_small.shape[0]/georef_img.shape[0])) for (x,y) in truth_corners]
+    # find  corners in small image
+    corner_points = findCorners(img_small, georef_img_small, scaled_corners, template_size=15, plot=args.plot)
+    # rescale found coordinates to original resolution
+    corner_points = [ (int(x * georef_img.shape[1]/georef_img_small.shape[1]), int(y  * georef_img.shape[0]/georef_img_small.shape[0])) for (x,y) in corner_points]
+    
+    corner_coords = []
+    for idx,corner in enumerate(corner_points):
+        roi_size = 100
+        template_size = 15
+        # extract ROI from original size image
+        roi = georef_img[corner[1]-roi_size:corner[1]+roi_size,corner[0]-roi_size:corner[0]+roi_size]
+        ref_corner = truth_corners[idx]
+        template = img[ref_corner[1]-template_size:ref_corner[1]+template_size, ref_corner[0]-template_size:ref_corner[0]+template_size]
+        # match again in ROIs
+        match = match_corner(roi, template)
+        match = (match[0]+(corner[0]-roi_size), match[1]+(corner[1]-roi_size)) # scale match to non-ROI positions
+        corner_coords.append(get_coords_from_raster(georef_path, match))
+
+        if plot:
+            # show corners
+            plt.subplot(2, 4, (idx*2)+1)
+            plt.gray()
+            plt.imshow(template)
+            plt.subplot(2, 4, (idx*2)+2)
+            plt.gray()
+            plt.imshow(georef_img[match[1]-template_size:match[1]+template_size, match[0]-template_size:match[0]+template_size])
+            # TODO: plot center point, to show pixel perfect location
+    if plot:
+        plt.show()
+
+    return corner_coords
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("input", help="input file path string with corner annotations")
@@ -129,43 +195,18 @@ if __name__ == "__main__":
     error_results = []
     sheet_names = []
 
-    template_size = 20
-
     for img_name in img_list:
         t0 = time.time()
         print(img_name)
         sheet_name = match_sheet_name(img_name)
-        truth_bbox = get_truth_bbox(args.sheets, sheet_name)
 
         img_path = inputpath + "/" + img_name
-        img = imread(img_path, as_gray=True)
-
         georef_path = path_output + "/georef_sheet_%s_warp.tif" % sheet_name
-        georef_img = imread(georef_path, as_gray=True)
 
-        # TODO: can we find corners from downscaled iamges? would save a lot of time -> is it less precise?
+        # find corner coordinates of registered image (geo-coordinates)
+        corner_coords = cascadeCorners(img_path, georef_path, sheet_corners[img_name], plot=args.plot)
 
-        corner_coords = []
-
-        for idx,point in enumerate(sheet_corners[img_name]):
-            y = point[1]
-            x = point[0]
-            template = img[y-template_size:y+template_size, x-template_size:x+template_size]
-            match = match_corner(georef_img, template)
-            coords = get_coords_from_raster(georef_path, match)
-            corner_coords.append(coords)
-            print(point, match, coords, truth_bbox[idx])
-
-            if args.plot:
-                # show corners
-                plt.subplot(2, 4, (idx*2)+1)
-                plt.gray()
-                plt.imshow(template)
-                plt.subplot(2, 4, (idx*2)+2)
-                plt.gray()
-                plt.imshow(georef_img[match[1]-template_size:match[1]+template_size, match[0]-template_size:match[0]+template_size])
-                # TODO: plot center point, to show pixel perfect location
-
+        truth_bbox = get_truth_bbox(args.sheets, sheet_name)
         mse = mean_squared_error(corner_coords[0:4], truth_bbox[0:4])
         print("mean error: %f m" % mse)
         error_results.append(mse)
@@ -201,7 +242,3 @@ if __name__ == "__main__":
     plt.axhline(median_error, xmax=0, c="r", label="median")
     plt.legend()
     plt.show()
-
-    
-
-
