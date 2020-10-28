@@ -151,7 +151,7 @@ def cascadeCorners(img_path, georef_path, truth_corners, plot):
     corner_coords = []
     for idx,corner in enumerate(corner_points):
         roi_size = 100
-        template_size = 15
+        template_size = 20
         # extract ROI from original size image
         roi = georef_img[corner[1]-roi_size:corner[1]+roi_size,corner[0]-roi_size:corner[0]+roi_size]
         ref_corner = truth_corners[idx]

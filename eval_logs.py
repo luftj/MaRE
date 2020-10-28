@@ -2,6 +2,7 @@ from os import listdir
 from os.path import isfile, join
 import re
 import json
+from math import sqrt
 
 from config import path_logs
 
@@ -9,11 +10,11 @@ def dump_csv(experiments):
     print("writing to file...")
     with open("eval_result.csv", "w", encoding="utf-8") as eval_fp:
         # header
-        eval_fp.write("ground truth; prediction; ground truth position; georef success; avg time per sheet; times; scores; number of detected keypoints; template scores; registration time; command; percent segmented\n")
+        eval_fp.write("ground truth; prediction; ground truth position; georef success; avg time per sheet; times; scores; number of detected keypoints; template scores; registration time; command; percent segmented; mahalanobis\n")
 
         for exp in experiments.values():
             try:
-                eval_fp.write("%s; %s; %d; %s; %.2f; %s; %s; %d; %s; %.2f; %s; %s\n" % (exp["ground_truth"],
+                eval_fp.write("%s; %s; %d; %s; %.2f; %s; %s; %d; %s; %.2f; %s; %s; %.2f\n" % (exp["ground_truth"],
                                                                 exp["prediction"],
                                                                 exp["gt_pos"],
                                                                 exp["georef_success"],
@@ -24,7 +25,8 @@ def dump_csv(experiments):
                                                                 exp.get("template_scores","[]"),
                                                                 exp.get("register_time",-1), # might not have been registered
                                                                 exp["command"],
-                                                                exp.get("percent_segmented",-1).replace(".",",")))
+                                                                exp.get("percent_segmented",-1).replace(".",","),
+                                                                exp.get("mahalanobis",-1)))
             except KeyError as e:
                 print(e)
                 print("skipping exp for %s" % exp.get("ground_truth",None))
@@ -33,7 +35,64 @@ def dump_json(experiments):
     with open("eval_result.json", "w", encoding="utf-8") as eval_fp:
         json.dump(experiments, eval_fp)
 
+def mahalanobis_distance(scores):
+    max_val = max(scores)
+    sample = scores.copy()
+    sample.remove(max_val)
+    if len(sample) == 0:
+        return -1
+    mean = sum(sample)/len(sample)
+    if mean == max_val:
+        return 0
+    if len(sample) == 1:
+        return 0
+    sd = sqrt(sum([(x-mean)**2 for x in sample])/(len(sample)-1)) # sample standard deviation
+
+    print("mean",mean)
+    print("standard deviation",sd)
+
+    if sd == 0:
+        dist = 0
+    else:
+        dist = (max_val - mean) / sd
+    print("distance", dist)
+    return dist
+
+def plot_score_dist(x):
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    def gaussian(x, mu, sig, scale):
+        return np.exp(-np.power(x - mu, 2.) / (2 * np.power(sig, 2.))) * scale
+
+    dist=mahalanobis_distance(x)
+
+    sample = x.copy()
+    sample.remove(max(x))
+    mean = sum(sample)/len(sample)
+    sd = sqrt(sum([(o-mean)**2 for o in sample])/(len(sample)-1))
+
+    x_values = np.linspace(min(x),max(x))
+    plt.plot(x_values, gaussian(x_values, mean, sd, x.count(max(x,key=x.count))), label="dist")
+    plt.axvline(mean + sd, c="r",linestyle="--", label="1σ")
+    plt.axvline(mean + 2*sd, c="r",linestyle=":", label="2σ")
+    plt.axvline(mean + 3*sd, c="r",linestyle="-.", label="3σ")
+    plt.axvline(mean + 4*sd, c="r",linestyle="-", label="4σ")
+    print("4s",mean+4*sd)
+    # plt.axvline(max(x), c="y",linestyle="-", label="dist")
+    plt.hist(x,max(x)+2, label="obs", align="mid")
+    plt.xticks(range(min(x)-1,max(x)+1))
+    plt.legend()
+    plt.show()
+    exit()
+
 if __name__ == "__main__":
+    # plot_score_dist([6, 9, 14, 9, 12, 8, 7, 11, 7, 9, 10, 8, 10, 9, 7, 10, 9, 9, 7, 8, 9])
+    # plot_score_dist( [4, 3, 3, 3, 3, 4, 4, 3, 4, 4, 5, 4, 5, 4, 5, 4, 3, 4, 5, 4, 4])
+    # plot_score_dist( [8, 9, 7, 6, 5, 11, 5, 8, 11, 9, 15, 5, 7, 7, 6, 6, 4, 6, 8, 5, 7])
+    # plot_score_dist( [4, 5, 6, 6, 4, 4, 5, 4, 6, 5, 9, 6, 5, 4, 5, 6, 4, 5, 5, 5, 5])
+    # plot_score_dist( [4, 5, 6, 6, 4, 4, 5, 4, 6, 5, 9, 6, 5, 4, 5, 6, 4, 5, 5, 5, 5])
+
     log_files = [f for f in listdir(path_logs) if isfile(join(path_logs, f))]
 
 
@@ -62,6 +121,9 @@ if __name__ == "__main__":
                     if experiment_data:
                         if "times" in experiment_data:
                             experiment_data["avg_time"] = sum(experiment_data["times"])/len(experiment_data["times"])
+
+                        if "scores" in experiment_data:
+                            experiment_data["mahalanobis"] = mahalanobis_distance(experiment_data["scores"])
 
                         if "ground_truth" in experiment_data:
 
@@ -133,6 +195,9 @@ if __name__ == "__main__":
         if experiment_data:
             if "times" in experiment_data:
                 experiment_data["avg_time"] = sum(experiment_data["times"])/len(experiment_data["times"])
+
+            if "scores" in experiment_data:
+                experiment_data["mahalanobis"] = mahalanobis_distance(experiment_data["scores"])
 
             if "ground_truth" in experiment_data:
                 experiments[experiment_data["ground_truth"]] = experiment_data
