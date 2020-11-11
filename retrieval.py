@@ -221,7 +221,7 @@ def plot_template_matches(keypoints_q,keypoints_r, inliers,query_image, referenc
 def template_matching(query_image, reference_image, n_samples=50, window_size=30, patch_min_area=0.1, patch_max_area=0.8):
     import cv2
     from skimage.measure import ransac
-    from skimage.transform import AffineTransform, EuclideanTransform
+    from skimage.transform import AffineTransform, EuclideanTransform, SimilarityTransform
     import dask
 
     matching_score = 0
@@ -284,7 +284,7 @@ def template_matching(query_image, reference_image, n_samples=50, window_size=30
     if config.warp_mode == "affine":
         warp_mode = AffineTransform
     elif config.warp_mode == "euclidean":
-        warp_mode = EuclideanTransform
+        warp_mode = SimilarityTransform
 
     model, inliers = ransac((keypoints_q, keypoints_r),
                         warp_mode, min_samples=3,

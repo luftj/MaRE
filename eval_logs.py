@@ -10,11 +10,11 @@ def dump_csv(experiments):
     print("writing to file...")
     with open("eval_result.csv", "w", encoding="utf-8") as eval_fp:
         # header
-        eval_fp.write("ground truth; prediction; ground truth position; georef success; avg time per sheet; times; scores; number of detected keypoints; template scores; registration time; command; percent segmented; mahalanobis\n")
+        eval_fp.write("ground truth; prediction; ground truth position; georef success; avg time per sheet; times; scores; number of detected keypoints; template scores; registration time; command; percent segmented; mahalanobis; Lowe's test ratio\n")
 
         for exp in experiments.values():
             try:
-                eval_fp.write("%s; %s; %d; %s; %.2f; %s; %s; %d; %s; %.2f; %s; %s; %.2f\n" % (exp["ground_truth"],
+                eval_fp.write("%s; %s; %d; %s; %.2f; %s; %s; %d; %s; %.2f; %s; %s; %.2f; %.2f\n" % (exp["ground_truth"],
                                                                 exp["prediction"],
                                                                 exp["gt_pos"],
                                                                 exp["georef_success"],
@@ -26,7 +26,8 @@ def dump_csv(experiments):
                                                                 exp.get("register_time",-1), # might not have been registered
                                                                 exp["command"],
                                                                 exp.get("percent_segmented",-1).replace(".",","),
-                                                                exp.get("mahalanobis",-1)))
+                                                                exp.get("mahalanobis",-1),
+                                                                exp.get("lowes_ratio",-1)))
             except KeyError as e:
                 print(e)
                 print("skipping exp for %s" % exp.get("ground_truth",None))
@@ -57,6 +58,16 @@ def mahalanobis_distance(scores):
         dist = (max_val - mean) / sd
     print("distance", dist)
     return dist
+
+def lowes_ratio(scores):
+    if len(scores) <= 1:
+        return -1
+    values = scores.copy()
+    maxval = max(values)
+    values.remove(maxval)
+    max_noise = max(values)
+    return max_noise/maxval
+
 
 def plot_score_dist(x):
     import matplotlib.pyplot as plt
@@ -124,6 +135,7 @@ if __name__ == "__main__":
 
                         if "scores" in experiment_data:
                             experiment_data["mahalanobis"] = mahalanobis_distance(experiment_data["scores"])
+                            experiment_data["lowes_ratio"] = lowes_ratio(experiment_data["scores"])
 
                         if "ground_truth" in experiment_data:
 
@@ -198,6 +210,7 @@ if __name__ == "__main__":
 
             if "scores" in experiment_data:
                 experiment_data["mahalanobis"] = mahalanobis_distance(experiment_data["scores"])
+                experiment_data["lowes_ratio"] = lowes_ratio(experiment_data["scores"])
 
             if "ground_truth" in experiment_data:
                 experiments[experiment_data["ground_truth"]] = experiment_data

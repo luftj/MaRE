@@ -175,6 +175,14 @@ def cascadeCorners(img_path, georef_path, truth_corners, plot):
 
     return corner_coords
 
+def dump_csv(sheets_list, error_list):
+    print("writing to file...")
+    with open("eval_georef_result.csv", "w", encoding="utf-8") as eval_fp:
+        eval_fp.write("sheet name; error [m]\n") # header
+
+        for sheet, error in zip(sheets_list, error_list):
+            eval_fp.write("%s; %.2f" % (sheet, error))
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("input", help="input file path string with corner annotations")
@@ -226,6 +234,8 @@ if __name__ == "__main__":
 
     median_error = error_sorted[len(error_sorted)//2]
     print("median error: %f m" % median_error)
+
+    dump_csv(sheet_names, error_results)
 
     plt.subplot(2, 1, 1)
     plt.bar(sheet_names_sorted, error_sorted)
