@@ -210,12 +210,14 @@ def plot_template_matches(keypoints_q,keypoints_r, inliers,query_image, referenc
     fig, ax = plt.subplots(nrows=2, ncols=1)
 
     plt.gray()
-
     plot_matches(ax[0], (255-query_image), (255-reference_image_border), keypoints_q, keypoints_r,
-                matches)
+                matches)#,alignment="vertical")
     plot_matches(ax[1], (255-query_image), (255-reference_image_border), keypoints_q, keypoints_r,
-                matches[inliers])
-
+                matches[inliers])#,alignment="vertical")
+    plt.xticks([],[])
+    plt.yticks([],[])
+    for spine in ax.spines:
+        ax.spines[spine].set_visible(False)
     plt.show()
 
 def template_matching(query_image, reference_image, n_samples=50, window_size=30, patch_min_area=0.1, patch_max_area=0.8):
@@ -281,9 +283,9 @@ def template_matching(query_image, reference_image, n_samples=50, window_size=30
     logging.info("number of used keypoints: %d", len(keypoints_q))
     #logging.info("number of matched templates: %d", len(keypoints_r)) # all get matched
     
-    if config.warp_mode == "affine":
+    if config.warp_mode_retrieval == "affine":
         warp_mode = AffineTransform
-    elif config.warp_mode == "euclidean":
+    elif config.warp_mode_retrieval == "similarity":
         warp_mode = SimilarityTransform
 
     model, inliers = ransac((keypoints_q, keypoints_r),

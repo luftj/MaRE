@@ -25,6 +25,37 @@ def apply_threshold(matrix, low_value, high_value):
 
     return matrix
 
+def simplest_cb_gray(img, percent):
+    assert(len(img.shape) == 2)
+    assert(percent > 0 and percent < 100)
+    logging.debug("Colour balance: treshold %.2f %%" % (percent))
+
+    half_percent = percent / 200.0
+
+    assert(len(img.shape) == 2)
+    # find the low and high precentile values (based on the input percentile)
+    height, width = img.shape
+    vec_size = width * height
+    flat = img.reshape(vec_size)
+
+    assert(len(flat.shape) == 1)
+
+    flat = np.sort(flat)
+
+    n_cols = flat.shape[0]
+
+    low_val  = flat[math.floor(n_cols * half_percent)]
+    high_val = flat[math.ceil( n_cols * (1.0 - half_percent))]
+
+    logging.debug("Colour balance: Lowval %d Highval %d" % (low_val, high_val))
+
+    # saturate below the low percentile and above the high percentile
+    thresholded = apply_threshold(img, low_val, high_val)
+    # scale the channel
+    normalized = cv2.normalize(thresholded, thresholded.copy(), 0, 255, cv2.NORM_MINMAX)
+
+    return normalized
+
 def simplest_cb(img, percent):
     assert(img.shape[2] == 3)
     assert(percent > 0 and percent < 100)

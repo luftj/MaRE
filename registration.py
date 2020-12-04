@@ -10,8 +10,6 @@ def register_ECC(query_image, reference_image, warp_matrix=None, warp_mode = cv2
     # taken from https://www.learnopencv.com/image-alignment-ecc-in-opencv-c-python/
     
     logging.debug("starting registration...")
-    # Find size of image1
-    sz = reference_image.shape
 
     if warp_matrix is None:
         # Define 2x3 or 3x3 matrices and initialize the matrix to identity
@@ -87,40 +85,44 @@ def align_map_image(map_image, query_image, reference_image, target_size=(500,50
     time_start = time()
 
     logging.info("registration image resolution: %d,%d" % target_size)
+    border_size = 150
 
     # register query and retrieved reference image for fine alignment
     query_image_small = cv2.resize(query_image, target_size, cv2.INTER_AREA)
-    reference_image_border = cv2.copyMakeBorder(reference_image, 150,150,150,150, cv2.BORDER_CONSTANT, None, 0)
+    reference_image_border = cv2.copyMakeBorder(reference_image, border_size,border_size,border_size,border_size, cv2.BORDER_CONSTANT, None, 0)
     reference_image_small = cv2.resize(reference_image_border, target_size, cv2.INTER_CUBIC)
     
-    if config.warp_mode == "affine":
+    if config.warp_mode_registration == "affine":
         warp_mode = cv2.MOTION_AFFINE
-    elif config.warp_mode == "euclidean":
+    elif config.warp_mode_registration == "euclidean":
         warp_mode = cv2.MOTION_EUCLIDEAN
+    elif config.warp_mode_registration == "homography":
+        warp_mode = cv2.MOTION_HOMOGRAPHY
 
     # get transformation matrix (map query=source to reference=target)
     warp_matrix = register_ECC(query_image_small, reference_image_small, warp_matrix=warp_matrix, warp_mode=warp_mode)
 
     # query_aligned = warp(query_image_small, warp_matrix)
 
-    # convert affine parameters to homogeneous coordinates
-    warp_matrix = np.vstack([warp_matrix, [0,0,1]])
+    if config.warp_mode_registration != "homography":
+        # convert affine parameters to homogeneous coordinates
+        warp_matrix = np.vstack([warp_matrix, [0,0,1]])
 
     # scale by factor of target/original size
     scale_mat = np.eye(3,3,dtype=np.float32)
     scale_mat[0,0] *= map_image.shape[1] / target_size[0] 
     scale_mat[1,1] *= map_image.shape[0] / target_size[1] 
-    scale_mat[2,2] *= 1
-
     warp_matrix = scale_mat @ warp_matrix @ np.linalg.inv(scale_mat) # complete transformation matrix
-    warp_matrix = np.delete(warp_matrix, (2), axis=0) # drop homogeneous coordinates
+    
+    if config.warp_mode_registration != "homography":
+        warp_matrix = np.delete(warp_matrix, (2), axis=0) # drop homogeneous coordinates
 
     # do the warping with the full sized input image
     map_img_aligned = warp(map_image, warp_matrix, warp_mode=warp_mode)
     
     # crop out border
-    border_x = int(150 * reference_image_small.shape[1] / reference_image_border.shape[1] * map_image.shape[1] / target_size[0])
-    border_y = int(150 * reference_image_small.shape[0] / reference_image_border.shape[0] * map_image.shape[0] / target_size[1])
+    border_x = int(border_size * reference_image_small.shape[1] / reference_image_border.shape[1] * map_image.shape[1] / target_size[0])
+    border_y = int(border_size * reference_image_small.shape[0] / reference_image_border.shape[0] * map_image.shape[0] / target_size[1])
     if crop:
         map_img_aligned = map_img_aligned[border_y:map_img_aligned.shape[0]-border_y, border_x:map_img_aligned.shape[1]-border_x]
     

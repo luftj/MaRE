@@ -122,10 +122,16 @@ def findCorners(img, georef_img, ref_corners, plot=False, template_size = 20):
 
         if plot:
             # show corners
-            plt.subplot(2, 4, (idx*2)+1)
+            ax = plt.subplot(2, 4, idx+1)
+            ax.set_title("original")
+            plt.xticks([],[])
+            plt.yticks([],[])
             plt.gray()
             plt.imshow(template)
-            plt.subplot(2, 4, (idx*2)+2)
+            ax = plt.subplot(2, 4, idx+5)
+            ax.set_title("warped")
+            plt.xticks([],[])
+            plt.yticks([],[])
             plt.gray()
             plt.imshow(georef_img[match[1]-template_size:match[1]+template_size, match[0]-template_size:match[0]+template_size])
             # TODO: plot center point, to show pixel perfect location
@@ -153,20 +159,30 @@ def cascadeCorners(img_path, georef_path, truth_corners, plot):
         roi_size = 100
         template_size = 20
         # extract ROI from original size image
-        roi = georef_img[corner[1]-roi_size:corner[1]+roi_size,corner[0]-roi_size:corner[0]+roi_size]
+        x_min = max(0,corner[1]-roi_size)
+        x_max = max(0,corner[1]+roi_size)
+        y_min = max(0,corner[0]-roi_size)
+        y_max = max(0,corner[0]+roi_size)
+        roi = georef_img[x_min:x_max,y_min:y_max]
         ref_corner = truth_corners[idx]
         template = img[ref_corner[1]-template_size:ref_corner[1]+template_size, ref_corner[0]-template_size:ref_corner[0]+template_size]
         # match again in ROIs
         match = match_corner(roi, template)
-        match = (match[0]+(corner[0]-roi_size), match[1]+(corner[1]-roi_size)) # scale match to non-ROI positions
+        match = (match[0]+(y_min), match[1]+(x_min)) # scale match to non-ROI positions
         corner_coords.append(get_coords_from_raster(georef_path, match))
 
         if plot:
             # show corners
-            plt.subplot(2, 4, (idx*2)+1)
+            ax = plt.subplot(2, 4, idx+1)
+            ax.set_title("original")
+            plt.xticks([],[])
+            plt.yticks([],[])
             plt.gray()
             plt.imshow(template)
-            plt.subplot(2, 4, (idx*2)+2)
+            ax = plt.subplot(2, 4, idx+5)
+            ax.set_title("warped")
+            plt.xticks([],[])
+            plt.yticks([],[])
             plt.gray()
             plt.imshow(georef_img[match[1]-template_size:match[1]+template_size, match[0]-template_size:match[0]+template_size])
             # TODO: plot center point, to show pixel perfect location

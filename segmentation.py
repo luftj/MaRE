@@ -31,14 +31,21 @@ def extract_blue(img, cb_percent):
     # retm,a_threshold = cv2.threshold(a,5,255,cv2.THRESH_BINARY)
     # cv2.imshow("a_threshold",cv2.resize(a_threshold,(a_threshold.shape[1]//2,a_threshold.shape[0]//2)))
 
-    # plt.subplot(2,2,1), plt.imshow(img)
+    # ksize = (3, 3) 
+    # img_thresh = cv2.morphologyEx(img_thresh, cv2.MORPH_ERODE, ksize)
+    # import matplotlib.pyplot as plt
+    # import numpy as np
+    # print(img[:,:,2].shape)
+    # rgb_img = np.stack([img[:,:,2],img[:,:,1],img[:,:,0]],axis=-1)
+    # plt.subplot(2,2,1), plt.imshow(rgb_img)
     # plt.title('Original Image'), plt.xticks([]), plt.yticks([])
     # plt.subplot(2,2,2), plt.imshow(img_cie)
     # plt.title('LAB Image'), plt.xticks([]), plt.yticks([])
     # plt.subplot(2,2,3), plt.imshow(img_thresh)
     # plt.title('thresh Image'), plt.xticks([]), plt.yticks([])
-    # plt.subplot(2,2,4), plt.hist((b.ravel(),a.ravel()), 256)
-    # plt.title('b Histogram'), plt.xticks([]), plt.yticks([])
+    # plt.subplot(2,2,4)
+    # plt.hist((b.ravel(),a.ravel()), 256)
+    # plt.title('b Histogram')#, plt.xticks([]), plt.yticks([])
     # plt.show()
 
     # ksize = (5, 5) 
