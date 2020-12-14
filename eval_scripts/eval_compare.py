@@ -59,7 +59,7 @@ print("ours median px",sorted(error_ours_px)[len(sorted(error_ours_px))//2])
 print("ours mean px", sum(error_ours_px)/len(error_ours_px))
 weinman_sc_tps=[61.3,93.3,81.8,33.8,32.5,74.5,34.0,29.4,42.8,56.7,41.9,50.5,53.1,51.4,43.1,59.8,27.7,26.5,26.2,27.8]
 plt.boxplot([error_sorted,weinman_sc_tps,error_homog_px,error_ours_px], vert=False, showmeans=True, medianprops={"color":"r"})
-plt.axhline(0, xmax=0, c="g", label="mean")
+plt.scatter([],[], c="g", marker="^", label="mean")
 plt.axhline(0, xmax=0, c="r", label="median")
 plt.xlabel("error [px]")
 plt.yticks([1,2,3,4],["Howe et al. (affine)","Howe et al. (TPS)","ours (homography)","ours (affine)"])

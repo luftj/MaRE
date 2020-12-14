@@ -16,8 +16,8 @@ lowes_wrong =[1.00,1.00]
 print("num below 8 sigma",len([x for x in maha if x <=8]))
 
 plt.scatter(maha,lowes, label="correct")
-plt.scatter(maha_wrong,lowes_wrong, color="r", label="incorrect")
-plt.axhline(0.7, c="y", linestyle="--", label="0.7 test ratio")
+plt.scatter(maha_wrong,lowes_wrong, color="r", marker="+", label="incorrect")
+plt.axhline(0.7, c="y", linestyle="-.", label="0.7 test ratio")
 plt.axvline(4, c="g", linestyle="--", label="4σ")
 plt.ylabel("Lowe's test ratio")
 plt.xlabel("Mahalanobis distance")
