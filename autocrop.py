@@ -3,6 +3,7 @@ import argparse
 import numpy as np
 from skimage import measure
 import skimage.io
+import skimage.filters
 from matplotlib import pyplot as plt
 
 
@@ -30,7 +31,7 @@ def get_dominant_colour(image, plot=False):
         plt.show()
     return max_R, max_G, max_B
 
-def threshold_image(image, dominant_colour, interval = 50):
+def threshold_image(image, dominant_colour, interval = 50, plot=False):
     max_R, max_G, max_B = dominant_colour
 
     thresh_image = np.ones(image.shape)
@@ -42,7 +43,16 @@ def threshold_image(image, dominant_colour, interval = 50):
     thresh_image[image[:,:,2] > (max_B + interval)] = 0
     thresh_image = thresh_image[:,:,0]
 
-    return thresh_image
+    blur = skimage.filters.gaussian(thresh_image, sigma=(5, 5), multichannel=True)
+
+    if plot:
+        plt.subplot("121")
+        plt.imshow(thresh_image)
+        plt.subplot("122")
+        plt.imshow(blur)
+        plt.show()
+
+    return blur
 
 def find_largest_contour(thresh_image):
     print("find contours")
@@ -62,7 +72,7 @@ def find_largest_contour(thresh_image):
     return box
 
 def crop_image(image, percent_margin=0.01, plot=False):
-    thresh_image = threshold_image(image, get_dominant_colour(image))
+    thresh_image = threshold_image(image, get_dominant_colour(image, plot), plot=plot)
 
     box = find_largest_contour(thresh_image)
 
@@ -91,6 +101,7 @@ def crop_image(image, percent_margin=0.01, plot=False):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("indir", help="input directory path string for images to be cropped")
+    parser.add_argument("--plot", help="set this to true to show debugging plots", action="store_true")
     args = parser.parse_args()
 
     in_dir = args.indir
@@ -102,14 +113,11 @@ if __name__ == "__main__":
         if not file_name[-4:] in file_types:
             print("skipping %s..." % file_name)
             continue
-        image_path = os.path.join(in_dir, file_name)#"E:\data\deutsches_reich\SBB\DoD_2020_12_04_IIIC_Luft_Teil2a\SBB_IIIC_Kart_L 1330_Blatt 539 von 1906.tif"
-        #image_path = "E:\data\deutsches_reich/davidrumsey/23_flensburg.tif"
-        print(image_path)
+        image_path = os.path.join(in_dir, file_name)
+        print("processing image at", image_path)
         image = skimage.io.imread(image_path)
-        # plt.imshow(image)
-        # plt.show()
 
-        cropped_image = crop_image(image)
+        cropped_image = crop_image(image, args.plot)
 
         print("saving cropped image to disk...")
         out_path = os.path.join(out_dir, file_name)
