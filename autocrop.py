@@ -117,7 +117,7 @@ if __name__ == "__main__":
         print("processing image at", image_path)
         image = skimage.io.imread(image_path)
 
-        cropped_image = crop_image(image, args.plot)
+        cropped_image = crop_image(image, plot=args.plot)
 
         print("saving cropped image to disk...")
         out_path = os.path.join(out_dir, file_name)
