@@ -195,29 +195,29 @@ def plot_template(query_image, reference_image_border, template, x, y, match_x, 
     ax[3].add_patch(rect)
     plt.show()
 
-def plot_template_matches(keypoints_q,keypoints_r, inliers,query_image, reference_image_border):
+def plot_template_matches(keypoints_q, keypoints_r, inliers,query_image, reference_image_border):
     import matplotlib.pyplot as plt
     from skimage.feature import plot_matches
 
     keypoints_q = np.fliplr(keypoints_q)
     keypoints_r = np.fliplr(keypoints_r)
     matches = np.array(list(zip(range(len(keypoints_q)),range(len(keypoints_r)))))
-    # inlier_keypoints_left = descs_q[matches[inliers, 0]]
-    # inlier_keypoints_right = descs_r[matches[inliers, 1]]
 
     print(f"Number of matches: {matches.shape[0]}")
     print(f"Number of inliers: {inliers.sum()}")
     fig, ax = plt.subplots(nrows=2, ncols=1)
 
-    plt.gray()
     plot_matches(ax[0], (255-query_image), (255-reference_image_border), keypoints_q, keypoints_r,
                 matches)#,alignment="vertical")
     plot_matches(ax[1], (255-query_image), (255-reference_image_border), keypoints_q, keypoints_r,
                 matches[inliers])#,alignment="vertical")
-    plt.xticks([],[])
-    plt.yticks([],[])
-    for spine in ax.spines:
-        ax.spines[spine].set_visible(False)
+    y =query_image.shape[0]
+    plt.plot([500,1000,1000,500,500],[y,y,0,0,y],"r",linewidth=2)
+    plt.plot([530,970,970,530,530],[y-30,y-30,30,30,y-30],"g",linewidth=1)
+    # plt.xticks([],[])
+    # plt.yticks([],[])
+    # for spine in ax.spines:
+    #     ax.spines[spine].set_visible(False)
     plt.show()
 
 def template_matching(query_image, reference_image, n_samples=50, window_size=30, patch_min_area=0.1, patch_max_area=0.8):
@@ -244,7 +244,7 @@ def template_matching(query_image, reference_image, n_samples=50, window_size=30
     lazy_r = []
     for sample_point in corners:
         # sample interest point
-        x,y = sample_point
+        y,x = sample_point
         # extract template from query image around sampled point
         template = query_image[y-window_size:y+window_size, x-window_size:x+window_size]
         # skip patches that are not very descriptive
@@ -301,8 +301,21 @@ def template_matching(query_image, reference_image, n_samples=50, window_size=30
 
     # convert transform matrix to opencv format
     model = model.params
-    model = np.delete(model, (2), axis=0) # drop homogeneous coordinates
+    model = np.linalg.inv(model)
+    # model = np.delete(model, (2), axis=0) # drop homogeneous coordinates
     model = model.astype(np.float32)
+
+    # from skimage.transform import warp
+    # from matplotlib import pyplot as plt
+    # plt.subplot("131")
+    # plt.imshow(reference_image_border)
+    # plt.subplot("132")
+    # plt.imshow(query_image)
+    # plt.subplot("133")
+    # image1_warp = warp(query_image, model)
+    # plt.imshow(image1_warp)
+    # plt.show()
+    # exit()
 
     return  num_inliers, model
 

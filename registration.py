@@ -17,6 +17,9 @@ def register_ECC(query_image, reference_image, warp_matrix=None, warp_mode = cv2
             warp_matrix = np.eye(3, 3, dtype=np.float32)
         else :
             warp_matrix = np.eye(2, 3, dtype=np.float32)
+    else:
+        if warp_mode != cv2.MOTION_HOMOGRAPHY:
+            warp_matrix = np.delete(warp_matrix, (2), axis=0) # drop homogeneous coordinates
 
     # Specify the number of iterations.
     number_of_iterations = 7000
@@ -81,6 +84,31 @@ def georeference(inputfile, outputfile, bbox, border=None):
     time_passed = time() - time_start
     logging.info("time: %f s for georeferencing" % time_passed)
 
+def ski_registration(image1, image0):
+    from skimage.transform import warp
+    from skimage.registration import optical_flow_tvl1
+    # --- Compute the optical flow
+    v, u = optical_flow_tvl1(image0, image1)
+
+    # --- Use the estimated optical flow for registration
+
+    nr, nc = image0.shape
+
+    row_coords, col_coords = np.meshgrid(np.arange(nr), np.arange(nc),
+                                        indexing='ij')
+
+    image1_warp = warp(image1, np.array([row_coords + v, col_coords + u]),
+                    mode='nearest')
+    
+    from matplotlib import pyplot as plt
+    plt.subplot("131")
+    plt.imshow(image0)
+    plt.subplot("132")
+    plt.imshow(image1)
+    plt.subplot("133")
+    plt.imshow(image1_warp)
+    plt.show()
+
 def align_map_image(map_image, query_image, reference_image, target_size=(500,500), crop=False, warp_matrix=None):
     time_start = time()
 
@@ -138,32 +166,44 @@ def align_map_image_model(map_image, query_image, reference_image, warp_matrix, 
 
     # register query and retrieved reference image for fine alignment
     window_size=30
-    width, height = target_size
-    # map_image = cv2.resize(map_image,(width,height))
-    reference_image_small = cv2.resize(reference_image, (width-window_size*2,height-window_size*2))
-    reference_image_border = cv2.copyMakeBorder(reference_image_small, window_size,window_size,window_size,window_size, cv2.BORDER_CONSTANT, None, 0)
-    warp_matrix = warp_matrix.params
     # scale by factor of target/original size
     scale_mat = np.eye(3,3,dtype=np.float32)
     scale_mat[0,0] *= map_image.shape[1] / (target_size[0])# - window_size*2) 
     scale_mat[1,1] *= map_image.shape[0] / (target_size[1])# - window_size*2)
     scale_mat[2,2] = 1
 
+    # corner points of ref image
+    h,w=reference_image.shape
+    print("h,w",h,w)
+    upleft = np.array([window_size,window_size,1],dtype=np.float32)
+    upleft_query = scale_mat @ ((warp_matrix) @ upleft)
+    print("corner point",upleft,upleft_query)
+    topright = np.array([target_size[0]-window_size,window_size,1],dtype=np.float32)
+    topright_query = scale_mat @ ((warp_matrix) @ topright)
+    print("corner point",topright,topright_query)
+    botleft = np.array([window_size,target_size[1]-window_size,1],dtype=np.float32)
+    botleft_query = scale_mat @ ((warp_matrix) @ botleft)
+    print("corner point",botleft,botleft_query)
+    botright = np.array([target_size[0]-window_size,target_size[1]-window_size,1],dtype=np.float32)
+    botright_query = scale_mat @ ((warp_matrix) @ botright)
+    print("corner point",botright,botright_query)
+
     warp_matrix = scale_mat @ warp_matrix @ np.linalg.inv(scale_mat) # complete transformation matrix
     warp_matrix = np.delete(warp_matrix, (2), axis=0) # drop homogeneous coordinates
-    print(warp_matrix)
 
     # do the warping with the full sized input image
     map_img_aligned = warp(map_image, warp_matrix)
     
     # crop out border
-    border_x = int(window_size * scale_mat[0,0])
-    border_y = int(window_size * scale_mat[1,1])
-    print("borders:",border_x, border_y)
+    border_left = int(upleft_query[0])
+    border_right = int(botright_query[0])
+    border_top = int(upleft_query[1])
+    border_bot = int(botright_query[1])
+    print("borders:",border_left,border_right,border_top,border_bot)
     if crop:
-        map_img_aligned = map_img_aligned[border_y:map_img_aligned.shape[0]-border_y, border_x:map_img_aligned.shape[1]-border_x]
+        map_img_aligned = map_img_aligned[border_top:border_bot, border_left:border_right]
     
     time_passed = time() - time_start
     logging.info("time: %f s for registration" % time_passed)
 
-    return map_img_aligned, (border_x, map_image.shape[0]-border_y, map_image.shape[1]-border_x, border_y)
+    return map_img_aligned, (border_left, border_bot, border_right, border_top)
