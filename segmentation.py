@@ -18,7 +18,7 @@ def extract_blue(img, cb_percent):
     # cv2.imshow("b",cv2.resize(b,(b.shape[1]//2,b.shape[0]//2)))
 
     lowerBound = (10, 0, 0)
-    upperBound = (255, 90, 100) #(255, 90, 80) # (255, 90, 70)
+    upperBound = (255, 90, 100)#(255,70,80) #(255, 90, 80) # (255, 90, 70)
 
     img_thresh = cv2.inRange(img_cie, lowerBound, upperBound)
 
@@ -33,8 +33,8 @@ def extract_blue(img, cb_percent):
 
     # ksize = (3, 3) 
     # img_thresh = cv2.morphologyEx(img_thresh, cv2.MORPH_ERODE, ksize)
-    # import matplotlib.pyplot as plt
-    # import numpy as np
+    import matplotlib.pyplot as plt
+    import numpy as np
     # print(img[:,:,2].shape)
     # rgb_img = np.stack([img[:,:,2],img[:,:,1],img[:,:,0]],axis=-1)
     # plt.subplot(2,2,1), plt.imshow(rgb_img)
@@ -47,10 +47,20 @@ def extract_blue(img, cb_percent):
     # plt.hist((b.ravel(),a.ravel()), 256)
     # plt.title('b Histogram')#, plt.xticks([]), plt.yticks([])
     # plt.show()
+    # exit()
 
-    # ksize = (5, 5) 
-    # opening = cv2.morphologyEx(img_thresh, cv2.MORPH_OPEN, ksize)
+    ksize = (11, 11) 
+    opening = cv2.morphologyEx(img_thresh, cv2.MORPH_OPEN, ksize)
+    # # opening = cv2.morphologyEx(opening, cv2.MORPH_ERODE, ksize)
+    # plt.subplot("121"), plt.imshow(img_thresh)
+    # plt.title('thresh Image'), plt.xticks([]), plt.yticks([])
+    # plt.subplot("122")
+    # plt.imshow(opening)
+    # plt.title('opened Image'), plt.xticks([]), plt.yticks([])
+    # plt.show()
+    # exit()
     # # cv2.imshow("opening",cv2.resize(opening,(opening.shape[1]//2,opening.shape[0]//2)))
+    img_thresh = opening
 
     # ksize = (33, 33) 
     # # closing = cv2.morphologyEx(img_thresh, cv2.MORPH_CLOSE, ksize)

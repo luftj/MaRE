@@ -63,11 +63,12 @@ def get_from_osm(bbox=[16.3,54.25,16.834,54.5], url = "http://overpass-api.de/ap
                 way (%s) [natural=water] [name]; 
                 way (%s) [type=waterway] [name]; 
                 way (%s) [waterway=river] [name];
+                way (%s) [waterway=canal] [name];
                 way (%s) [natural=coastline];
                 );
                 out body;
                 >;
-                out skel qt;""" % (sorted_bbox,sorted_bbox,sorted_bbox,sorted_bbox,sorted_bbox) # ; (._;>;)
+                out skel qt;""" % (sorted_bbox,sorted_bbox,sorted_bbox,sorted_bbox,sorted_bbox,sorted_bbox) # ; (._;>;)
     logging.debug("osm query: %s" % query)
 
     while True:

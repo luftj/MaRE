@@ -166,13 +166,25 @@ def detect_corners(image):
 
 def match_template(image, template):
     from skimage import data
-    from skimage.feature import match_template
+    from skimage.feature import match_template, peak_local_max
+    import matplotlib.pyplot as plt
 
     result = match_template(image, template)
+    # coordinates = corner_peaks(result, min_distance=10)
+    # # print(coordinates[0:10])
+    # scores = [result[y,x] for (y,x) in coordinates]
+    # scores.sort(reverse=True)
     ij = np.unravel_index(np.argmax(result), result.shape)
     x, y = ij[::-1]
     corr_coef = result[y,x]
-    logging.info("best template matching score: %f" % corr_coef)
+    # print("max score",scores[0], scores[1], scores[1] <= 0.7 * scores[0])
+    # if scores[1] <= 0.7 * scores[0]:
+    #     plt.subplot("211")
+    #     plt.imshow(template)
+    #     plt.subplot("212")
+    #     plt.imshow(image[y-30:y+30, x-30:x+30])
+    #     # plt.show()
+    # logging.info("best template matching score: %f" % corr_coef)
     return (x, y)
 
 def plot_template(query_image, reference_image_border, template, x, y, match_x, match_y, pixel_high_percent, score):
@@ -229,7 +241,6 @@ def template_matching(query_image, reference_image, n_samples=50, window_size=30
     matching_score = 0
     keypoints_q = []
     keypoints_r = []
-
     # find interest points in query image (e.g. corners or white pixels)
     corners, subpix = detect_corners(query_image)
     logging.debug("number of corners detected: %d" % len(corners))
@@ -237,9 +248,11 @@ def template_matching(query_image, reference_image, n_samples=50, window_size=30
     height,width = query_image.shape
     # reduce image size for performance with fixed aspect ratio. approx- same size as query, to make tempalte amtching work
     reference_image = cv2.resize(reference_image, (width-window_size*2,height-window_size*2))
+    # reference_image = cv2.resize(reference_image, query_image.shape[::-1])
 
     # make border of window size around reference image, to catch edge cases
     reference_image_border = cv2.copyMakeBorder(reference_image, window_size,window_size,window_size,window_size, cv2.BORDER_CONSTANT, None, 0)
+    # reference_image_border = reference_image
     # match all sample points
     lazy_r = []
     for sample_point in corners:
@@ -288,6 +301,9 @@ def template_matching(query_image, reference_image, n_samples=50, window_size=30
     elif config.warp_mode_retrieval == "similarity":
         warp_mode = SimilarityTransform
 
+    if len(keypoints_r) <= 3:
+        return 0, np.eye(3,3)
+
     model, inliers = ransac((keypoints_q, keypoints_r),
                         warp_mode, min_samples=3,
                         residual_threshold=5, max_trials=7000)
@@ -305,16 +321,18 @@ def template_matching(query_image, reference_image, n_samples=50, window_size=30
     # model = np.delete(model, (2), axis=0) # drop homogeneous coordinates
     model = model.astype(np.float32)
 
-    # from skimage.transform import warp
-    # from matplotlib import pyplot as plt
-    # plt.subplot("131")
-    # plt.imshow(reference_image_border)
-    # plt.subplot("132")
-    # plt.imshow(query_image)
-    # plt.subplot("133")
-    # image1_warp = warp(query_image, model)
-    # plt.imshow(image1_warp)
-    # plt.show()
+    from skimage.transform import warp
+    from matplotlib import pyplot as plt
+    plt.subplot("131")
+    plt.imshow(reference_image_border)
+    plt.subplot("132")
+    plt.imshow(query_image)
+    plt.subplot("133")
+    y =query_image.shape[0]
+    plt.plot([30,470,470,30,30],[y-30,y-30,30,30,y-30],"g",linewidth=1)
+    image1_warp = warp(query_image, model)
+    plt.imshow(image1_warp)
+    plt.show()
     # exit()
 
     return  num_inliers, model

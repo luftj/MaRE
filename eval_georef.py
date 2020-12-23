@@ -11,7 +11,7 @@ from matplotlib import pyplot as plt
 import numpy as np
 from skimage.io import imread
 from skimage import data
-from skimage.feature import match_template
+from skimage.feature import match_template, peak_local_max
 from skimage.transform import resize
 from PIL import Image
 
@@ -21,7 +21,8 @@ from config import path_output, proj_sheets, proj_out
 
 def match_sheet_name(img_name):
     # s = re.findall(r"(?<=_)[0-9][0-9][0-9a](?=_)",img_name)
-    s = re.findall(r"[0-9][0-9][0-9a](?=_)",img_name)
+    # s = re.findall(r"[0-9][0-9][0-9a](?=_)",img_name)
+    s = re.findall(r"(?<=[\s_])[0-9]?[0-9][0-9a](?=[_\s])",img_name)
     s = [e.lstrip('0') for e in s]
     sheet_name = "-".join(s)
     return sheet_name
@@ -52,6 +53,13 @@ def read_corner_CSV(filepath):
 
 def match_corner(image, template):
     result = match_template(image, template,pad_input=True)
+    # plt.imshow(result)
+    # plt.show()
+    result[result > 1] = 0 # there are some weird artefacts in the nodata area!
+    # peaks = peak_local_max(result, min_distance=min(template.shape)//2)
+    # scores = [result[y,x] for (y,x) in peaks]
+    # scores.sort(reverse=True)
+    # print(scores)
     ij = np.unravel_index(np.argmax(result), result.shape)
     x, y = ij[::-1]
     corr_coef = result[y,x]
@@ -95,7 +103,7 @@ def warp_images(filenames,inputpath):
         width, height = im.size
 
         georef_path = path_output + "georef_sheet_%s_warp.tif" % sheet_name
-        command = "gdalwarp -t_srs EPSG:4326 -ts %d %d -overwrite %s/georef_sheet_%s.jp2 %s" %(width, height, path_output, sheet_name, georef_path)
+        command = "gdalwarp -order 1 -t_srs EPSG:4326 -ts %d %d -overwrite %s/georef_sheet_%s.jp2 %s" %(width, height, path_output, sheet_name, georef_path)
         print("exec: %s" % command)
         os.system(command)
 
@@ -113,12 +121,13 @@ def get_truth_bbox(sheets, sheet_name):
 def findCorners(img, georef_img, ref_corners, plot=False, template_size = 20):
     corner_points = []
     for idx,point in enumerate(ref_corners):
-        y = point[1]
-        x = point[0]
-        template = img[y-template_size:y+template_size, x-template_size:x+template_size]
+        x_min = max(0,point[1]-template_size)
+        x_max = min(img.shape[0],point[1]+template_size)
+        y_min = max(0,point[0]-template_size)
+        y_max = min(img.shape[1],point[0]+template_size)
+        template = img[x_min:x_max, y_min:y_max]
         match = match_corner(georef_img, template)
         corner_points.append(match)
-        # print(point, match, coords, truth_bbox[idx])
 
         if plot:
             # show corners
@@ -133,7 +142,11 @@ def findCorners(img, georef_img, ref_corners, plot=False, template_size = 20):
             plt.xticks([],[])
             plt.yticks([],[])
             plt.gray()
-            plt.imshow(georef_img[match[1]-template_size:match[1]+template_size, match[0]-template_size:match[0]+template_size])
+            x_min = max(0,match[1]-template_size)
+            x_max = min(georef_img.shape[0],match[1]+template_size)
+            y_min = max(0,match[0]-template_size)
+            y_max = min(georef_img.shape[1],match[0]+template_size)
+            plt.imshow(georef_img[x_min:x_max, y_min:y_max])
             # TODO: plot center point, to show pixel perfect location
     if plot:
         plt.show()
@@ -144,16 +157,15 @@ def cascadeCorners(img_path, georef_path, truth_corners, plot):
     georef_img = imread(georef_path, as_gray=True)
 
     # downscale images
-    small_width = 500
+    small_width = img.shape[1]//2
     img_small = resize(img, (int(small_width/img.shape[1]*img.shape[0]), small_width), anti_aliasing=True)
     georef_img_small = resize(georef_img, (int(small_width/georef_img.shape[1]*georef_img.shape[0]),small_width), anti_aliasing=True)
     # rescale truth corners to small resolution
-    scaled_corners = [ (int(x * georef_img_small.shape[1]/georef_img.shape[1]), int(y  * georef_img_small.shape[0]/georef_img.shape[0])) for (x,y) in truth_corners]
+    scaled_corners = [ (x * img_small.shape[1]//img.shape[1], y  * img_small.shape[0]//img.shape[0]) for (x,y) in truth_corners]
     # find  corners in small image
-    corner_points = findCorners(img_small, georef_img_small, scaled_corners, template_size=15, plot=args.plot)
+    corner_points = findCorners(img_small, georef_img_small, scaled_corners, template_size=20, plot=args.plot)
     # rescale found coordinates to original resolution
-    corner_points = [ (int(x * georef_img.shape[1]/georef_img_small.shape[1]), int(y  * georef_img.shape[0]/georef_img_small.shape[0])) for (x,y) in corner_points]
-    
+    corner_points = [ (x * georef_img.shape[1]//georef_img_small.shape[1], y  * georef_img.shape[0]//georef_img_small.shape[0]) for (x,y) in corner_points]
     corner_coords = []
     for idx,corner in enumerate(corner_points):
         roi_size = 100
@@ -184,7 +196,12 @@ def cascadeCorners(img_path, georef_path, truth_corners, plot):
             plt.xticks([],[])
             plt.yticks([],[])
             plt.gray()
-            plt.imshow(georef_img[match[1]-template_size:match[1]+template_size, match[0]-template_size:match[0]+template_size])
+            x_min = max(0,match[1]-template_size)
+            x_max = min(georef_img.shape[0],match[1]+template_size)
+            y_min = max(0,match[0]-template_size)
+            y_max = min(georef_img.shape[1],match[0]+template_size)
+            plt.imshow(georef_img[x_min:x_max, y_min:y_max])
+            # plt.imshow(georef_img[match[1]-template_size:match[1]+template_size, match[0]-template_size:match[0]+template_size])
             # TODO: plot center point, to show pixel perfect location
     if plot:
         plt.show()
@@ -197,7 +214,7 @@ def dump_csv(sheets_list, error_list):
         eval_fp.write("sheet name; error [m]\n") # header
 
         for sheet, error in zip(sheets_list, error_list):
-            eval_fp.write("%s; %.2f" % (sheet, error))
+            eval_fp.write("%s; %.2f\n" % (sheet, error))
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -205,6 +222,8 @@ if __name__ == "__main__":
     parser.add_argument("sheets", help="sheets json file path string", default="data/blattschnitt_dr100.geojson")
     parser.add_argument("--plot", help="set this to true to show debugging plots", action="store_true")
     parser.add_argument("--nowarp", help="set this to not update warped images", action="store_true")
+    parser.add_argument("--single", help="provide sheet number to test only a single sheet", default=None)
+    parser.add_argument("--ransac", help="...", action="store_true")
     args = parser.parse_args()
     # python eval_georef.py /e/data/deutsches_reich/wiki/highres/382.csv data/blattschnitt_dr100_merged_digi.geojson
     
@@ -212,6 +231,9 @@ if __name__ == "__main__":
 
     sheet_corners = read_corner_CSV(args.input)
     img_list = list(sheet_corners.keys())#[-5:-4]
+
+    if args.single:
+        img_list = [x for x in img_list if match_sheet_name(x)==args.single]
 
     if not args.nowarp:
         warp_images(img_list,inputpath) # this has to be done before calculating coords, because proj db breaks
@@ -251,7 +273,8 @@ if __name__ == "__main__":
     median_error = error_sorted[len(error_sorted)//2]
     print("median error: %f m" % median_error)
 
-    dump_csv(sheet_names, error_results)
+    if not args.single:
+        dump_csv(sheet_names, error_results)
 
     plt.subplot(2, 1, 1)
     plt.bar(sheet_names_sorted, error_sorted)
