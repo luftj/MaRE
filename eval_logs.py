@@ -177,7 +177,10 @@ if __name__ == "__main__":
                     experiment_data["times"].append(time)
 
                     if "num_keypoints" in experiment_data:
-                        avg_template_score = sum_template_score/experiment_data["num_keypoints"]
+                        if experiment_data["num_keypoints"] == 0:
+                            avg_template_score = -1
+                        else:
+                            avg_template_score = sum_template_score/experiment_data["num_keypoints"]
                         experiment_data["template_scores"].append(avg_template_score)
                     sum_template_score = 0
 
