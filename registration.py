@@ -51,7 +51,7 @@ def warp(image, warp_matrix, warp_mode = cv2.MOTION_AFFINE):
 
 from pyproj import Transformer
 
-from config import path_osm, proj_sheets, proj_out
+from config import path_osm, proj_sheets, proj_out, template_window_size
 
 transform_sheet_to_out = Transformer.from_proj(proj_sheets, proj_out, skip_equivalent=True, always_xy=True)
 
@@ -89,12 +89,11 @@ def georeference(inputfile, outputfile, bbox, border=None):
     minxy = transform_sheet_to_out.transform(bbox[0], bbox[1]) # reproject lower left bbox corner
     maxxy = transform_sheet_to_out.transform(bbox[2], bbox[3]) # reproject upper right bbox corner
     bbox = minxy+maxxy
-    print(bbox)
 
     left, top, right, bottom = (bbox[0], bbox[3], bbox[2], bbox[1])
 
     if not border:
-        command = "gdal_translate %s -a_ullr %f %f %f %f %s %s" % (config.gdal_output_options,left, top, right, bottom, inputfile, outputfile)
+        command = "gdal_translate %s -a_ullr %f %f %f %f " % (config.gdal_output_options, left, top, right, bottom)
     else:
         command = "gdal_translate " + config.gdal_output_options + " "
         gcps = [
@@ -105,9 +104,9 @@ def georeference(inputfile, outputfile, bbox, border=None):
         ]
         for gcp in gcps:
             command += "-gcp %d %d %f %f " % gcp # pixel line easting northing
-        command += inputfile + " " + outputfile# " map-with-gcps.tif"
+    
+    command += inputfile + " " + outputfile # " map-with-gcps.tif"
 
-    print(command)
     logging.debug("gdal command: %s" % command)
     os.system(command)
 
@@ -143,12 +142,22 @@ def align_map_image(map_image, query_image, reference_image, target_size=(500,50
     time_start = time()
 
     logging.info("registration image resolution: %d,%d" % target_size)
-    border_size = 150
 
     # register query and retrieved reference image for fine alignment
     query_image_small = cv2.resize(query_image, target_size, cv2.INTER_AREA)
-    reference_image_border = cv2.copyMakeBorder(reference_image, border_size,border_size,border_size,border_size, cv2.BORDER_CONSTANT, None, 0)
-    reference_image_small = cv2.resize(reference_image_border, target_size, cv2.INTER_CUBIC)
+    
+    # border_size = 150
+    # reference_image_border = cv2.copyMakeBorder(reference_image, border_size,border_size,border_size,border_size, cv2.BORDER_CONSTANT, None, 0)
+    # reference_image_small = cv2.resize(reference_image_border, target_size, cv2.INTER_CUBIC)
+
+    reference_image = cv2.resize(reference_image, 
+                                    (target_size[0] - template_window_size*2,
+                                     target_size[1] - template_window_size*2),
+                                    cv2.INTER_AREA)
+    reference_image_border = cv2.copyMakeBorder(reference_image, 
+                                                template_window_size, template_window_size, template_window_size, template_window_size, 
+                                                cv2.BORDER_CONSTANT, None, 0)
+    reference_image_small = reference_image_border
     
     if config.warp_mode_registration == "affine":
         warp_mode = cv2.MOTION_AFFINE
@@ -160,7 +169,6 @@ def align_map_image(map_image, query_image, reference_image, target_size=(500,50
     # get transformation matrix (map query=source to reference=target)
     warp_matrix = register_ECC(query_image_small, reference_image_small, warp_matrix=warp_matrix, warp_mode=warp_mode)
 
-
     if config.warp_mode_registration != "homography":
         # convert affine parameters to homogeneous coordinates
         warp_matrix = np.vstack([warp_matrix, [0,0,1]])
@@ -170,62 +178,28 @@ def align_map_image(map_image, query_image, reference_image, target_size=(500,50
     scale_mat[0,0] *= map_image.shape[1] / target_size[0] 
     scale_mat[1,1] *= map_image.shape[0] / target_size[1] 
 
-
-    # corner points of ref image
-    window_size = 0
-    upleft = np.array([window_size,window_size,1],dtype=np.float32)
-    upleft_query = scale_mat @ ((warp_matrix) @ upleft)
-    print("corner point UL",upleft,upleft_query)
-    botright = np.array([target_size[0]-window_size,target_size[1]-window_size,1],dtype=np.float32)
-    botright_query = scale_mat @ ((warp_matrix) @ botright)
-    print("corner point BR",botright,botright_query)
-    window_size = 30
-    upleft = np.array([window_size,window_size,1],dtype=np.float32)
-    upleft_query = scale_mat @ ((warp_matrix) @ upleft)
-    print("corner point UL",upleft,upleft_query)
-    topright = np.array([target_size[0]-window_size,window_size,1],dtype=np.float32)
-    topright_query = scale_mat @ ((warp_matrix) @ topright)
-    print("corner point",topright,topright_query)
-    botleft = np.array([window_size,target_size[1]-window_size,1],dtype=np.float32)
-    botleft_query = scale_mat @ ((warp_matrix) @ botleft)
-    print("corner point",botleft,botleft_query)
-    botright = np.array([target_size[0]-window_size,target_size[1]-window_size,1],dtype=np.float32)
-    botright_query = scale_mat @ ((warp_matrix) @ botright)
-    print("corner point BR",botright,botright_query)
-
     warp_matrix = scale_mat @ warp_matrix @ np.linalg.inv(scale_mat) # complete transformation matrix
-    # print("sizes",map_image.shape, target_size, scale_mat)
     
     if config.warp_mode_registration != "homography":
         warp_matrix = np.delete(warp_matrix, (2), axis=0) # drop homogeneous coordinates
 
-    query_aligned = warp(query_image_small, warp_matrix)
     # do the warping with the full sized input image
     map_img_aligned = warp(map_image, warp_matrix, warp_mode=warp_mode)
-
-    from matplotlib import pyplot as plt
-    plt.subplot("131")
-    plt.imshow(map_image)
-    plt.subplot("132")
-    plt.imshow(map_img_aligned)
-    plt.subplot("133")
-    plt.imshow(query_aligned)
-    plt.show()
     
     # crop out border
-    border_x = int(border_size * reference_image_small.shape[1] / reference_image_border.shape[1] * map_image.shape[1] / target_size[0])
-    border_y = int(border_size * reference_image_small.shape[0] / reference_image_border.shape[0] * map_image.shape[0] / target_size[1])
+    # border_x = int(border_size * reference_image_small.shape[1] / reference_image_border.shape[1] * map_image.shape[1] / target_size[0])
+    # border_y = int(border_size * reference_image_small.shape[0] / reference_image_border.shape[0] * map_image.shape[0] / target_size[1])
+    # print("border", border_x, border_y)
+    border_x = template_window_size * map_image.shape[0]/reference_image_border.shape[0]
+    border_y = template_window_size * map_image.shape[1]/reference_image_border.shape[1]
     print("border", border_x, border_y)
-    window_x = 30 * map_image.shape[0]/reference_image_border.shape[0]
-    window_y =  30 * map_image.shape[1]/reference_image_border.shape[1]
-    print("window", window_x, window_y)
-    if crop:
-        map_img_aligned = map_img_aligned[border_y:map_img_aligned.shape[0]-border_y, border_x:map_img_aligned.shape[1]-border_x]
-    
     time_passed = time() - time_start
     logging.info("time: %f s for registration" % time_passed)
 
-    # return map_img_aligned, [upleft_query, botleft_query, topright_query, botright_query]
+    if crop:
+        map_img_aligned = map_img_aligned[border_y:map_img_aligned.shape[0]-border_y, border_x:map_img_aligned.shape[1]-border_x]
+        return map_img_aligned, None    
+
     return map_img_aligned, (border_x, map_image.shape[0]-border_y, map_image.shape[1]-border_x, border_y)
 
 def align_map_image_model(map_image, query_image, reference_image, warp_matrix, target_size=(500,500), crop=False):
@@ -234,7 +208,6 @@ def align_map_image_model(map_image, query_image, reference_image, warp_matrix, 
     logging.info("registration image resolution: %d,%d" % target_size)
 
     # register query and retrieved reference image for fine alignment
-    window_size=30
     # scale by factor of target/original size
     scale_mat = np.eye(3,3,dtype=np.float32)
     scale_mat[0,0] *= map_image.shape[1] / (target_size[0])# - window_size*2) 
@@ -242,6 +215,7 @@ def align_map_image_model(map_image, query_image, reference_image, warp_matrix, 
     scale_mat[2,2] = 1
 
     # corner points of ref image
+    window_size=template_window_size
     upleft = np.array([window_size,window_size,1],dtype=np.float32)
     upleft_query = scale_mat @ ((warp_matrix) @ upleft)
     print("corner point",upleft,upleft_query)
@@ -254,6 +228,14 @@ def align_map_image_model(map_image, query_image, reference_image, warp_matrix, 
     botright = np.array([target_size[0]-window_size,target_size[1]-window_size,1],dtype=np.float32)
     botright_query = scale_mat @ ((warp_matrix) @ botright)
     print("corner point",botright,botright_query)
+
+    window_size=0 #template_window_size
+    upleft = np.array([window_size,window_size,1],dtype=np.float32)
+    upleft_query = scale_mat @ ((warp_matrix) @ upleft)
+    print("corner point UL",upleft,upleft_query)
+    botright = np.array([target_size[0]-window_size,target_size[1]-window_size,1],dtype=np.float32)
+    botright_query = scale_mat @ ((warp_matrix) @ botright)
+    print("corner point BR",botright,botright_query)
 
     warp_matrix = scale_mat @ warp_matrix @ np.linalg.inv(scale_mat) # complete transformation matrix
     # warp_matrix = np.delete(warp_matrix, (2), axis=0) # drop homogeneous coordinates

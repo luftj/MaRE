@@ -232,26 +232,27 @@ def plot_template_matches(keypoints_q, keypoints_r, inliers,query_image, referen
     #     ax.spines[spine].set_visible(False)
     plt.show()
 
-def template_matching(query_image, reference_image, n_samples=50, window_size=30, patch_min_area=0.1, patch_max_area=0.8):
+def template_matching(query_image, reference_image, window_size, patch_min_area=0.1, patch_max_area=0.8, plot=False):
     import cv2
     from skimage.measure import ransac
-    from skimage.transform import AffineTransform, EuclideanTransform, SimilarityTransform
+    from skimage.transform import AffineTransform, SimilarityTransform
     import dask
 
-    matching_score = 0
     keypoints_q = []
     keypoints_r = []
     # find interest points in query image (e.g. corners or white pixels)
-    corners, subpix = detect_corners(query_image)
+    corners, corners_subpix = detect_corners(query_image)
     logging.debug("number of corners detected: %d" % len(corners))
 
     height,width = query_image.shape
     # reduce image size for performance with fixed aspect ratio. approx- same size as query, to make tempalte amtching work
-    reference_image = cv2.resize(reference_image, (width-window_size*2,height-window_size*2))
+    reference_image = cv2.resize(reference_image, (width-window_size*2, height-window_size*2))
     # reference_image = cv2.resize(reference_image, query_image.shape[::-1])
 
     # make border of window size around reference image, to catch edge cases
-    reference_image_border = cv2.copyMakeBorder(reference_image, window_size,window_size,window_size,window_size, cv2.BORDER_CONSTANT, None, 0)
+    reference_image_border = cv2.copyMakeBorder(reference_image, 
+                                                window_size, window_size, window_size, window_size, 
+                                                cv2.BORDER_CONSTANT, None, 0)
     # reference_image_border = reference_image
     # match all sample points
     lazy_r = []
@@ -266,10 +267,8 @@ def template_matching(query_image, reference_image, n_samples=50, window_size=30
 
         if pixel_high_percent < patch_min_area or pixel_high_percent > patch_max_area:
             # don't consider ambiguous patches
-            # newsample = corners[np.random.choice(corners.shape[0], 1, replace=False)]#[np.random.choice(list(corners), replace=False)]
             continue
 
-        # keypoints_q.append([y,x])
         keypoints_q.append([x,y])
         
         # optional: reduce search space by only looking at/around interest points in reference image
@@ -282,12 +281,11 @@ def template_matching(query_image, reference_image, n_samples=50, window_size=30
     results = dask.compute(*lazy_r)
     for x in results:
         match_x, match_y = x
-        # keypoints_r.append([match_y+window_size, match_x+window_size])
         keypoints_r.append([match_x+window_size, match_y+window_size])
         # print("R,M:",(x,y),(match_x,match_y))
         # plot_template()
 
-    # optional: filter matches by score
+    # todo: optional: filter matches by score / lowe's test ratio
 
     # ransac those template matches!
     keypoints_q = np.array(keypoints_q)
@@ -302,7 +300,7 @@ def template_matching(query_image, reference_image, n_samples=50, window_size=30
         warp_mode = SimilarityTransform
 
     if len(keypoints_r) <= 3:
-        return 0, np.eye(3,3)
+        return 0, np.eye(3,3) # need to have enough samples for ransac.min_samples. For affine, at least 3
 
     model, inliers = ransac((keypoints_q, keypoints_r),
                         warp_mode, min_samples=3,
@@ -313,29 +311,27 @@ def template_matching(query_image, reference_image, n_samples=50, window_size=30
     else:
         num_inliers = inliers.sum()
 
-    # plot_template_matches(keypoints_q,keypoints_r, inliers, query_image, reference_image_border)
-
     # convert transform matrix to opencv format
     model = model.params
     model = np.linalg.inv(model)
-    # model = np.delete(model, (2), axis=0) # drop homogeneous coordinates
-    model = model.astype(np.float32)
+    model = model.astype(np.float32) # opencv.warp doesn't take double
 
-    from skimage.transform import warp
-    from matplotlib import pyplot as plt
-    plt.subplot("131")
-    plt.imshow(reference_image_border)
-    plt.subplot("132")
-    plt.imshow(query_image)
-    plt.subplot("133")
-    y =query_image.shape[0]
-    plt.plot([30,470,470,30,30],[y-30,y-30,30,30,y-30],"g",linewidth=1)
-    image1_warp = warp(query_image, model)
-    plt.imshow(image1_warp)
-    plt.show()
-    # exit()
+    if plot:
+        plot_template_matches(keypoints_q,keypoints_r, inliers, query_image, reference_image_border)
+        from skimage.transform import warp
+        from matplotlib import pyplot as plt
+        plt.subplot("131")
+        plt.imshow(reference_image_border)
+        plt.subplot("132")
+        plt.imshow(query_image)
+        plt.subplot("133")
+        y =query_image.shape[0]
+        plt.plot([30,470,470,30,30], [y-30,y-30,30,30,y-30], "g", linewidth=1)
+        image1_warp = warp(query_image, model)
+        plt.imshow(image1_warp)
+        plt.show()
 
-    return  num_inliers, model
+    return num_inliers, model
 
 def retrieve_best_match(query_image, bboxes, processing_size):
     width, height = processing_size
@@ -347,7 +343,6 @@ def retrieve_best_match(query_image, bboxes, processing_size):
 
     score_list = []
 
-    window_size = 30
     # reduce image size for performance with fixed aspect ratio
     query_image_small = cv2.resize(query_image, (width,height))
 
@@ -357,7 +352,7 @@ def retrieve_best_match(query_image, bboxes, processing_size):
         rivers_json = osm.get_from_osm(bbox)
         reference_river_image = osm.paint_features(rivers_json, bbox)
 
-        num_inliers, transform_model = template_matching(query_image_small, reference_river_image, window_size=window_size)
+        num_inliers, transform_model = template_matching(query_image_small, reference_river_image, window_size=config.template_window_size)
 
         score_list.append((num_inliers, idx))
         if closest_image is None or num_inliers > best_dist:

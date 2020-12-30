@@ -90,9 +90,9 @@ def process_sheet(img_path, sheets_path, cb_percent, plot=False, img=True, numbe
 
         # align map image
         try:
-            # map_img_aligned, border = registration.align_map_image(map_img, water_mask, closest_image, processing_size, crop)#, transform_model)
-            map_img_aligned, border = registration.align_map_image(map_img, water_mask, closest_image, processing_size, crop, transform_model)
-            map_img_aligned_ransac, border_ransac = registration.align_map_image_model(map_img, water_mask, closest_image, transform_model, processing_size, crop)
+            # map_img_aligned, border = registration.align_map_image(map_img, water_mask, closest_image, processing_size, crop) # ECC only
+            map_img_aligned, border = registration.align_map_image(map_img, water_mask, closest_image, processing_size, crop, transform_model) # ECC with RANSAC prior
+            # map_img_aligned_ransac, border_ransac = registration.align_map_image_model(map_img, water_mask, closest_image, transform_model, processing_size, crop) # RANSAC only
         except cv2.error as e:
             logging.warning("%s - could not register %s with prediction %s!" % (e, img_path, sheet_name))
             eval_entry = ["pred:"+sheet_name,"gt:"+number,"dist %d"%dist,"gt ar pos %d" % (len(score_list) - [s[-1] for s in score_list].index(number)),"registration: fail","correct: no"]
@@ -109,7 +109,7 @@ def process_sheet(img_path, sheets_path, cb_percent, plot=False, img=True, numbe
         aligned_map_path_ransac = config.path_output + "aligned_%s_%s_ransac.jpg" % (sheet_name, "-".join(map(str,closest_bbox)))
         logging.info("saved aligned image file to: %s" % aligned_map_path)
         cv2.imwrite(aligned_map_path, map_img_aligned, [cv2.IMWRITE_JPEG_QUALITY, config.jpg_compression])
-        cv2.imwrite(aligned_map_path_ransac, map_img_aligned_ransac, [cv2.IMWRITE_JPEG_QUALITY, config.jpg_compression])
+        # cv2.imwrite(aligned_map_path_ransac, map_img_aligned_ransac, [cv2.IMWRITE_JPEG_QUALITY, config.jpg_compression])
 
         # georeference aligned query image with bounding box
         if crop:
@@ -119,7 +119,7 @@ def process_sheet(img_path, sheets_path, cb_percent, plot=False, img=True, numbe
             outpath = config.path_output + "georef_sheet_%s.%s" % (sheet_name,config. output_file_ending)
             # registration.georeference_gcp(aligned_map_path, outpath, closest_bbox, gcps=border)
             registration.georeference(aligned_map_path, outpath, closest_bbox, border)
-            registration.georeference(aligned_map_path_ransac, outpath.replace(".jp2","_ransac.jp2"), closest_bbox, border_ransac)
+            # registration.georeference(aligned_map_path_ransac, outpath.replace(".jp2","_ransac.jp2"), closest_bbox, border_ransac)
         logging.info("saved georeferenced file to: %s" % outpath)
     
     eval_entry = ["gt:"+number,"pred:"+sheet_name,"dist %f"%dist,"gt at pos %d"%(len(score_list) - [s[-1] for s in score_list].index(number)),"registration: success","correct %r"%(str(number)==str(sheet_name))]

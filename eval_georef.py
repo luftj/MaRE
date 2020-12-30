@@ -152,12 +152,12 @@ def findCorners(img, georef_img, ref_corners, plot=False, template_size = 20):
         plt.show()
     return corner_points
 
-def cascadeCorners(img_path, georef_path, truth_corners, plot):
+def cascadeCorners(img_path, georef_path, truth_corners, plot, downscale_factor):
     img = imread(img_path, as_gray=True)
     georef_img = imread(georef_path, as_gray=True)
 
     # downscale images
-    small_width = img.shape[1]//2
+    small_width = img.shape[1]//downscale_factor
     img_small = resize(img, (int(small_width/img.shape[1]*img.shape[0]), small_width), anti_aliasing=True)
     georef_img_small = resize(georef_img, (int(small_width/georef_img.shape[1]*georef_img.shape[0]),small_width), anti_aliasing=True)
     # rescale truth corners to small resolution
@@ -250,10 +250,15 @@ if __name__ == "__main__":
         georef_path = path_output + "/georef_sheet_%s_warp.tif" % sheet_name
 
         # find corner coordinates of registered image (geo-coordinates)
-        corner_coords = cascadeCorners(img_path, georef_path, sheet_corners[img_name], plot=args.plot)
+        corner_coords = cascadeCorners(img_path, georef_path, sheet_corners[img_name], plot=args.plot, downscale_factor=3)
 
         truth_bbox = get_truth_bbox(args.sheets, sheet_name)
         mse = mean_squared_error(corner_coords[0:4], truth_bbox[0:4])
+        if mse > 2000:
+            # maybe a corner wasn't properly detected, try again with full resolution ;)
+            corner_coords = cascadeCorners(img_path, georef_path, sheet_corners[img_name], plot=args.plot, downscale_factor=1)
+            truth_bbox = get_truth_bbox(args.sheets, sheet_name)
+            mse = mean_squared_error(corner_coords[0:4], truth_bbox[0:4])
         print("mean error: %f m" % mse)
         error_results.append(mse)
         sheet_names.append(sheet_name)

@@ -7,6 +7,8 @@ proj_sheets = proj_map
 proj_osm = "+proj=longlat +datum=WGS84 +ellps=WGS84 +no_defs" # EPSG:4326#
 proj_out = proj_osm
 
+template_window_size = 30
+
 warp_mode_retrieval = "similarity"
 warp_mode_registration = "affine"
 

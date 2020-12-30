@@ -57,6 +57,10 @@ def get_from_osm(bbox=[16.3,54.25,16.834,54.5], url = "http://overpass-api.de/ap
     #         json_data = json.load(file)
     #         return json_data
 
+    
+                # way (%s) [water=river];
+                # way (%s) [waterway=riverbank];
+
     sorted_bbox = ",".join(map(str,[bbox[1], bbox[0], bbox[3], bbox[2]]))
     query = """[out:json];
                 (nwr (%s) [water=lake]; 
