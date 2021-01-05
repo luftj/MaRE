@@ -160,8 +160,8 @@ def compute_similarities(query_image, reference_image):
 def detect_corners(image):
     from skimage.feature import corner_harris, corner_fast, corner_subpix, corner_peaks
 
-    coords = corner_peaks(corner_fast(image), min_distance=10, threshold_rel=0)
-    coords_subpix = corner_subpix(image, coords, window_size=13)
+    coords = corner_peaks(corner_fast(image), min_distance=5, threshold_rel=0)
+    coords_subpix = None #corner_subpix(image, coords, window_size=13)
     return coords, coords_subpix
 
 def match_template(image, template):
@@ -232,10 +232,11 @@ def plot_template_matches(keypoints_q, keypoints_r, inliers,query_image, referen
     #     ax.spines[spine].set_visible(False)
     plt.show()
 
-def template_matching(query_image, reference_image, window_size, patch_min_area=0.1, patch_max_area=0.8, plot=False):
+def plot_corners():
+    pass
+
+def template_matching(query_image, reference_image_border, window_size, patch_min_area=0.1, patch_max_area=0.8, plot=False):
     import cv2
-    from skimage.measure import ransac
-    from skimage.transform import AffineTransform, SimilarityTransform
     import dask
 
     keypoints_q = []
@@ -244,16 +245,31 @@ def template_matching(query_image, reference_image, window_size, patch_min_area=
     corners, corners_subpix = detect_corners(query_image)
     logging.debug("number of corners detected: %d" % len(corners))
 
-    height,width = query_image.shape
-    # reduce image size for performance with fixed aspect ratio. approx- same size as query, to make tempalte amtching work
-    reference_image = cv2.resize(reference_image, (width-window_size*2, height-window_size*2))
-    # reference_image = cv2.resize(reference_image, query_image.shape[::-1])
+    # height,width = query_image.shape
+    # # reduce image size for performance with fixed aspect ratio. approx- same size as query, to make tempalte amtching work
+    # reference_image = cv2.resize(reference_image, (width-window_size*2, height-window_size*2))
+    # # reference_image = cv2.resize(reference_image, query_image.shape[::-1])
 
-    # make border of window size around reference image, to catch edge cases
-    reference_image_border = cv2.copyMakeBorder(reference_image, 
-                                                window_size, window_size, window_size, window_size, 
-                                                cv2.BORDER_CONSTANT, None, 0)
-    # reference_image_border = reference_image
+    # # make border of window size around reference image, to catch edge cases
+    # reference_image_border = cv2.copyMakeBorder(reference_image, 
+    #                                             window_size, window_size, window_size, window_size, 
+    #                                             cv2.BORDER_CONSTANT, None, 0)
+    # # reference_image_border = reference_image
+
+    
+    from matplotlib import pyplot as plt
+    plt.subplot("121")
+    plt.imshow(query_image)
+    plt.scatter([x[1] for x in corners], [y[0] for y in corners], c="r", marker="x")
+    plt.subplot("122")
+    plt.imshow(reference_image_border)
+    from skimage.feature import corner_harris, corner_fast, corner_subpix, corner_peaks
+    ref_corners = corner_peaks(corner_fast(reference_image_border), min_distance=5)
+    plt.scatter([x[1] for x in ref_corners], [y[0] for y in ref_corners], c="r", marker="x")
+    # y =query_image.shape[0]
+    # plt.plot([30,470,470,30,30], [y-30,y-30,30,30,y-30], "g", linewidth=1)
+    plt.show()
+
     # match all sample points
     lazy_r = []
     for sample_point in corners:
@@ -291,6 +307,11 @@ def template_matching(query_image, reference_image, window_size, patch_min_area=
     keypoints_q = np.array(keypoints_q)
     keypoints_r = np.array(keypoints_r)
 
+    return keypoints_q, keypoints_r
+
+def estimate_transform(keypoints_q, keypoints_r, query_image, reference_image_border, plot=False):
+    from skimage.measure import ransac
+    from skimage.transform import AffineTransform, SimilarityTransform
     logging.info("number of used keypoints: %d", len(keypoints_q))
     #logging.info("number of matched templates: %d", len(keypoints_r)) # all get matched
     
@@ -325,13 +346,56 @@ def template_matching(query_image, reference_image, window_size, patch_min_area=
         plt.subplot("132")
         plt.imshow(query_image)
         plt.subplot("133")
-        y =query_image.shape[0]
+        y = query_image.shape[0]
         plt.plot([30,470,470,30,30], [y-30,y-30,30,30,y-30], "g", linewidth=1)
         image1_warp = warp(query_image, model)
         plt.imshow(image1_warp)
         plt.show()
 
     return num_inliers, model
+
+def feature_matching_kaze(query_image_small, reference_image_small):
+    import cv2
+
+    detector = cv2.KAZE_create(upright=True)
+    # kp_query = detector.detect(query_image_small)
+    # kp_reference = detector.detect(reference_image_small)
+    # kp_query = sorted(kp_query, key=lambda x: -x.response)[:800]
+    # kp_reference = sorted(kp_reference, key=lambda x: -x.response)[:800]
+    # kps, dsc_q = detector.compute(query_image_small, kp_query)  # todo: use cv2.detectAndCompute instead, is faster
+    # kps, dsc_r = detector.compute(reference_image_small, kp_reference)
+    kp_query, dsc_q = detector.detectAndCompute(query_image_small, None)
+    kp_reference, dsc_r = detector.detectAndCompute(reference_image_small, None)
+    logging.info("#kps query %d" % len(kp_query))
+    logging.info("#kps reference %d" % len(kp_query))
+
+    # create BFMatcher object
+    bf = cv2.BFMatcher(cv2.NORM_L2, crossCheck=True)
+    # Match descriptors.
+    matches = bf.match(dsc_q, dsc_r)
+    # Sort them in the order of their distance.
+    # matches = sorted(matches, key = lambda x:x.distance)
+
+    # FLANN_INDEX_KDTREE = 1
+    # index_params = dict(algorithm = FLANN_INDEX_KDTREE, trees = 5)
+    # search_params = dict(checks=50)   # or pass empty dictionary
+    # flann = cv2.FlannBasedMatcher(index_params,search_params)
+    # knn_matches = flann.knnMatch(dsc_q, dsc_r, 2)
+    # logging.info("#matches raw  %d" % len(knn_matches))
+    # # Filter matches using Lowe's ratio test
+    # ratio_thresh = 0.7
+    # matches = []
+    # for m,n in knn_matches:
+    #     if m.distance < ratio_thresh * n.distance:
+    #         matches.append(m)
+    # logging.info("#matches refined  %d" % len(matches))
+    
+    keypoints_q = [kp_query[x.queryIdx].pt for x in matches]
+    keypoints_r = [kp_reference[x.trainIdx].pt for x in matches]
+    keypoints_q = np.array(keypoints_q)
+    keypoints_r = np.array(keypoints_r)
+
+    return keypoints_q, keypoints_r
 
 def retrieve_best_match(query_image, bboxes, processing_size):
     width, height = processing_size
@@ -352,7 +416,23 @@ def retrieve_best_match(query_image, bboxes, processing_size):
         rivers_json = osm.get_from_osm(bbox)
         reference_river_image = osm.paint_features(rivers_json, bbox)
 
-        num_inliers, transform_model = template_matching(query_image_small, reference_river_image, window_size=config.template_window_size)
+        # reduce image size for performance with fixed aspect ratio. approx- same size as query, to make tempalte amtching work
+        reference_image_small = cv2.resize(reference_river_image, (width, height))
+        keypoints_q, keypoints_r = feature_matching_kaze(query_image_small, reference_image_small)
+        num_inliers, transform_model = estimate_transform(keypoints_q, keypoints_r, query_image_small, reference_image_small)
+
+        # window_size=config.template_window_size
+        # # reduce image size for performance with fixed aspect ratio. approx- same size as query, to make tempalte amtching work
+        # reference_image_small = cv2.resize(reference_river_image, (width-window_size*2, height-window_size*2))
+        # # reference_image = cv2.resize(reference_image, query_image.shape[::-1])
+
+        # # make border of window size around reference image, to catch edge cases
+        # reference_image_border = cv2.copyMakeBorder(reference_image_small, 
+        #                                             window_size, window_size, window_size, window_size, 
+        #                                             cv2.BORDER_CONSTANT, None, 0)
+        # keypoints_q, keypoints_r = template_matching(query_image_small, reference_river_image, window_size=window_size)
+        # num_inliers, transform_model = estimate_transform(keypoints_q, keypoints_r, query_image_small, reference_image_border)
+
 
         score_list.append((num_inliers, idx))
         if closest_image is None or num_inliers > best_dist:

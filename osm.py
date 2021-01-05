@@ -51,11 +51,11 @@ def get_from_osm(bbox=[16.3,54.25,16.834,54.5], url = "http://overpass-api.de/ap
     bbox = minxy+maxxy
 
     # don't query if we already have the data on disk
-    # if os.path.isfile( data_path ):
-    #     logging.debug("fetching osm data from disk: %s" % data_path)
-    #     with open(data_path, encoding="utf-8") as file:
-    #         json_data = json.load(file)
-    #         return json_data
+    if os.path.isfile( data_path ):
+        logging.debug("fetching osm data from disk: %s" % data_path)
+        with open(data_path, encoding="utf-8") as file:
+            json_data = json.load(file)
+            return json_data
 
     
                 # way (%s) [water=river];
