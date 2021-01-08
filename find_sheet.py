@@ -38,6 +38,38 @@ def get_bboxes_from_json(filepath):
 
     return bboxes
 
+def get_ordered_bboxes_from_json(filepath, sheet_names):
+    bboxes = {}
+
+    with open(filepath) as file:
+        json_data = json.load(file)
+
+        for feature in json_data["features"]:
+            if feature["properties"]["blatt_polen"]:
+                sheet_name = feature["properties"]["blatt_polen"]
+            if feature["properties"]["blatt_ostmark"]:
+                sheet_name = feature["properties"]["blatt_ostmark"]
+            if feature["properties"]["blatt_100"]:
+                sheet_name = feature["properties"]["blatt_100"]
+
+            if all(i in feature["properties"] for i in("left","right","bottom","top")):
+                minx = feature["properties"]["left"]
+                maxx = feature["properties"]["right"]
+                miny = feature["properties"]["bottom"]
+                maxy = feature["properties"]["top"]
+            else:
+                minx = min([p[0] for p in feature["geometry"]["coordinates"][0]])
+                maxx = max([p[0] for p in feature["geometry"]["coordinates"][0]])
+                miny = min([p[1] for p in feature["geometry"]["coordinates"][0]])
+                maxy = max([p[1] for p in feature["geometry"]["coordinates"][0]])
+
+            bbox = [minx, miny, maxx, maxy]
+            bboxes[sheet_name] = bbox
+
+    ordered_bboxes = [bboxes[n] for n in sheet_names]
+
+    return ordered_bboxes
+
 def get_index_of_sheet(sheetfile, sheet):
     with open(sheetfile) as file:
         json_data = json.load(file)

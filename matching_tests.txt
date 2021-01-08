@@ -1,0 +1,397 @@
+n_first:400
+[46, 36, -1, -1, 42, 10, 36,  6, 0, 81, 39, 92, 101, 26, 0, 18, 100, 0, 59, -1, 1, 10, 1, 5, 23, 1, 65, 1, 80, 0, -1, 0, 62]
+n_first 300
+[39, 29, -1, -1, 57, 11, 11, 24, 3, 85, 16, 92,  84, 37, 0, 12,  99, 4, 59, -1, 2,  8, 0, 2, 29, 1, 75, 0, 68, 0, -1, 0, 41]
+
+full index
+[233, 140, 2, 17, 322, 56, 62, 136, 9, 530, 90, 516, 514, 225, 0, 79, 598, 10, 322, 42, 7, 60, 0, 15, 155, 1, 432, 2, 410, 0, 6, 0, 214]
+
+full index, average score of 200
+[352, 414, 2, 6, 0, 2, 3, 0, 2, 155, 229, 104, 326, 20, 2, 4,  69, 36, 0, 5, 2, 2, 3, 33, 28, 0, 8, 2, 326, 2, 3, 2, 3]
+
+full index, average score of 300
+[399, 311, 1, 2, 0, 3, 5, 0, 4,  68, 180, 117, 467,  3, 2, 4, 125, 28, 0, 6, 2, 2, 6, 38, 33, 0, 3, 2, 227, 2, 3, 2, 3]
+
+full index, average score of 400
+[432, 192, 1, 3, 0, 3, 5, 2, 4,  81, 166, 185, 435,  4, 2, 4, 125, 84, 0, 4, 1, 3, 26, 60, 33, 0, 3, 12, 230, 2, 3, 2, 3]
+
+vielleicht deskriptoren nicht nach Anzahl sondern nach response value abschneiden?
+
+maha = [3.92,4.17,63.62,18.6,37.51,35.58,15.36,14.71,24.17,15.68,11.55,7.6,4.52,10.98,24.36,25.53,6.96,11.7,28.92,36.52,37.75,21.36,25.05,4.76,11.95,8.6,15.76,11.58,2.7,42.41,40.9,53.08,13.34]
+
+full index, average score of 400, lowe's test
+[271, 320, 47, 71, 219, 195, 72, 299, 305, 161, 55, 344, 291, 110, 181, 11, 581, 79, 3, 5, 23, 336, 423, 475, 6, 19, 258, 20, 148, 325, 155, 146, 62]
+
+full index, average score of 400, lowe's test, both ways averaged
+[475, 493, 49, 102, 233, 636, 73, 270, 258, 473, 99, 26, 492, 250, 172, 18, 595, 99, 9, 10, 1, 347, 765, 442, 8, 28, 76, 59, 207, 393, 108, 192, 281]
+
+full index, average score of 400, one-way Q->R
+[313, 209, 0, 4, 20, 0, 0, 11, 0, 434, 75, 558, 229, 2, 0, 5, 433, 1, 13, 43, 0, 0, 0, 0, 156, 0, 123, 0, 504, 0, 0, 0, 20]
+
+full index, average score of 400, one-way R->Q
+[614, 236, 1, 17, 1, 10, 20, 1, 17, 69, 391, 118, 256, 24, 3, 14, 250, 61, 2, 12, 3, 10, 48, 17, 9, 0, 68, 10, 183, 3, 11, 3, 12]
+
+full index, average score of 200, one-way Q->R
+[346, 210, 0, 3, 4, 0, 0, 5, 0, 433, 94, 523, 323, 13, 0, 1, 410, 8, 4, 28, 0, 0, 1, 0, 157, 0, 51, 0, 458, 0, 0, 0, 20]
+
+full index, average score of 200, L2_SQR
+[348, 439, 2, 6, 1, 2, 4, 0, 3, 155, 322, 120, 330, 20, 2, 9, 82, 28, 0, 7, 2, 2, 3, 43, 74, 0, 31, 2, 403, 2, 10, 2, 6]
+
+full index, average score of 200, L1
+[733, 458, 1, 35, 0, 3, 6, 6, 9, 83, 97, 123, 639, 96, 2, 6, 125, 129, 2, 8, 2, 3, 50, 86, 5, 0, 8, 24, 72, 3, 20, 2, 20]
+
+full index, average score of 200, two-way concat
+[436, 234, 1, 6, 1, 0, 5, 0, 2, 253, 272, 316, 416, 47, 0, 1, 249, 28, 1, 24, 0, 0, 2, 4, 26, 0, 31, 0, 186, 0, 0, 0, 5]
+
+full index, average score of 300, two-way concat
+[445, 216, 0, 4, 1, 0, 4, 0, 0, 270, 172, 335, 309, 3, 0, 1, 315, 14, 1, 23, 0, 0, 2, 0, 31, 0, 49, 0, 313, 0, 0, 0, 5]
+
+full index, average score of 300, best 100 matches, Q->R
+[417, 245, 0, 0, 0, 0, 0, 0, 0, 330, 7, 187, 397, 1, 0, 0, 132, 19, 0, 12, 0, 0, 1, 2, 13, 0, 0, 0, 140, 0, 0, 0, 0]
+
+full index, average score of 300, best 100 matches, (cross-check)
+[311, 190, 0, 2, 0, 2, 2, 0, 2, 96, 8, 248, 512, 3, 2, 0, 350, 8, 0, 3, 2, 2, 2, 3, 19, 0, 19, 0, 217, 2, 2, 2, 3]
+
+full index, average score of 300, best 100 matches, R->Q
+[504, 288, 0, 13, 0, 8, 5, 0, 10, 74, 164, 62, 301, 59, 2, 0, 153, 81, 0, 6, 0, 3, 81, 10, 0, 1, 1, 9, 51, 7, 2, 2, 13]
+
+full index, average score of 300, best 100 matches of both ways
+[453, 251, 0, 3, 0, 0, 1, 0, 0, 181, 42, 106, 353, 12, 0, 0, 138, 46, 0, 8, 0, 0, 5, 3, 0, 0, 0, 0, 40, 0, 0, 0, 1]
+
+MLDB, full index, average score of 300, best 100 matches, (cross-check)
+[687, 409, 0, 3, 0, 2, 376, 3, 2, 50, 20, 215, 732, 2, 3, 1, 132, 3, 3, 3, 1, 19, 7, 3, 129, 0, 67, 0, 83, 3, 2, 1, 6]
+
+MLDB_UPRIGHT, full index, average score of 300, (cross-check)
+[548, 760, 13, 284, 47, 6, 222, 219, 53, 656, 546, 164, 80, 386, 2, 711, 42, 363, 60, 162, 3, 48, 590, 186, 366, 575, 13, 304, 53, 114, 18, 4, 67]
+
+MLDB_UPRIGHT, full index, average score of 300, best 100 matches, (cross-check)
+[373, 409, 0, 24, 27, 0, 545, 89, 2, 460, 249, 550, 544, 147, 0, 111, 68, 73, 5, 20, 0, 3, 111, 5, 443, 56, 249, 5, 205, 0, 2, 0, 70]
+
+AKAZE_UPRIGHT, full index, average score of 300, best 100 matches, (cross-check)
+[687, 409, 0, 3, 0, 2, 376, 3, 2, 50, 20, 215, 732, 2, 3, 1, 132, 3, 3, 3, 1, 19, 7, 3, 129, 0, 67, 0, 83, 3, 2, 1, 6]
+
+AKAZE_UPRIGHT, full index, average score of 300, (cross-check)
+[666, 366, 10, 9, 0, 3, 245, 33, 4, 24, 158, 51, 637, 7, 3, 16, 86, 91, 1, 4, 2, 231, 92, 23, 188, 2, 23, 9, 33, 5, 3, 2, 6]
+building index took 159.316565 seconds. 0.174689 s per sheet
+
+AKAZE_UPRIGHT400, full index, average score of 300, (cross-check)
+building index took  seconds. 0.132474 s per sheet
+searching list took 163.593333 seconds. 4.957374 s per sheet
+[655, 387, 6, 12, 0, 3, 248, 30, 4, 22, 154, 44, 626, 7, 3, 23, 83, 120, 1, 9, 2, 223, 106, 24, 212, 2, 21, 16, 60, 4, 3, 2, 6]
+
+AKAZE_ROT300, full index, average score of 300, (cross-check)
+building index took 181.198790 seconds. 0.198683 s per sheet
+searching list took 235.544904 seconds. 7.137724 s per sheet
+[710, 531, 287, 130, 69, 115, 359, 452, 221, 84, 461, 445, 267, 385, 25, 406, 163, 517, 160, 29, 135, 562, 530, 213, 288, 33, 142, 243, 156, 370, 106, 43, 92]
+
+AKAZE_ROT300, full index, average score of 300, best 100 matches (cross-check)
+searching list took 226.133647 seconds. 6.852535 s per sheet
+[719, 554, 3, 11, 84, 60, 453, 252, 27, 95, 416, 567, 384, 133, 7, 93, 163, 68, 232, 55, 0, 431, 128, 14, 341, 3, 168, 14, 178, 27, 4, 2, 92]
+
+repeat: full index, average score of 300, best 100 matches, (cross-check)
+building index took 554.203352 seconds. 0.607679 s per sheet
+searching list took 304.034803 seconds. 9.213176 s per sheet
+[311, 190, 0, 2, 0, 2, 2, 0, 2, 96, 8, 248, 512, 3, 2, 0, 350, 8, 0, 3, 2, 2, 2, 3, 19, 0, 19, 0, 217, 2, 2, 2, 3]
+
+AKAZE_UPRIGHT, full index, full descriptors, average score of 300, best 100 matches (cross-check)
+building index took 258.526887 seconds. 0.283472 s per sheet
+searching list took 194.679551 seconds. 5.899380 s per sheet
+[688, 462, 0, 5, 2, 2, 453, 14, 2, 84, 104, 280, 743, 4, 3, 6, 211, 3, 6, 12, 1, 44, 4, 8, 196, 0, 126, 0, 230, 3, 2, 1, 11]
+
+AKAZE_UPRIGHT, full index, full descriptors, average score of 400, best 100 matches, (cross-check)
+searching list took 241.244043 seconds. 7.310426 s per sheet
+[623, 284, 0, 4, 1, 2, 453, 9, 2, 105, 108, 315, 756, 2, 3, 2, 211, 1, 6, 11, 0, 44, 2, 6, 146, 0, 126, 0, 238, 3, 2, 1, 11]
+
+AKAZE_UPRIGHT, full index, 200 descriptors, average score of 200, best 100 matches, (cross-check)
+building index took 161.178997 seconds. 0.176731 s per sheet
+searching list took 170.746187 seconds. 5.174127 s per sheet
+[593, 446, 6, 6, 2, 3, 246, 23, 3, 50, 150, 142, 652, 6, 3, 11, 83, 14, 1, 1, 2, 133, 49, 20, 40, 2, 33, 2, 89, 3, 3, 2, 10]
+
+AKAZE_UPRIGHT, full index, 200 descriptors, average score of 200, best 100 matches, 1 channel (cross-check)
+building index took 156.527999 seconds. 0.171632 s per sheet
+identical to previous
+
+AKAZE_UPRIGHT, full index, 200 descriptors, average score of 200, best 100 matches, size:64 (cross-check)
+building index took 150.530385 seconds. 0.165055 s per sheet
+searching list took 158.478403 seconds. 4.802376 s per sheet
+[593, 446, 6, 6, 2, 3, 246, 23, 3, 50, 150, 142, 652, 6, 3, 11, 83, 14, 1, 1, 2, 133, 49, 20, 40, 2, 33, 2, 89, 3, 3, 2, 10]
+
+AKAZE_UPRIGHT, full index, 300 descriptors, average score of 300, best 100 matches, size:128 (cross-check)
+building index took 153.915997 seconds. 0.168768 s per sheet
+searching list took 191.075359 seconds. 5.790162 s per sheet
+[687, 409, 0, 3, 0, 2, 376, 3, 2, 50, 20, 215, 732, 2, 3, 1, 132, 3, 3, 3, 1, 19, 7, 3, 129, 0, 67, 0, 83, 3, 2, 1, 6]
+
+MLDB_UPRIGHT, full index, 300 descriptors, average score of 300, best 100 matches, size:128 (cross-check), hamming norm
+building index took 158.865092 seconds. 0.174194 s per sheet
+searching list took 167.742628 seconds. 5.083110 s per sheet
+[761, 483, 2, 36, 0, 2, 578, 44, 3, 387, 144, 510, 728, 4, 3, 44, 631, 78, 1, 10, 0, 11, 94, 19, 282, 88, 50, 1, 17, 2, 3, 0, 72]
+
+AKAZE_UPRIGHT, full index, 300 descriptors, average score of 300, best 100 matches, diffuse G1 (cross-check)
+building index took 151.837893 seconds. 0.166489 s per sheet
+searching list took 197.587128 seconds. 5.987489 s per sheet
+[643, 452, 0, 3, 0, 2, 471, 2, 2, 52, 27, 212, 794, 2, 3, 2, 129, 6, 3, 3, 1, 18, 6, 3, 145, 0, 86, 0, 107, 3, 2, 1, 4]
+
+AKAZE_UPRIGHT, full index, 300 descriptors, average score of 300, best 100 matches, diffuse Weichert (cross-check)
+building index took 191.949705 seconds. 0.210471 s per sheet
+searching list took 224.694126 seconds. 6.808913 s per sheet
+[681, 436, 0, 3, 0, 2, 443, 4, 2, 54, 26, 191, 739, 2, 3, 1, 125, 2, 4, 3, 1, 20, 7, 4, 132, 0, 79, 0, 83, 3, 2, 1, 5]
+
+AKAZE_UPRIGHT, full index, 300 descriptors, average score of 300, best 100 matches, diffuse charbonnier (cross-check)
+searching list took 191.453239 seconds. 5.801613 s per sheet
+[675, 429, 0, 3, 0, 2, 319, 3, 2, 47, 15, 189, 719, 2, 3, 1, 131, 2, 3, 2, 1, 42, 7, 3, 127, 0, 73, 0, 84, 3, 2, 1, 6]
+
+ORB, full index, 300 descriptors, average score of 300, best 100 matches, (cross-check)
+building index took 92.958000 seconds. 0.101928 s per sheet
+searching list took 163.409936 seconds. 4.951816 s per sheet
+[836, 769, 403, 525, 789, 482, 438, 503, 57, 406, 708, 816, 691, 848, 7, 586, 404, 55, 535, 296, 23, 269, 15, 364, 574, 83, 397, 153, 62, 639, 110, 271, 699]
+
+ORB, full index, 300 descriptors, average score of 300, best 100 matches, hamming norm (cross-check)
+very bad
+
+BRISK, full index, 300 descriptors, average score of 300, best 100 matches, (cross-check)
+building index took 235.989055 seconds. 0.258760 s per sheet
+very bad
+
+AKAZE_UP 1000px images
+building index took 369.036086 seconds. 0.404645 s per sheet
+searching list took 219.252452 seconds. 6.644014 s per sheet
+[155, 351, 0, 2, 62, 1, 85, 0, 0, 9, 58, 4, 787, 52, 0, 1, 28, 4, 0, 0, 0, 1, 1, 5, 1, 0, 2, 2, 0, 3, 2, 0, 1]
+
+AKAZE_UP 1000px index, 500px query
+searching list took 176.358701 seconds. 5.344203 s per sheet
+[543, 350, 26, 4, 403, 5, 340, 221, 18, 215, 175, 455, 791, 221, 3, 45, 168, 33, 223, 149, 25, 139, 27, 1, 183, 0, 19, 1, 204, 3, 1, 1, 44]
+
+KAZE, 1000px images
+building index took 1918.003148 seconds. 2.103074 s per sheet
+searching list took 312.015076 seconds. 9.455002 s per sheet
+[216,  95,   0,   0, 248,  2,  17, 122,   1,   2, 198,  22, 686, 109, 1, 1, 12, 43, 0, 0, 0, 1, 2, 5, 3, 0, 1, 1, 1, 3, 2, 1, 1]
+
+FAST patches 16px, 500 descriptors, best 100 matches
+building index took 92.947818 seconds. 0.101916 s per sheet
+searching list took 628.666731 seconds. 19.050507 s per sheet
+[164, 100, 208, 418, 126, 36, 371, 482, 253, 653, 265, 144, 190, 175, 505, 90, 441, 56, 102, 159, 222, 104, 104, 63, 407, 98, 411, 34, 306, 70, 237, 273, 491]
+
+FAST patches 16px, patches from 16 to 64, all descriptors, average score, all matches
+building index took 85.746580 seconds. 0.094020 s per sheet
+
+FAST patches 16px, patches from 16 to 64, all descriptors, average score, all matches
+328, 412, 832, 819, 156, 27, 492, 534, ...
+
+FAST patches 16px, patches from 16 to 64, >7px, all descriptors, average score, all matches
+building index took 100.844998 seconds. 0.110576 s per sheet
+
+FAST patches 16px, patches from 16 to 64, >=7px, binary Hamming, all descriptors, average score, all matches, Q->R
+building index took 100.186256 seconds. 0.109853 s per sheet
+
+FAST patches 16px, patches from 16 to 64, >=7px, binary Hamming, all descriptors, average score, all matches, cross-check
+searching list took 667.968529 seconds. 20.241471 s per sheet
+[332, 123, 83, 781, 363, 0, 224, 388, 845, 596, 411, 31, 478, 666, 184, 111, 205, 94, 45, 295, 630, 185, 703, 300, 177, 617, 524, 1, 38, 377, 6, 183, 425]
+
+FAST patches 16px, patches from 16 to 64, >=25px, Hamming, all descriptors, average score, all matches, cross-check
+searching list took 483.864453 seconds. 14.662559 s per sheet
+[596, 329, 368, 390, 63, 292, 644, 700, 612, 247, 415, 172, 830, 354, 779, 313, 408, 569, 149, 249, 2, 687, 2, 240, 706, 79, 192, 173, 530, 22, 337, 21, 309]
+
+FAST patches 16px, patches from 16 to 64, >=25px, FLANN, all descriptors, average score, all matches, cross-check
+
+FAST patches 16px, patches from 16 to 64, >=25px, FLANN+Lowe, all descriptors, average score, all matches, cross-check
+
+KAZE patches 16px, patches from 16 to 64, >=25px, Hamming, all descriptors, average score, all matches, cross-check
+building index took 337.923406 seconds. 0.370530 s per sheet
+
+KAZE patches 16px, 2*size, >=25px, Hamming, 300 descriptors, average score of 300, all matches, cross-check
+building index took 281.084000 seconds. 0.308206 s per sheet
+searching list took 352.148518 seconds. 10.671167 s per sheet
+[474, 522, 69, 769, 256, 46, 308, 508, 493, 168, 484, 139, 570, 329, 561, 226, 43, 879, 96, 164, 665, 390, 656, 794, 627, 889, 64, 817, 209, 303, 223, 126, 156]
+
+KAZE patches 16px, 16px size, >=25px, Hamming, all descriptors, average score , all matches, cross-check
+building index took 337.888898 seconds. 0.370492 s per sheet
+
+KAZE patches 16px, 2*size, >=25px, L2-norm, all descriptors, average score, all matches, cross-check
+building index took 420.797416 seconds. 0.461401 s per sheet
+
+KAZE patches 16px, 2*size, >=25px, L2-norm, all descriptors, average score, all matches, Q->R
+searching list took 1316.648113 seconds. 39.898428 s per sheet
+[513, 334, 0, 13, 806, 2, 429, 126, 36, 430, 180, 12, 251, 693, 0, 257, 81, 1, 257, 48, 122, 20, 11, 13, 102, 0, 28, 0, 256, 0, 0, 1, 540]
+
+KAZE patches 16px, 2*size, >=25px, L2-norm, all descriptors, average score, besto 100 matches, Q->R
+
+KAZE patches 16px, 2*size, >=25px, L2SQR-norm, all descriptors, average score, all matches, Q->R
+searching list took 1821.449357 seconds. 55.195435 s per sheet
+[409, 624, 908, 895, 136, 904, 548, 770, 878, 463, 730, 888, 636, 273, 908, 693, 854, 907, 695, 862, 855, 901, 906, 903, 825, 908, 903, 908, 665, 908, 908, 908, 391]
+
+KAZE patches 32px, 32px, >=104px, L2-norm, all descriptors, average score, all matches, Q->R
+building index took 314.521204 seconds. 0.344870 s per sheet
+
+############
+###
+### resize query inter_area
+###
+############
+
+KAZE patches 16px, 2*size, >=25px, L2-norm, 300 descriptors, average score, all matches, Q->R
+building index took 299.127524 seconds. 0.327991 s per sheet
+
+KAZE, 300 descriptors, avg score of 300, best 100 matches
+searching list took 222.092511 seconds. 6.730076 s per sheet
+[535, 109, 0, 2, 0, 2, 0, 0, 2, 35, 7, 273, 488, 3, 2, 0, 176, 8, 1, 0, 1, 2, 0, 5, 20, 0, 6, 0, 7, 2, 2, 2, 6]
+compare: 
+[311, 190, 0, 2, 0, 2, 2, 0, 2, 96, 8, 248, 512, 3, 2, 0, 350, 8, 0, 3, 2, 2, 2, 3, 19, 0, 19, 0, 217, 2, 2, 2, 3]
+
+AKAZEU, 300 descriptors, avg score of 300, best 100 matches, cross-check
+searching list took 175.692998 seconds. 5.324030 s per sheet
+[658, 331, 0, 3, 3, 2, 284, 1, 2, 12, 10, 152, 767, 2, 3, 0, 58, 8, 2, 0, 2, 59, 1, 5, 117, 0, 16, 0, 84, 3, 2, 1, 3]
+compare
+[687, 409, 0, 3, 0, 2, 376, 3, 2, 50, 20, 215, 732, 2, 3, 1, 132, 3, 3, 3, 1, 19, 7, 3, 129, 0, 67, 0, 83, 3, 2, 1, 6]
+cubic query
+[612, 410, 0, 3, 0, 2, 368, 3, 2, 45, 15, 313, 775, 2, 3, 1, 140, 2, 7, 3, 1, 30, 5, 3, 229, 2, 119, 0, 128, 3, 2, 1, 8]
+lanczos
+
+AKAZEU, 300 descriptors, avg score of 300, best 100 matches, Q->R
+building index took 155.906396 seconds. 0.170950 s per sheet
+searching list took 181.921998 seconds. 5.512788 s per sheet
+[340, 257, 0, 0, 0, 0, 225, 0, 0, 113, 25, 71, 826, 0, 0, 0, 262, 32, 0, 0, 0, 1, 0, 0, 1, 0, 8, 0, 1, 0, 0, 0, 0]
+
+AKAZEU, 300 descriptors, avg score of 500, best 100 matches, Q->R
+searching list took 222.385002 seconds. 6.738939 s per sheet
+[319, 319, 0, 0, 0, 0, 225, 0, 0, 33, 12, 71, 820, 0, 0, 0, 262, 61, 0, 0, 0, 1, 15, 0, 1, 0, 8, 1, 1, 0, 0, 0, 0]
+
+AKAZEU, 300 descriptors, avg score of all, best 100 matches, Q->R
+searching list took 216.968998 seconds. 6.574818 s per sheet
+[259, 329, 0, 1, 0, 0, 225, 0, 0, 29, 12, 71, 820, 0, 0, 0, 262, 79, 0, 0, 0, 1, 25, 0, 1, 0, 8, 1, 1, 0, 0, 0, 0]
+
+AKAZEU, 300 descriptors, avg score of 500, best 150 matches, Q->R
+searching list took 208.250017 seconds. 6.310607 s per sheet
+[325, 284, 0, 0, 2, 0, 150, 0, 0, 110, 43, 236, 842, 0, 0, 0, 309, 9, 0, 0, 0, 0, 0, 0, 1, 0, 8, 0, 64, 0, 0, 0, 0]
+
+AKAZEU, 300 descriptors, avg score of 500, best 50 matches, Q->R
+searching list took 213.650995 seconds. 6.474273 s per sheet
+[352, 303, 0, 1, 0, 0, 304, 0, 0,   2,  4,  13, 780, 11, 0, 0, 74, 163, 0, 0, 0, 11, 101, 0, 4, 2, 0, 21, 0, 0, 0, 0, 0]
+
+AKAZEU, 300 descriptors, avg score of 500, best 75 matches, Q->R
+searching list took 206.902052 seconds. 6.269759 s per sheet
+[322, 323, 0, 0, 0, 0, 272, 0, 0,  13,  9,  36, 801,  4, 0, 0, 177, 120, 0, 0, 0, 2, 50, 0, 1, 1, 3, 7, 0, 0, 0, 0, 0]
+
+AKAZEU, 300 descriptors, avg score of 500, Lowe's test 0.8, Q->R
+searching list took 223.319906 seconds. 6.767270 s per sheet
+[430, 14, 10, 91, 199, 6, 222, 20, 11, 35, 14, 342, 887, 57, 12, 52, 14, 172, 1, 44, 0, 329, 106, 143, 614, 52, 157, 45, 256, 72, 2, 2, 61]
+
+AKAZEU, 300 descriptors, avg score of 500, Lowe's test 0.8, 30 best leftover matches, Q->R
+searching list took 199.571002 seconds. 6.047606 s per sheet
+[430, 14, 1, 91, 137, 1, 222, 20, 1, 35, 14, 342, 887, 57, 1, 52, 14, 176, 1, 44, 0, 57, 64, 143, 614, 52, 157, 4, 256, 6, 1, 0, 61]
+
+AKAZEU, 300 descriptors, avg score of 500, Lowe's test 0.8, 10 best leftover matches, Q->R
+searching list took 202.470994 seconds. 6.135485 s per sheet
+[435, 14, 0,  8,   9, 1, 132,  0, 0, 35,  0, 374, 890,  2, 1,  2, 18, 229, 0,  8, 0, 29, 51, 201, 292, 4, 19, 7, 306, 1, 0, 0, 12]
+
+AKAZEU, 300 descriptors, avg score of 500, Lowe's test 0.8, 5 best leftover matches, Q->R
+searching list took 211.208999 seconds. 6.400273 s per sheet
+[481, 16, 0,  6,  29, 1, 213, 1, 49, 15,  2,  18, 890, 27, 5, 17, 14, 250, 0,  4, 0, 145, 123, 202, 349, 31, 10, 35, 137, 59, 109, 0, 20]
+
+AKAZEU, 300 descriptors, avg score of 500, FLANN-KD5-50, Lowe's test 0.8, 10 best leftover matches, Q->R
+searching list took 372.936512 seconds. 11.301106 s per sheet
+[381, 327, 0, 6, 9, 1, 131, 0, 0, 19, 0, 337, 889, 2, 1, 2, 17, 229, 0, 5, 0, 28, 51, 185, 274, 4, 17, 7, 288, 1, 0, 0, 12]
+
+AKAZEU, 300 descriptors, avg score of 500, preFLANN-KD5-50, Lowe's test 0.8, 10 best leftover matches, Q->R
+faster? results same as before
+
+AKAZEU, 300 descriptors, avg score of 500, trained FLANN-KD5-50, Lowe's test 0.8, 10 best leftover matches, Q->R
+searching list took 391.775198 seconds. 11.871976 s per sheet
+[380, 4, 0, 5, 9, 1, 131, 0, 0, 25, 0, 329, 891, 2, 0, 2, 17, 228, 0, 7, 0, 28, 51, 151, 279, 4, 15, 7, 282, 1, 0, 0, 12]
+
+AKAZEU, 300 descriptors, avg score of 500, trained FLANN-KD5-50, 75 best matches, Q->R
+searching list took 324.757123 seconds. 9.841125 s per sheet
+[325, 345, 0, 0, 0, 0, 272, 0, 0, 11, 9, 31, 804, 4, 0, 0, 175, 121, 0, 0, 0, 2, 50, 0, 2, 1, 3, 7, 0, 0, 0, 0, 0]
+
+AKAZEU+LATCHU, 300 descriptors, avg score of 500, all matches, Hamming, Q->R
+building index took 115.251964 seconds. 0.126373 s per sheet
+searching list took 164.722999 seconds. 4.991606 s per sheet
+[490, 312, 3, 28, 29, 0, 344, 136, 0, 391, 431, 719, 546, 107, 0, 144, 269, 0, 1, 77, 0, 4, 1, 0, 15, 16, 22, 2, 37, 0, 0, 0, 7]
+
+AKAZEU+LATCHU, 300 descriptors, avg score of 500, all matches, L2, cross-check
+searching list took 248.096055 seconds. 7.518062 s per sheet
+[314, 821, 32, 412, 404, 223, 224, 191, 60, 326, 431, 780, 680, 572, 0, 221, 166, 150, 377, 415, 24, 813, 122, 46, 457, 16, 500, 853, 221, 99, 29, 470, 116]
+
+AKAZEU+LATCHU, 300 descriptors, avg score of 300, 75 matches, L2, cross-check
+searching list took 183.750416 seconds. 5.568194 s per sheet
+[617, 818, 2, 685, 82, 59, 184, 713, 35, 296, 426, 675, 184, 302, 0, 669, 94, 288, 192, 477, 4, 752, 380, 12, 60, 169, 14, 896, 127, 461, 6, 115, 372]
+
+AKAZEU+LATCHU, half_ssd_size=8, 300 descriptors, avg score of 300, 75 matches, Hamming, Q->R
+searching list took 152.460999 seconds. 4.620030 s per sheet
+[683, 370, 1, 143, 220, 1, 243, 49, 3, 134, 663, 796, 215, 318, 0, 189, 319, 10, 113, 291, 0, 196, 60, 5, 6, 106, 62, 150, 47, 2, 0, 2, 74]
+
+AKAZEU+LATCHU, half_ssd_size=8, 300 descriptors, avg score of 300, lowes 0.8, 75 matches, Hamming, Q->R
+searching list took 171.261641 seconds. 5.189747 s per sheet
+[83, 100, 827, 436, 38, 8, 10, 25, 10, 28, 39, 69, 90, 11, 832, 45, 68, 869, 906, 830, 755, 42, 72, 98, 50, 76, 52, 70, 46, 44, 538, 49, 76]
+
+AKAZEU+LATCHU, half_ssd_size=8, 300 descriptors, avg score of 300, lowes 0.8, 10 matches, Hamming, Q->R
+building index took 138.645079 seconds. 0.152023 s per sheet
+searching list took 157.879512 seconds. 4.784228 s per sheet
+[60, 482, 645, 847, 605, 434, 540, 630, 215, 677, 451, 549, 43, 603, 347, 789, 18, 526, 650, 516, 37, 411, 447, 506, 779, 49, 818, 866, 610, 366, 3, 87, 753]
+
+AKAZEU+LATCHU, half_ssd_size=8, 300 descriptors, avg score of 300, 75 matches, Hamming, Q->R
+searching list took 150.431998 seconds. 4.558545 s per sheet
+[700, 198, 0, 259, 0, 0, 293, 12, 0, 27, 549, 612, 97, 130, 0, 28, 247, 3, 0, 259, 0, 83, 9, 1, 21, 342, 0, 195, 2, 0, 0, 0, 1]
+
+AKAZEU+LATCHU, half_ssd_size=15, 300 descriptors, avg score of 300, 75 matches, Hamming, Q->R
+building index took 232.206029 seconds. 0.254612 s per sheet
+searching list took 156.916151 seconds. 4.755035 s per sheet
+[390, 716, 0, 117, 0, 0, 329, 21, 0, 36, 290, 201, 177, 39, 0, 167, 327, 5, 0, 240, 0, 33, 28, 3, 1, 674, 0, 197, 0, 49, 0, 0, 8]
+
+AKAZEU+LATCHU, half_ssd_size=3, 300 descriptors, avg score of 300, 75 matches, Hamming, Q->R
+building index took 125.429903 seconds. 0.137533 s per sheet
+searching list took 175.104981 seconds. 5.306212 s per sheet
+[663, 300, 0, 64, 0, 0, 352, 193, 0, 249, 288, 714, 413, 111, 0, 371, 210, 4, 3, 136, 0, 14, 20, 3, 6, 79, 6, 199, 12, 0, 0, 0, 6]
+
+AKAZEU+LATCHU, half_ssd_size=3, 300 descriptors, avg score of 300, 35 matches, Hamming, CC
+searching list took 168.860000 seconds. 5.116970 s per sheet
+[708, 688, 0, 49, 2, 0, 392, 398, 0, 266, 138, 767, 365, 98, 0, 424, 94, 9, 19, 206, 0, 758, 25, 4, 60, 94, 15, 875, 133, 68, 4, 46, 372]
+
+KAZEU+LATCHU, half_ssd_size=3, 300 descriptors, avg score of 300, 75 matches, Hamming, Q->R
+building index took 291.365998 seconds. 0.319480 s per sheet
+searching list took 145.184000 seconds. 4.399515 s per sheet
+[707, 357, 0, 116, 0, 1, 265, 105, 0, 109, 164, 774, 652, 100, 0, 516, 280, 8, 35, 315, 0, 170, 338, 37, 70, 157, 53, 90, 20, 0, 0, 0, 67]
+
+KAZEU+LATCHU, half_ssd_size=3, 300 descriptors, avg score of 300, lowes 0.8, 5 matches, Hamming, Q->R
+searching list took 154.888507 seconds. 4.693591 s per sheet
+[79, 107, 874, 466, 43, 8, 9, 26, 10, 28, 47, 75, 98, 11, 778, 47, 558, 81, 135, 168, 724, 828, 75, 93, 50, 79, 48, 605, 866, 888, 153, 788, 57]
+
+KAZEU+LATCHU, half_ssd_size=3, 300 descriptors, avg score of 500, 50 matches, Hamming, Q->R
+searching list took 164.824966 seconds. 4.994696 s per sheet
+[715, 417, 0, 139, 0, 5, 282, 81, 0, 75, 115, 748, 504, 133, 0, 443, 251, 12, 33, 332, 0, 376, 613, 63, 46, 162, 77, 561, 28, 0, 0, 0, 137]
+
+SIFT 300 descriptors, avg score of 300, best 50 matches, L2, Q->R
+building index took 199.332728 seconds. 0.218567 s per sheet
+searching list took 141.679999 seconds. 4.293333 s per sheet
+[428, 463, 0, 55, 700, 166, 503, 699, 114, 452, 254, 750, 287, 465, 0, 43, 712, 23, 284, 326, 0, 3, 25, 67, 400, 66, 338, 0, 588, 23, 9, 351, 519]
+
+SURFU 300 descriptors, avg score of 300, best 50 matches, L2, Q->R
+building index took 135.876089 seconds. 0.148987 s per sheet
+searching list took 234.185707 seconds. 7.096537 s per sheet
+[644, 171, 0, 45, 0, 0, 129, 39, 262, 241, 205, 298, 663, 298, 0, 42, 67, 433, 0, 54, 178, 1, 422, 4, 1, 274, 203, 444, 50, 56, 1, 0, 12]
+
+SURFU 300 descriptors, 2 octaves, avg score of 300, best 50 matches, L2, Q->R
+building index took 117.759997 seconds. 0.129123 s per sheet
+very similar to before
+
+SURFU all descriptors, avg score, L2, CC
+building index took 133.556998 seconds. 0.146444 s per sheet
+searching list took 852.743032 seconds. 25.840698 s per sheet
+[397, 454, 197, 568, 38, 7, 130, 53, 120, 106, 221, 244, 558, 139, 4, 328, 77, 614, 3, 3, 16, 226, 576, 534, 185, 52, 54, 280, 237, 489, 11, 4, 5]
+
+SURFU 300 descriptors, avg score of 300, L2, CC
+building index took 114.511000 seconds. 0.125560 s per sheet
+searching list took 196.003398 seconds. 5.939497 s per sheet
+[441, 539, 5,  0, 0, 0, 282,  46, 71, 96, 251, 135, 469, 213, 13, 109, 19, 89, 0, 1, 2, 130, 112, 286, 235, 0, 43, 13, 146, 3, 3, 1, 12]
+
+SURFU 300 descriptors, avg score of 300, lowe's 0.8, L2, Q->R
+searching list took 218.056511 seconds. 6.607773 s per sheet
+[468, 414, 4, 23, 0, 19, 10, 364, 16, 52,   3, 572, 480,  78,  4, 400, 672, 12, 4, 17, 0, 55, 74, 88, 63, 4, 642, 4, 81, 30, 0, 11, 295]
+
+SURFU 300 descriptors, avg score of 300, L2, Q->R
+searching list took 201.051435 seconds. 6.092468 s per sheet
+[283, 236, 0, 0, 32, 0, 57, 8, 0, 366, 5, 369, 511, 13, 0, 4, 513, 0, 0, 2, 0, 0, 0, 0, 8, 0, 207, 0, 360, 1, 0, 0, 0]
+
+SURFU 300 descriptors, avg score of 300, best 100, L2, Q->R
+searching list took 183.822997 seconds. 5.570394 s per sheet
+[305, 264, 0, 0, 0, 0, 155, 0, 16, 152, 0, 36, 621, 36, 0, 15, 57, 9, 0, 0, 0, 0, 3, 1, 0, 0, 7, 0, 9, 0, 0, 0, 0]
+

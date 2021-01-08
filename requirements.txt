@@ -1,9 +1,21 @@
-numpy
-opencv-python # opencv-contrib-python
+# general
+#opencv-python 
+opencv-contrib-python=3.4.2.17
 argparse
-osmtogeojson
+pyproj
 progressbar
 dask[delayed]
-# overpass
 # hausdorff
 # numba
+matplotlib
+
+# osm download
+requests
+osmtogeojson
+# overpass
+
+# indexing
+joblib
+
+# unclear
+numpy

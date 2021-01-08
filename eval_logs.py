@@ -49,14 +49,14 @@ def mahalanobis_distance(scores):
         return 0
     sd = sqrt(sum([(x-mean)**2 for x in sample])/(len(sample)-1)) # sample standard deviation
 
-    print("mean",mean)
-    print("standard deviation",sd)
+    # print("mean",mean)
+    # print("standard deviation",sd)
 
     if sd == 0:
         dist = 0
     else:
         dist = (max_val - mean) / sd
-    print("distance", dist)
+    # print("distance", dist)
     return dist
 
 def lowes_ratio(scores):
@@ -64,6 +64,8 @@ def lowes_ratio(scores):
         return -1
     values = scores.copy()
     maxval = max(values)
+    if maxval == 0:
+        return 0
     values.remove(maxval)
     max_noise = max(values)
     return max_noise/maxval

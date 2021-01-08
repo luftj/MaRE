@@ -232,9 +232,6 @@ def plot_template_matches(keypoints_q, keypoints_r, inliers,query_image, referen
     #     ax.spines[spine].set_visible(False)
     plt.show()
 
-def plot_corners():
-    pass
-
 def template_matching(query_image, reference_image_border, window_size, patch_min_area=0.1, patch_max_area=0.8, plot=False):
     import cv2
     import dask
@@ -416,11 +413,13 @@ def retrieve_best_match(query_image, bboxes, processing_size):
         rivers_json = osm.get_from_osm(bbox)
         reference_river_image = osm.paint_features(rivers_json, bbox)
 
+        #--- kaze matching
         # reduce image size for performance with fixed aspect ratio. approx- same size as query, to make tempalte amtching work
         reference_image_small = cv2.resize(reference_river_image, (width, height))
         keypoints_q, keypoints_r = feature_matching_kaze(query_image_small, reference_image_small)
         num_inliers, transform_model = estimate_transform(keypoints_q, keypoints_r, query_image_small, reference_image_small)
 
+        #--- template matching
         # window_size=config.template_window_size
         # # reduce image size for performance with fixed aspect ratio. approx- same size as query, to make tempalte amtching work
         # reference_image_small = cv2.resize(reference_river_image, (width-window_size*2, height-window_size*2))
@@ -444,4 +443,80 @@ def retrieve_best_match(query_image, bboxes, processing_size):
     end_time = time.time()
     logging.info("total time spent: %f" % (end_time - start_time))
     score_list.sort(key=lambda x: x[0])
+    return closest_image, closest_bbox, best_dist, score_list, transform_model
+
+def retrieve_best_match_index(query_image, processing_size, sheets_path, restrict_number=100):
+    import joblib
+    import indexing
+    import find_sheet
+    from eval_logs import mahalanobis_distance
+
+    width, height = processing_size
+    closest_image = None
+    closest_bbox = None
+    best_dist = -1
+
+    start_time = time.time()
+
+    score_list = []
+
+    # reduce image size for performance with fixed aspect ratio
+    query_image_small = cv2.resize(query_image, (width,height))
+
+    # extract features from query sheet
+    keypoints, descriptors = indexing.extract_features(query_image_small, first_n=300)
+    # set up features as test set
+    # load index from disk
+    clf = joblib.load("index.clf")#"index_KAZE300.clf")
+    reference_keypoints = joblib.load("keypoints.clf")
+    # classify sheet with index
+    prediction_class, prediction, match_dict = indexing.predict(descriptors, clf)
+    score_cap = 1#0.4
+    # print(prediction)
+    sheet_predictions = [x[0] for x in prediction if x[1] < score_cap]
+    # print(len(sheet_predictions))
+
+    bboxes = find_sheet.get_ordered_bboxes_from_json(sheets_path, sheet_predictions)
+    bboxes = bboxes[:restrict_number]
+    # bboxes=bboxes[189:191]
+
+    progress = progressbar.ProgressBar(maxval=len(bboxes))
+    for idx,bbox in progress(enumerate(bboxes)):
+        sheet_name = sheet_predictions[idx]
+        # if dict(prediction)[sheet_name] > score_cap:
+        #     break
+        time_now = time.time()
+        # rivers_json = osm.get_from_osm(bbox)
+        # reference_river_image = osm.paint_features(rivers_json, bbox)
+
+        #--- index matching
+        # reduce image size for performance with fixed aspect ratio
+        # reference_image_small = cv2.resize(reference_river_image, (width, height))
+        # keypoints_q, keypoints_r = feature_matching_kaze(query_image_small, reference_image_small)
+        matches = match_dict[sheet_name]
+        keypoints_q = [keypoints[x.queryIdx].pt for x in matches]
+        kp_reference = reference_keypoints[sheet_name]
+        keypoints_r = [kp_reference[x.trainIdx] for x in matches]
+        keypoints_q = np.array(keypoints_q)
+        keypoints_r = np.array(keypoints_r)
+        num_inliers, transform_model = estimate_transform(keypoints_q, keypoints_r, None, None)
+
+        score_list.append((num_inliers, sheet_name))
+        if closest_bbox is None or num_inliers > best_dist:
+            # closest_image = 1#reference_river_image
+            closest_bbox = bbox
+            best_dist = num_inliers
+
+        maha = mahalanobis_distance([x[0] for x in score_list])
+        logging.info("target %d/%d Sheet %s, Score %d Best %d, maha: %f, bbox: %s, time: %f" % (idx+1, len(bboxes), sheet_name, num_inliers, best_dist, maha, bbox, time.time()-time_now))
+        if idx>5 and maha >= 5.0:
+            break # todo: should reflect how recent the change is, e.g. probability for better solution smaller than threshold, or maha didn't change for n sheets
+
+    end_time = time.time()
+    logging.info("total time spent: %f" % (end_time - start_time))
+    score_list.sort(key=lambda x: x[0], reverse=True)
+    best_sheet = find_sheet.find_name_for_bbox(sheets_path, closest_bbox)
+    print("predicted sheet: %s" % best_sheet)
+    rivers_json = osm.get_from_osm(closest_bbox)
+    closest_image = osm.paint_features(rivers_json, bbox)
     return closest_image, closest_bbox, best_dist, score_list, transform_model

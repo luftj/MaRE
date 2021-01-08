@@ -10,7 +10,7 @@ from numpy import fromfile, uint8
 import find_sheet
 import segmentation
 import registration
-from retrieval import retrieve_best_match
+from retrieval import retrieve_best_match, retrieve_best_match_index
 
 import config
 
@@ -52,15 +52,21 @@ def process_sheet(img_path, sheets_path, cb_percent, plot=False, img=True, numbe
     processing_size = resize_by_width(map_img.shape, rsize if rsize else 500)
     
     # find the best bbox for this query image
-    closest_image, closest_bbox, dist, score_list, transform_model = retrieve_best_match(water_mask, bboxes, processing_size)
+    # closest_image, closest_bbox, dist, score_list, transform_model = retrieve_best_match(water_mask, bboxes, processing_size)
+    closest_image, closest_bbox, dist, score_list, transform_model = retrieve_best_match_index(water_mask, processing_size, sheets_path, restrict_number=restrict)
     
     # find sheet name for prediction
-    score_list = [(*s[:-1], find_sheet.find_name_for_bbox(sheets_file, bboxes[s[-1]])) for s in score_list]
-    sheet_name = score_list[-1][-1]
+    # score_list = [(*s[:-1], find_sheet.find_name_for_bbox(sheets_file, bboxes[s[-1]])) for s in score_list]
+    # score_list = [(*s[:-1], find_sheet.find_name_for_bbox(sheets_file, bboxes[s[-1]])) for s in score_list]
+    sheet_name = score_list[0][-1]
     logging.info("best sheet: %s with score %d" % (sheet_name, dist))
 
     if number:
-        logging.info("ground truth at position: %d" % (len(score_list) - [s[-1] for s in score_list].index(number)))
+        try:
+            truth_pos = [s[-1] for s in score_list].index(number)
+        except:
+            truth_pos = -1
+        logging.info("ground truth at position: %d" % (truth_pos))
 
     if plot:
         plt.subplot(2, 3, 1)
@@ -122,7 +128,7 @@ def process_sheet(img_path, sheets_path, cb_percent, plot=False, img=True, numbe
             # registration.georeference(aligned_map_path_ransac, outpath.replace(".jp2","_ransac.jp2"), closest_bbox, border_ransac)
         logging.info("saved georeferenced file to: %s" % outpath)
     
-    eval_entry = ["gt:"+number,"pred:"+sheet_name,"dist %f"%dist,"gt at pos %d"%(len(score_list) - [s[-1] for s in score_list].index(number)),"registration: success","correct %r"%(str(number)==str(sheet_name))]
+    eval_entry = ["gt:"+number,"pred:"+sheet_name,"dist %f"%dist,"gt at pos %d"%truth_pos,"registration: success","correct %r"%(str(number)==str(sheet_name))]
     logging.info("result: %s" % eval_entry)
 
 def process_list(list_path, sheets_path, cb_percent, plot=False, img=True, restrict=None, resize=None, rsize=None, crop=False):
