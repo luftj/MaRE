@@ -403,9 +403,9 @@ def retrieve_best_match(query_image, bboxes, processing_size):
     start_time = time.time()
 
     score_list = []
-
+    # $ python main.py /e/data/deutsches_reich/SBB/cut/list.txt data/blattschnitt_dr100_regular.geojson -r 20 --noimg
     # reduce image size for performance with fixed aspect ratio
-    query_image_small = cv2.resize(query_image, (width,height))
+    query_image_small = cv2.resize(query_image, (width,height), interpolation=cv2.INTER_AREA)
 
     progress = progressbar.ProgressBar(maxval=len(bboxes))
     for idx,bbox in progress(enumerate(bboxes)):
@@ -415,7 +415,7 @@ def retrieve_best_match(query_image, bboxes, processing_size):
 
         #--- kaze matching
         # reduce image size for performance with fixed aspect ratio. approx- same size as query, to make tempalte amtching work
-        reference_image_small = cv2.resize(reference_river_image, (width, height))
+        reference_image_small = cv2.resize(reference_river_image, (width, height), interpolation=cv2.INTER_AREA)
         keypoints_q, keypoints_r = feature_matching_kaze(query_image_small, reference_image_small)
         num_inliers, transform_model = estimate_transform(keypoints_q, keypoints_r, query_image_small, reference_image_small)
 
@@ -445,7 +445,7 @@ def retrieve_best_match(query_image, bboxes, processing_size):
     score_list.sort(key=lambda x: x[0])
     return closest_image, closest_bbox, best_dist, score_list, transform_model
 
-def retrieve_best_match_index(query_image, processing_size, sheets_path, restrict_number=100):
+def retrieve_best_match_index(query_image, processing_size, sheets_path, restrict_number=100, truth=None):
     import joblib
     import indexing
     import find_sheet
@@ -461,25 +461,30 @@ def retrieve_best_match_index(query_image, processing_size, sheets_path, restric
     score_list = []
 
     # reduce image size for performance with fixed aspect ratio
-    query_image_small = cv2.resize(query_image, (width,height))
+    query_image_small = cv2.resize(query_image, (width,height), interpolation=cv2.INTER_AREA)
 
     # extract features from query sheet
-    keypoints, descriptors = indexing.extract_features(query_image_small, first_n=300)
+    keypoints, descriptors = indexing.extract_features(query_image_small, first_n=500)
     # set up features as test set
     # load index from disk
     clf = joblib.load("index.clf")#"index_KAZE300.clf")
     reference_keypoints = joblib.load("keypoints.clf")
     # classify sheet with index
+    print("Retrieving from index...")
     prediction_class, prediction, match_dict = indexing.predict(descriptors, clf)
     score_cap = 1#0.4
     # print(prediction)
     sheet_predictions = [x[0] for x in prediction if x[1] < score_cap]
+
+    truth_index = sheet_predictions.index(truth) if truth in sheet_predictions else -1
+    logging.info("Truth at position %d in index." % truth_index)
+    print("Truth at position %d in index." % truth_index)
     # print(len(sheet_predictions))
 
     bboxes = find_sheet.get_ordered_bboxes_from_json(sheets_path, sheet_predictions)
     bboxes = bboxes[:restrict_number]
     # bboxes=bboxes[189:191]
-
+    print("Verifying predictions...")
     progress = progressbar.ProgressBar(maxval=len(bboxes))
     for idx,bbox in progress(enumerate(bboxes)):
         sheet_name = sheet_predictions[idx]

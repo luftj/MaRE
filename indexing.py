@@ -2,15 +2,163 @@ import joblib
 from time import time
 import random
 from matplotlib import pyplot as plt
-# from sklearn.ensemble import RandomForestClassifier
 import cv2
 import numpy as np
 import progressbar    
 import os
 import logging
+from extract_patches.core import extract_patches
 
 import segmentation
 import find_sheet, osm
+
+class Skimage_fast_detector:
+    def __init__(self, min_dist, thresh):
+        self.min_dist = min_dist
+        self.thresh = thresh
+
+    def detect(self, image):
+        from skimage.feature import corner_fast, corner_peaks
+
+        keypoints = corner_peaks(corner_fast(image), min_distance=self.min_dist, threshold_rel=self.thresh)
+        random.shuffle(keypoints) # in case we want to limit the number of keypoints. since they don't have a response to sort by
+        keypoints = [convert_to_cv_keypoint(x,y) for (x,y) in keypoints]
+        return keypoints
+    
+    def detectAndCompute(image, kps):
+        raise NotImplementedError("this detector only detects, doesn't compute")
+    def compute(image, kps):
+        raise NotImplementedError("this detector only detects, doesn't compute")
+
+class Patch_extractor:
+    def __init__(self, patch_size_desc, patch_mag, minArea=0.15, maxArea=0.9, binary=False, plot=False):
+        self.binary = binary
+        self.plot = plot
+        self.patch_size_desc = patch_size_desc
+        self.minArea = minArea # in percent
+        self.maxArea = maxArea
+        self.patch_mag = patch_mag
+
+    def detect(self, image):
+        raise NotImplementedError("this detector only computes, doesn't detect")
+    
+    def detectAndCompute(image, kps):
+        raise NotImplementedError("this detector only detects, doesn't compute")
+    def compute(self, image, keypoints):
+        """Extract patch features around given keypoints from an image"""
+        patches = extract_patches(keypoints, image, self.patch_size_desc, self.patch_mag)
+
+        patches = [p for p in patches if (self.patch_size_desc**2)*self.maxArea > np.count_nonzero(p) > (self.patch_size_desc**2)*self.minArea]
+
+        if self.binary:
+            patches = [(p>0).astype(np.uint8) for p in patches]
+
+        if self.plot:
+            vis_img1 = None
+            vis_img1 = cv2.drawKeypoints(image,keypoints,vis_img1, 
+                                    flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+            plt.imshow(vis_img1)
+            plt.show()
+            show_idx = 0
+            fig = plt.figure()
+            num_plots_root = 5
+            for i in range(1,num_plots_root**2+1):
+                fig.add_subplot(num_plots_root, num_plots_root, i) 
+                plt.imshow(patches[show_idx+i])
+                plt.xticks([])
+                plt.yticks([])
+                plt.title("r:%f s:%f" % (keypoints[i].response, keypoints[i].size))
+            plt.show()
+
+        descriptors = [p.flatten() for p in patches]
+        descriptors = np.vstack(descriptors)
+        return keypoints, descriptors
+
+class Patch_extractor_2:
+    def __init__(self, patch_size_desc, scale_range, minArea=0.15, maxArea=0.9, binary=False, plot=False):
+        self.binary = binary
+        self.plot = plot
+        self.patch_size_desc = patch_size_desc
+        self.minArea = minArea # in percent
+        self.maxArea = maxArea
+        self.scale_range = scale_range
+
+    def detect(self, image):
+        raise NotImplementedError("this detector only computes, doesn't detect")
+    def detectAndCompute(image, kps):
+        raise NotImplementedError("this detector only detects, doesn't compute")
+
+    def compute(self, image, keypoints):
+        """Extract patch features around given keypoints from an image"""
+        # pad = scale_range[-1] if scale_range else 30
+        pad = self.scale_range[-1] if self.scale_range else 30#max([int(2*k.size) for k in keypoints])
+        # image2 = cv2.drawKeypoints(image, keypoints, None, color=(255,0,0))
+
+        image_border = cv2.copyMakeBorder(image, 
+                                        pad, pad, pad, pad, 
+                                        cv2.BORDER_CONSTANT, None, 0)
+        
+        patch_size = self.patch_size_desc // 2
+        descriptors = []
+        for corner in keypoints:
+            x,y = corner.pt
+            x += pad
+            y += pad # adjust for padding padding
+            
+            if self.scale_range:
+                patch_size_now = random.uniform(*self.scale_range)
+            else:
+                patch_size_now = patch_size#int(2*corner.size) # patch_size
+
+            patch = image_border[int(y-patch_size_now):int(y+patch_size_now),int(x-patch_size_now):int(x+patch_size_now)]
+
+            if self.scale_range:
+                #resize to 16x16
+                # print(patch.shape)
+                # print(2*patch_size,2*patch_size)
+                patch = cv2.resize(patch,(2*patch_size,2*patch_size), interpolation=cv2.INTER_AREA)
+
+            descriptor = patch.flatten()
+            if np.count_nonzero(descriptor) < ((patch_size*2)**2)*self.minArea:
+                continue
+            if self.binary:
+                descriptor = descriptor > 0
+                descriptor.astype(np.uint8)
+            descriptors.append(descriptor)
+            if descriptor.shape[0] != (patch_size*2)**2:
+                print("irregular patch",descriptor.shape[0],x,y,patch_size_now,image_border.shape)
+
+        if self.plot:
+            vis_img1 = None
+            vis_img1 = cv2.drawKeypoints(image,keypoints,vis_img1, 
+                                    flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+            plt.imshow(vis_img1)
+            plt.show()
+            show_idx = 0
+            fig = plt.figure()
+            num_plots_root = 5
+            patches = [np.reshape(d,(self.patch_size_desc,self.patch_size_desc)) for d in descriptors]
+            for i in range(1,num_plots_root**2+1):
+                fig.add_subplot(num_plots_root, num_plots_root, i) 
+                plt.imshow(patches[show_idx+i])
+                plt.xticks([])
+                plt.yticks([])
+                plt.title("r:%f s:%f" % (keypoints[i].response, keypoints[i].size))
+            plt.show()
+
+
+        descriptors = np.vstack(descriptors)
+        return keypoints, descriptors
+
+def convert_to_cv_keypoint(x, y, size=8.0, octave=1, response=1, angle=0.0):
+    k = cv2.KeyPoint()
+    k.pt=(y,x)
+    k.response = response
+    k.octave=octave
+    k.size=size
+    k.angle=angle
+    return k
+
 
 logging.basicConfig(filename='dump.log', level=logging.INFO) # gimme all your loggin'!
 
@@ -20,99 +168,53 @@ lowes_test_ratio = None#0.8
 n_matches = 100
 score_eq = "avg_score" # "num_match"
 norm = cv2.NORM_L2
-cross_check = False
-n_descriptors_query = 300
+cross_check = True
+n_descriptors_query = 500
 img_width_query = 500
 
 if lowes_test_ratio and cross_check:
-    raise ValueError("can't put cross-check with lowe's test")
+    raise ValueError("can't do cross-check with lowe's test")
 
 # the following parameters require rebuilding the index
 rebuild_index = False
 n_descriptors_train = 300
 img_width_train = 500
-# kp_detector = cv2.AKAZE_create(descriptor_type=cv2.AKAZE_DESCRIPTOR_KAZE_UPRIGHT)
+border_train = 30
 # detector = cv2.xfeatures2d_LATCH.create(rotationInvariance=False, half_ssd_size=3)
 # detector = cv2.xfeatures2d_LATCH.create(rotationInvariance=False)
-detector = cv2.xfeatures2d_SURF.create(upright=1)
-kp_detector = cv2.xfeatures2d_SURF.create(upright=1)
-# kp_detector = cv2.KAZE_create(upright=True)
+patch_size = 30 # relevant for plotting
+# detector = Patch_extractor(patch_size_desc=patch_size, minArea=0.15, maxArea=0.9, 
+#                             plot=False, patch_mag = 8.0)
+# detector = Patch_extractor_2(patch_size_desc=patch_size, scale_range=[30,30], minArea=0.1, maxArea=0.8)
+# detector = cv2.xfeatures2d_SURF.create(upright=1)
+# detector = kp_detector = cv2.xfeatures2d_SURF.create(upright=1)
+# detector = kp_detector = cv2.AKAZE_create(descriptor_type=cv2.AKAZE_DESCRIPTOR_KAZE_UPRIGHT)
+detector = kp_detector = cv2.KAZE_create(upright=True)
+# kp_detector = cv2.AgastFeatureDetector.create()
 # kp_detector = cv2.FastFeatureDetector.create()
-
-def patch_features(image, scale_range=None, binary=False):
-    # detector = cv2.FastFeatureDetector.create()
-    detector = cv2.KAZE.create(upright=True)
-
-    # find and draw the keypoints
-    keypoints = detector.detect(image)
-    # print([k.size for k in keypoints])
-    # print([k.octave for k in keypoints])
-    # print([k.response for k in keypoints])
-    # pad = scale_range[-1] if scale_range else 30
-    pad = scale_range[-1] if scale_range else 30#max([int(2*k.size) for k in keypoints])
-    # exit()
-    # image2 = cv2.drawKeypoints(image, keypoints, None, color=(255,0,0))
-    # cv2.imshow("ksp",image2)
-    # cv2.waitKey(-1)
-    first_n=300
-    keypoints = sorted(keypoints, key=lambda x: -x.response)[:first_n]
-
-    image_border = cv2.copyMakeBorder(image, 
-                                    pad, pad, pad, pad, 
-                                    cv2.BORDER_CONSTANT, None, 0)
-    
-    patch_size = 8
-    descriptors = []
-    for corner in keypoints:
-        x,y = corner.pt
-        x += pad
-        y += pad # adjust for padding padding
-        
-        if scale_range:
-            patch_size_now = random.uniform(*scale_range)
-        else:
-            patch_size_now = int(2*corner.size) # patch_size
-
-        patch = image_border[int(y-patch_size_now):int(y+patch_size_now),int(x-patch_size_now):int(x+patch_size_now)]
-
-        if True:#scale_range:
-            #resize to 16x16
-            # print(patch.shape)
-            # print(2*patch_size,2*patch_size)
-            patch = cv2.resize(patch,(2*patch_size,2*patch_size))
-
-        descriptor = patch.flatten()
-        if cv2.countNonZero(descriptor) < 24:
-            continue
-        if binary:
-            descriptor = descriptor > 0
-            # descriptor.astype(np.int)
-        descriptors.append(descriptor)
-        if descriptor.shape[0] != 256:
-            print("irregular patch",descriptor.shape[0],x,y,patch_size_now,image_border.shape)
-        # print(descriptor, descriptor.shape)
-
-    # print(len(keypoints), descriptors[0])
-    # exit()
-    
-    # n_descs = 500
-    # if len(descriptors) > n_descs:
-    #     descriptors = random.sample(descriptors, n_descs)
-    # exit()
-    descriptors = np.vstack(descriptors)
-    return keypoints, descriptors
+# kp_detector = Skimage_fast_detector(min_dist=5,thresh=0)
 
 def extract_features(image, first_n=None):
-    # return patch_features(image)
-    # first_n = None
+    """Detect and extract features in given image.
+
+    Arguments:
+    image -- the image to extract features from,
+    first_n -- the number of keypoints to use. Will be the keypoints with the highest response value. Set to None to use all keypoints. (default: None)
+
+    Returns a list of keypoints and a list of descriptors """
+
     if first_n:
         kps = kp_detector.detect(image)
-        kps = sorted(kps, key=lambda x: -x.response)[:first_n]
-        kps, dsc = detector.compute(image, kps)  # todo: use cv2.detectAndCompute instead, is faster
+        kps = sorted(kps, key=lambda x: x.response, reverse=True)[:first_n]
+        
+        kps, dsc = detector.compute(image, kps)  # prefer cv2.detectAndCompute instead, is faster
     else:
-        kps, dsc = detector.detectAndCompute(image, None)
-    # print(dsc)
-    # exit()
+        if detector == kp_detector:
+            kps, dsc = detector.detectAndCompute(image, None)
+        else:
+            kps = kp_detector.detect(image)
+            kps, dsc = detector.compute(image, kps)
+
     return kps, dsc
 
 def resize_by_width(shape, new_width):
@@ -141,9 +243,6 @@ def build_index(rsize=None, restrict_class=None, restrict_range=None):
     else:
         bboxes = find_sheet.get_bboxes_from_json(sheets_path)
 
-    X = []
-    Y = []
-
     index_dict = {}
     keypoint_dict = {}
     
@@ -155,6 +254,10 @@ def build_index(rsize=None, restrict_class=None, restrict_range=None):
         # reduce image size for performance with fixed aspect ratio
         processing_size = resize_by_width(reference_river_image.shape, rsize if rsize else 500)
         reference_image_small = cv2.resize(reference_river_image, processing_size, cv2.INTER_AREA)
+        if border_train:
+            reference_image_small = cv2.copyMakeBorder(reference_image_small, 
+                                        border_train, border_train, border_train, border_train, 
+                                        cv2.BORDER_CONSTANT, None, 0)
         # get class label
         class_label = find_sheet.find_name_for_bbox(sheets_path, bbox)
         if not class_label:
@@ -164,21 +267,16 @@ def build_index(rsize=None, restrict_class=None, restrict_range=None):
         # extract features of sheet
         try:
             keypoints, descriptors = extract_features(reference_image_small, first_n=n_descriptors_train)
-        except Exception as e:
-            print(e)
+        except ValueError as e:
+            print(type(e),e)
             print("error in descriptors. skipping sheet", class_label)
-            # exit()
             continue
         if descriptors is None or len(descriptors)==0 or descriptors[0] is None:
             print("error in descriptors. skipping sheet", class_label)
             continue
         # add features and class=sheet to index
-        # X.extend(descriptors)
-        # Y.extend([class_label]*len(descriptors))
         index_dict[class_label] = descriptors
         keypoint_dict[class_label] = [x.pt for x in keypoints]
-    # clf = RandomForestClassifier(n_estimators=100, verbose=True, n_jobs=-1)
-    # clf = clf.fit(X, Y)
     
     t1 = time()
     print("building index took %f seconds. %f s per sheet" % (t1-t0,(t1-t0)/len(bboxes)))
@@ -192,9 +290,18 @@ def build_index(rsize=None, restrict_class=None, restrict_range=None):
 
 bf = None
 
-def predict(sample, clf):
-    # prediction_class = clf.predict(sample)
-    # prediction = clf.predict_proba(sample)
+def predict(sample, clf, truth=None):
+    """Predict the similarities of the descriptors in the index.
+    
+    Arguments:
+    sample -- the descriptors of the query image.
+    clf -- the index (a dict with 'image name':[descriptors])
+
+    returns a tuple with 
+    - the predicted image name, 
+    - a list of all possible images ordered by similarity, 
+    - a dict with the matches for each image in the index.
+    """
     prediction = []
     match_dict = {}
     progress = progressbar.ProgressBar(maxval=len(clf.keys()))
@@ -219,7 +326,7 @@ def predict(sample, clf):
     #     bf.train()
 
     for label in progress(clf.keys()):
-        # if label != "258":
+        # if label != truth:
         #     continue
 
         # Match descriptors.
@@ -246,11 +353,11 @@ def predict(sample, clf):
             idx = 1
             for m in (matches[:10]):
                 plt.subplot(10,2,idx)
-                plt.imshow(np.reshape(r[m.trainIdx],(16,16)))
+                plt.imshow(np.reshape(clf[label][m.trainIdx],(patch_size,patch_size)))
                 plt.title(int(m.distance))
                 idx+=1
                 plt.subplot(10,2,idx)
-                plt.imshow(np.reshape(q[m.queryIdx],(16,16)))
+                plt.imshow(np.reshape(sample[m.queryIdx],(patch_size,patch_size)))
                 idx+=1
             plt.show()
 
@@ -299,7 +406,7 @@ def search_in_index(img_path, class_label_truth, cb_percent=5, clf=None):
     if not clf:
         clf = joblib.load("index.clf")  
     # classify sheet with index
-    prediction_class, prediction, _ = predict(descriptors, clf)
+    prediction_class, prediction, _ = predict(descriptors, clf, truth=class_label_truth)
     
     # probabilities = list(zip(clf.classes_,prediction[0]))
 
@@ -317,41 +424,32 @@ def search_list(list_path, clf=None):
     # iterate over all sheets in list
     t0 = time()
     positions = []
-    with open(list_path, encoding="utf-8") as list_file:
-        for line in list_file:
-            line = line.strip()
-            print(line)
-            if not "," in line:
-                print("skipping line: no ground truth given %s" % line)
-                continue
-            img_path, class_label = line.split(",")
-            if not os.path.isabs(img_path[0]):
-                list_dir = os.path.dirname(list_path) + "/"
-                img_path = os.path.join(list_dir,img_path)
-            pos = search_in_index(img_path, class_label, clf=clf)
-            positions.append(pos)
-            
-    t1 = time()
-    print("searching list took %f seconds. %f s per sheet" % (t1-t0,(t1-t0)/len(positions)))
+    try:
+        with open(list_path, encoding="utf-8") as list_file:
+            for line in list_file:
+                line = line.strip()
+                print(line)
+                if not "," in line:
+                    print("skipping line: no ground truth given %s" % line)
+                    continue
+                img_path, class_label = line.split(",")
+                if not os.path.isabs(img_path[0]):
+                    list_dir = os.path.dirname(list_path) + "/"
+                    img_path = os.path.join(list_dir,img_path)
+                pos = search_in_index(img_path, class_label, clf=clf)
+                positions.append(pos)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        t1 = time()
+        if len(positions) > 0:
+            print("searching list took %f seconds. %f s per sheet" % (t1-t0,(t1-t0)/len(positions)))
+            print(positions)
     return positions
 
 if __name__ == "__main__":
     if rebuild_index:
         clf = build_index(rsize=img_width_train)#restrict_class="524", restrict_range=200)
 
-    # img_path = "E:/data/deutsches_reich/SBB/cut/SBB_IIIC_Kart_L 1330_Blatt 669 von 1908.tif"#SBB_IIIC_Kart_L 1330_Blatt 259 von 1925_koloriert.tif"
-    # class_label_truth = "669"
-    # search_in_index(img_path, class_label_truth)
-
     list_path = "E:/data/deutsches_reich/SBB/cut/list.txt"
     positions = search_list(list_path)#, clf=clf)
-    print(positions)
-    # positions200 = [352, 414, 2, 6, 0, 2, 3, 0, 2, 155, 229, 104, 326, 20, 2, 4,  69, 36, 0, 5, 2, 2, 3, 33, 28, 0, 8, 2, 326, 2, 3, 2, 3]
-    # positions300 = [399, 311, 1, 2, 0, 3, 5, 0, 4,  68, 180, 117, 467,  3, 2, 4, 125, 28, 0, 6, 2, 2, 6, 38, 33, 0, 3, 2, 227, 2, 3, 2, 3]
-    # positions400 = [432, 192, 1, 3, 0, 3, 5, 2, 4,  81, 166, 185, 435,  4, 2, 4, 125, 84, 0, 4, 1, 3, 26, 60, 33, 0, 3, 12, 230, 2, 3, 2, 3]
-    maha = [3.92,4.17,63.62,18.6,37.51,35.58,15.36,14.71,24.17,15.68,11.55,7.6,4.52,10.98,24.36,25.53,6.96,11.7,28.92,36.52,37.75,21.36,25.05,4.76,11.95,8.6,15.76,11.58,2.7,42.41,40.9,53.08,13.34]
-    plt.boxplot([x for x in positions if x >= 0])
-    # plt.scatter(maha, positions300, c="r")
-    # plt.scatter(maha, positions200, c="b")
-    # plt.scatter(maha, positions400, c="g")
-    # plt.show()

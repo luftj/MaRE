@@ -10,11 +10,11 @@ def dump_csv(experiments):
     print("writing to file...")
     with open("eval_result.csv", "w", encoding="utf-8") as eval_fp:
         # header
-        eval_fp.write("ground truth; prediction; ground truth position; georef success; avg time per sheet; times; scores; number of detected keypoints; template scores; registration time; command; percent segmented; mahalanobis; Lowe's test ratio\n")
+        eval_fp.write("ground truth; prediction; ground truth position; georef success; avg time per sheet; times; scores; number of detected keypoints; template scores; registration time; command; percent segmented; mahalanobis; Lowe's test ratio; index rank\n")
 
         for exp in experiments.values():
             try:
-                eval_fp.write("%s; %s; %d; %s; %.2f; %s; %s; %d; %s; %.2f; %s; %s; %.2f; %.2f\n" % (exp["ground_truth"],
+                eval_fp.write("%s; %s; %d; %s; %.2f; %s; %s; %d; %s; %.2f; %s; %s; %.2f; %.2f; %d\n" % (exp["ground_truth"],
                                                                 exp["prediction"],
                                                                 exp["gt_pos"],
                                                                 exp["georef_success"],
@@ -27,7 +27,8 @@ def dump_csv(experiments):
                                                                 exp["command"],
                                                                 exp.get("percent_segmented",-1).replace(".",","),
                                                                 exp.get("mahalanobis",-1),
-                                                                exp.get("lowes_ratio",-1)))
+                                                                exp.get("lowes_ratio",-1),
+                                                                exp.get("index_rank",-2)))
             except KeyError as e:
                 print(e)
                 print("skipping exp for %s" % exp.get("ground_truth",None))
@@ -165,6 +166,9 @@ if __name__ == "__main__":
 
                 elif "template matching score" in line:
                     sum_template_score += float(line.split(":")[-1])
+
+                elif "Truth at position" in line:
+                    experiment_data["index_rank"] = int(line.replace("Truth at position ","").replace(" in index.",""))
 
                 # get distance distribution
                 elif "target" in line:

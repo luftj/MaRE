@@ -3,6 +3,7 @@
 opencv-contrib-python=3.4.2.17
 argparse
 pyproj
+skimage
 progressbar
 dask[delayed]
 # hausdorff
@@ -16,6 +17,7 @@ osmtogeojson
 
 # indexing
 joblib
+extract_patches
 
-# unclear
+# unclear if needed
 numpy
