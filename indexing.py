@@ -7,10 +7,12 @@ import numpy as np
 import progressbar    
 import os
 import logging
-from extract_patches.core import extract_patches
+# from extract_patches.core import extract_patches
 
 import segmentation
 import find_sheet, osm
+
+from annoy import AnnoyIndex
 
 class Skimage_fast_detector:
     def __init__(self, min_dist, thresh):
@@ -160,7 +162,7 @@ def convert_to_cv_keypoint(x, y, size=8.0, octave=1, response=1, angle=0.0):
     return k
 
 
-logging.basicConfig(filename='dump.log', level=logging.INFO) # gimme all your loggin'!
+logging.basicConfig(filename='logs/dump.log', level=logging.INFO) # gimme all your loggin'!
 
 plot = False
 
@@ -168,7 +170,7 @@ lowes_test_ratio = None#0.8
 n_matches = 100
 score_eq = "avg_score" # "num_match"
 norm = cv2.NORM_L2
-cross_check = True
+cross_check = False
 n_descriptors_query = 500
 img_width_query = 500
 
@@ -176,7 +178,8 @@ if lowes_test_ratio and cross_check:
     raise ValueError("can't do cross-check with lowe's test")
 
 # the following parameters require rebuilding the index
-rebuild_index = False
+rebuild_index = True
+annoydist = "euclidean"
 n_descriptors_train = 300
 img_width_train = 500
 border_train = 30
@@ -215,6 +218,13 @@ def extract_features(image, first_n=None):
             kps = kp_detector.detect(image)
             kps, dsc = detector.compute(image, kps)
 
+    if plot:
+        vis_img1 = None
+        vis_img1 = cv2.drawKeypoints(image,kps,vis_img1, 
+                                flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+        plt.imshow(vis_img1)
+        plt.show()
+
     return kps, dsc
 
 def resize_by_width(shape, new_width):
@@ -233,6 +243,10 @@ def restrict_bboxes(sheets_path, target, num):
     start = max(0, idx-(num//2))
     return bboxes[start:idx+(num//2)+1]
 
+sheet_names = {}
+
+from dask import delayed
+
 def build_index(rsize=None, restrict_class=None, restrict_range=None):
     print("building index...")
     t0 = time()
@@ -243,11 +257,17 @@ def build_index(rsize=None, restrict_class=None, restrict_range=None):
     else:
         bboxes = find_sheet.get_bboxes_from_json(sheets_path)
 
-    index_dict = {}
     keypoint_dict = {}
+
+    t = AnnoyIndex(64, annoydist)
+    t.on_disk_build("index.ann")
+    idx_id = 0
     
+    # def calc(bboxes):
+    index_dict = {}
     progress = progressbar.ProgressBar(maxval=len(bboxes))
     for bbox in progress(bboxes):
+    # for bbox in bboxes:
         rivers_json = osm.get_from_osm(bbox)
         reference_river_image = osm.paint_features(rivers_json, bbox)
 
@@ -272,18 +292,38 @@ def build_index(rsize=None, restrict_class=None, restrict_range=None):
             print("error in descriptors. skipping sheet", class_label)
             continue
         if descriptors is None or len(descriptors)==0 or descriptors[0] is None:
+            print("no descriptors in bbox ",bbox)
             print("error in descriptors. skipping sheet", class_label)
             continue
         # add features and class=sheet to index
         index_dict[class_label] = descriptors
-        keypoint_dict[class_label] = [x.pt for x in keypoints]
+        # keypoint_dict[class_label] = [x.pt for x in keypoints]
+
+        for x in descriptors:
+            t.add_item(idx_id, x)
+            idx_id += 1
+        sheet_names[class_label] = len(descriptors)
     
+    # index_dictd = delayed(calc)(bboxes)
+    # from dask.diagnostics import ProgressBar
+    # ProgressBar().register()
+    # with ProgressBar():
+    #     index_dict = index_dictd.compute()
+    # for class_label, descriptors in index_dict.items():
+    #     sheet_names[class_label] = len(descriptors)
+    #     for x in descriptors:
+    #         t.add_item(idx_id, x)
+    #         idx_id += 1
+
     t1 = time()
     print("building index took %f seconds. %f s per sheet" % (t1-t0,(t1-t0)/len(bboxes)))
 
+    t.build(10, n_jobs=-1)
+    # t.save("index.ann")
     # save index to disk
-    joblib.dump(index_dict, "index.clf", compress=3)
-    joblib.dump(keypoint_dict, "keypoints.clf", compress=3)
+    joblib.dump(sheet_names, "sheets.clf")
+    # joblib.dump(index_dict, "index.clf", compress=3)
+    # joblib.dump(keypoint_dict, "keypoints.clf", compress=3)
     print("compress and store time: %f s" % (time()-t1))
     # return clf
     return index_dict
@@ -317,13 +357,16 @@ def predict(sample, clf, truth=None):
     #             # multi_probe_level = 1) #2
     #             FLANN_INDEX_KDTREE, trees = 5)
     # search_params = dict(checks=50)   # or pass empty dictionary
+    # trainTime = time()
     # global bf
     # if not bf:
-    #     bf = cv2.FlannBasedMatcher(index_params,search_params)
+    #     bf = cv2.DescriptorMatcher.create(cv2.DescriptorMatcher_FLANNBASED)
+    #     # bf = cv2.FlannBasedMatcher(index_params,search_params)
     #     print("add")
     #     bf.add([ x for x in clf.values() if len(x)>0])
     #     print("train")
     #     bf.train()
+    # print("FLANN training time %0.2fs" % (time()-trainTime))
 
     for label in progress(clf.keys()):
         # if label != truth:
@@ -389,7 +432,11 @@ def predict(sample, clf, truth=None):
     prediction_class = prediction[0][0]
     return prediction_class, prediction, match_dict
 
+
+
 def search_in_index(img_path, class_label_truth, cb_percent=5, clf=None):
+    u = AnnoyIndex(64, annoydist)
+    u.load('index.ann') # super fast, will just mmap the file
     # load query sheet
     map_img = cv2.imdecode(np.fromfile(img_path, dtype=np.uint8), cv2.IMREAD_UNCHANGED)
     img1 = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
@@ -404,9 +451,45 @@ def search_in_index(img_path, class_label_truth, cb_percent=5, clf=None):
     # set up features as test set
     # load index from disk
     if not clf:
-        clf = joblib.load("index.clf")  
+        clf = joblib.load("sheets.clf")  
+
+
+    
+    from annoytest import get_sheet_for_id
+    votes = {k:0 for k in clf.keys()}
+    for desc in descriptors:
+        # NN_ids = u.get_nns_by_vector(desc, 2) # will find the n nearest neighbors
+        NN_ids = u.get_nns_by_vector(desc, 50, include_distances=True) # will find the n nearest neighbors
+        distances = NN_ids[1]
+        NN_ids = NN_ids[0]
+
+        if lowes_test_ratio:
+            if min(distances) < lowes_test_ratio * max(distances):
+                # good match
+                NN_ids = [NN_ids[0]]
+            else:
+                continue
+
+        NN_names = [get_sheet_for_id(clf,i) for i in NN_ids]
+        # print("truth:",class_label_truth)
+        # print(NN_ids)
+        # print("predictions:",NN_names)
+        index_in_pred = NN_names.index(class_label_truth) if class_label_truth in NN_names else -1
+        # print("index:", index_in_pred)
+        for name in NN_names:
+            votes[name] += 1/(NN_names.index(name)+1) # antiproportional weighting
+    if votes == {}:
+        print("truth not in index")
+        return -1
+
+    votes = sorted(votes.items(),key=lambda x:x[1], reverse=True)
+    # print(votes)
+    # print("truth:",class_label_truth,"index:",[x[0] for x in votes].index(class_label_truth))
+    prediction_class = votes[0][0]
+    prediction = votes
+
     # classify sheet with index
-    prediction_class, prediction, _ = predict(descriptors, clf, truth=class_label_truth)
+    # prediction_class, prediction, _ = predict(descriptors, clf, truth=class_label_truth)
     
     # probabilities = list(zip(clf.classes_,prediction[0]))
 
@@ -415,6 +498,7 @@ def search_in_index(img_path, class_label_truth, cb_percent=5, clf=None):
     try:
         gt_index = [x[0] for x in prediction].index(class_label_truth)
         print("Prediction", prediction_class, "Truth at index", gt_index)
+        # print("Prediction score %.3f Truth score %.3f" % (prediction[0][1], prediction[gt_index][1]))
         return gt_index
     except:
         print("truth not in index")
@@ -424,6 +508,7 @@ def search_list(list_path, clf=None):
     # iterate over all sheets in list
     t0 = time()
     positions = []
+    labels = []
     try:
         with open(list_path, encoding="utf-8") as list_file:
             for line in list_file:
@@ -438,6 +523,7 @@ def search_list(list_path, clf=None):
                     img_path = os.path.join(list_dir,img_path)
                 pos = search_in_index(img_path, class_label, clf=clf)
                 positions.append(pos)
+                labels.append(class_label)
     except KeyboardInterrupt:
         pass
     finally:
@@ -445,11 +531,22 @@ def search_list(list_path, clf=None):
         if len(positions) > 0:
             print("searching list took %f seconds. %f s per sheet" % (t1-t0,(t1-t0)/len(positions)))
             print(positions)
-    return positions
+    return zip(labels,positions)
 
 if __name__ == "__main__":
     if rebuild_index:
         clf = build_index(rsize=img_width_train)#restrict_class="524", restrict_range=200)
 
-    list_path = "E:/data/deutsches_reich/SBB/cut/list.txt"
-    positions = search_list(list_path)#, clf=clf)
+
+    # img_path = "E:/data/deutsches_reich/SBB/cut/SBB_IIIC_Kart_L 1330_Blatt 343_von_1925.tif"
+    # ret = search_in_index(img_path, "343")
+    # print(ret)
+    # exit()
+
+    # list_path = "E:/data/deutsches_reich/SBB/cut/list.txt"
+    list_path = "E:/data/deutsches_reich/SLUB/cut/list_160_320.txt"
+    lps = search_list(list_path)#, clf=clf)
+
+    with open("index_result.csv","w") as fp:
+        for l,p in lps:
+            fp.write("%s : %d\n"%(l,p))

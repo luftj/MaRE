@@ -125,3 +125,31 @@ def find_poly_for_name(sheetfile, name):
                 # found
 
                 return feature["geometry"]["coordinates"][0]
+
+def get_dict(sheetfile, only_100=False):
+    return_dict = {}
+
+    with open(sheetfile) as file:
+        json_data = json.load(file)
+
+        for feature in json_data["features"]:
+
+            if only_100 and not "blatt_100" in feature["properties"]:
+                continue
+
+            if feature["properties"]["blatt_polen"]:
+                name =  feature["properties"]["blatt_polen"]
+            if feature["properties"]["blatt_ostmark"]:
+                name =  feature["properties"]["blatt_ostmark"]
+            if feature["properties"]["blatt_100"]:
+                name =  feature["properties"]["blatt_100"]
+                
+            minx = min([p[0] for p in feature["geometry"]["coordinates"][0]])
+            maxx = max([p[0] for p in feature["geometry"]["coordinates"][0]])
+            miny = min([p[1] for p in feature["geometry"]["coordinates"][0]])
+            maxy = max([p[1] for p in feature["geometry"]["coordinates"][0]])
+
+            bbox = [minx, miny, maxx, maxy]
+
+            return_dict[name] = bbox
+    return return_dict
