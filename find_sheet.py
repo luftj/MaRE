@@ -52,6 +52,9 @@ def get_ordered_bboxes_from_json(filepath, sheet_names):
             if feature["properties"]["blatt_100"]:
                 sheet_name = feature["properties"]["blatt_100"]
 
+            if not sheet_name in sheet_names:
+                continue
+
             if all(i in feature["properties"] for i in("left","right","bottom","top")):
                 minx = feature["properties"]["left"]
                 maxx = feature["properties"]["right"]

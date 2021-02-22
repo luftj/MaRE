@@ -297,7 +297,7 @@ def build_index(rsize=None, restrict_class=None, restrict_range=None):
             continue
         # add features and class=sheet to index
         index_dict[class_label] = descriptors
-        # keypoint_dict[class_label] = [x.pt for x in keypoints]
+        keypoint_dict[class_label] = [x.pt for x in keypoints]
 
         for x in descriptors:
             t.add_item(idx_id, x)
@@ -322,8 +322,8 @@ def build_index(rsize=None, restrict_class=None, restrict_range=None):
     # t.save("index.ann")
     # save index to disk
     joblib.dump(sheet_names, "sheets.clf")
-    # joblib.dump(index_dict, "index.clf", compress=3)
-    # joblib.dump(keypoint_dict, "keypoints.clf", compress=3)
+    joblib.dump(index_dict, "index.clf", compress=3)
+    joblib.dump(keypoint_dict, "keypoints.clf", compress=3)
     print("compress and store time: %f s" % (time()-t1))
     # return clf
     return index_dict
@@ -432,11 +432,51 @@ def predict(sample, clf, truth=None):
     prediction_class = prediction[0][0]
     return prediction_class, prediction, match_dict
 
-
-
-def search_in_index(img_path, class_label_truth, cb_percent=5, clf=None):
+def predict_annoy(descriptors, sheetsdict, indexpath="index.ann"):
     u = AnnoyIndex(64, annoydist)
     u.load('index.ann') # super fast, will just mmap the file
+    reference_keypoints = joblib.load("keypoints.clf")
+    from annoytest import get_sheet_for_id
+
+    match_dict = {}
+
+    votes = {k:0 for k in sheetsdict.keys()}
+    for desc in descriptors:
+        # NN_ids = u.get_nns_by_vector(desc, 2) # will find the n nearest neighbors
+        NN_ids = u.get_nns_by_vector(desc, 50, include_distances=True) # will find the n nearest neighbors
+        distances = NN_ids[1]
+        NN_ids = NN_ids[0]
+
+        if lowes_test_ratio:
+            if min(distances) < lowes_test_ratio * max(distances):
+                # good match
+                NN_ids = [NN_ids[0]]
+            else:
+                continue
+
+        NN_names = [get_sheet_for_id(sheetsdict,i) for i in NN_ids]
+        # print("truth:",class_label_truth)
+        # print(NN_ids)
+        # print("predictions:",NN_names)
+        # index_in_pred = NN_names.index(class_label_truth) if class_label_truth in NN_names else -1
+        # print("index:", index_in_pred)
+        for name in NN_names:
+            votes[name] += 1/(NN_names.index(name)+1) # antiproportional weighting
+    if votes == {}:
+        print("truth not in index")
+        return -1
+
+    votes = sorted(votes.items(),key=lambda x:x[1], reverse=True)
+    # print(votes)
+    # print("truth:",class_label_truth,"index:",[x[0] for x in votes].index(class_label_truth))
+    prediction_class = votes[0][0]
+    prediction = votes
+
+    return prediction_class, prediction, None
+
+def search_in_index(img_path, class_label_truth, cb_percent=5, clf=None):
+    # u = AnnoyIndex(64, annoydist)
+    # u.load('index.ann') # super fast, will just mmap the file
     # load query sheet
     map_img = cv2.imdecode(np.fromfile(img_path, dtype=np.uint8), cv2.IMREAD_UNCHANGED)
     img1 = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
@@ -452,41 +492,8 @@ def search_in_index(img_path, class_label_truth, cb_percent=5, clf=None):
     # load index from disk
     if not clf:
         clf = joblib.load("sheets.clf")  
-
-
     
-    from annoytest import get_sheet_for_id
-    votes = {k:0 for k in clf.keys()}
-    for desc in descriptors:
-        # NN_ids = u.get_nns_by_vector(desc, 2) # will find the n nearest neighbors
-        NN_ids = u.get_nns_by_vector(desc, 50, include_distances=True) # will find the n nearest neighbors
-        distances = NN_ids[1]
-        NN_ids = NN_ids[0]
-
-        if lowes_test_ratio:
-            if min(distances) < lowes_test_ratio * max(distances):
-                # good match
-                NN_ids = [NN_ids[0]]
-            else:
-                continue
-
-        NN_names = [get_sheet_for_id(clf,i) for i in NN_ids]
-        # print("truth:",class_label_truth)
-        # print(NN_ids)
-        # print("predictions:",NN_names)
-        index_in_pred = NN_names.index(class_label_truth) if class_label_truth in NN_names else -1
-        # print("index:", index_in_pred)
-        for name in NN_names:
-            votes[name] += 1/(NN_names.index(name)+1) # antiproportional weighting
-    if votes == {}:
-        print("truth not in index")
-        return -1
-
-    votes = sorted(votes.items(),key=lambda x:x[1], reverse=True)
-    # print(votes)
-    # print("truth:",class_label_truth,"index:",[x[0] for x in votes].index(class_label_truth))
-    prediction_class = votes[0][0]
-    prediction = votes
+    prediction_class, prediction, match_dict = predict_annoy(descriptors, clf)
 
     # classify sheet with index
     # prediction_class, prediction, _ = predict(descriptors, clf, truth=class_label_truth)

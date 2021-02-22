@@ -464,17 +464,21 @@ def retrieve_best_match_index(query_image, processing_size, sheets_path, restric
     query_image_small = cv2.resize(query_image, (width,height), interpolation=cv2.INTER_AREA)
 
     # extract features from query sheet
-    keypoints, descriptors = indexing.extract_features(query_image_small, first_n=500)
+    keypoints, descriptors_query = indexing.extract_features(query_image_small, first_n=indexing.n_descriptors_query)
     # set up features as test set
     # load index from disk
     clf = joblib.load("index.clf")#"index_KAZE300.clf")
+    sheetsdict = joblib.load("sheets.clf")#"index_KAZE300.clf")
     reference_keypoints = joblib.load("keypoints.clf")
     # classify sheet with index
     print("Retrieving from index...")
-    prediction_class, prediction, match_dict = indexing.predict(descriptors, clf)
+    # prediction_class, prediction, match_dict = indexing.predict(descriptors, clf)
+    prediction_class, prediction, _ = indexing.predict_annoy(descriptors_query, sheetsdict)
+    prediction=prediction[:restrict_number]
     score_cap = 1#0.4
     # print(prediction)
-    sheet_predictions = [x[0] for x in prediction if x[1] < score_cap]
+    sheet_predictions = [x[0] for x in prediction]
+    # sheet_predictions = [x[0] for x in prediction if x[1] < score_cap]
 
     truth_index = sheet_predictions.index(truth) if truth in sheet_predictions else -1
     logging.info("Truth at position %d in index." % truth_index)
@@ -482,8 +486,6 @@ def retrieve_best_match_index(query_image, processing_size, sheets_path, restric
     # print(len(sheet_predictions))
 
     bboxes = find_sheet.get_ordered_bboxes_from_json(sheets_path, sheet_predictions)
-    bboxes = bboxes[:restrict_number]
-    # bboxes=bboxes[189:191]
     print("Verifying predictions...")
     progress = progressbar.ProgressBar(maxval=len(bboxes))
     for idx,bbox in progress(enumerate(bboxes)):
@@ -491,19 +493,47 @@ def retrieve_best_match_index(query_image, processing_size, sheets_path, restric
         # if dict(prediction)[sheet_name] > score_cap:
         #     break
         time_now = time.time()
+
+        # by redetecting
         # rivers_json = osm.get_from_osm(bbox)
         # reference_river_image = osm.paint_features(rivers_json, bbox)
 
-        #--- index matching
-        # reduce image size for performance with fixed aspect ratio
+        # #--- index matching
+        # # reduce image size for performance with fixed aspect ratio
         # reference_image_small = cv2.resize(reference_river_image, (width, height))
+        # reference_image_small = cv2.copyMakeBorder(reference_image_small, 
+        #                                 indexing.border_train, indexing.border_train, indexing.border_train, indexing.border_train, 
+        #                                 cv2.BORDER_CONSTANT, None, 0)
         # keypoints_q, keypoints_r = feature_matching_kaze(query_image_small, reference_image_small)
-        matches = match_dict[sheet_name]
+        
+        # with precomputed descriptors
+        # create BFMatcher object
+        bf = cv2.BFMatcher(cv2.NORM_L2, crossCheck=True)
+        # Match descriptors.
+        matches = bf.match(descriptors_query, clf[sheet_name])
         keypoints_q = [keypoints[x.queryIdx].pt for x in matches]
         kp_reference = reference_keypoints[sheet_name]
         keypoints_r = [kp_reference[x.trainIdx] for x in matches]
+        keypoints_r = [[x-indexing.border_train,y-indexing.border_train] for [x,y] in keypoints_r] # remove border from ref images, as they will not be there for registration
         keypoints_q = np.array(keypoints_q)
         keypoints_r = np.array(keypoints_r)
+        
+        # by querying annoy
+        # # matches = match_dict[sheet_name]
+        # from annoy import AnnoyIndex
+        # from annoytest import get_kp_for_id
+        # u = AnnoyIndex(64, indexing.annoydist)
+        # u.load('index.ann') # super fast, will just mmap the file
+        # keypoints_r = []
+        # for desc in descriptors_query:
+        #     nn = u.get_nns_by_vector(desc, 1)[0]
+        #     keypoints_r.append(get_kp_for_id(clf,reference_keypoints,nn))
+        # keypoints_q = [x.pt for x in keypoints]
+        # keypoints_q = np.array(keypoints_q)
+        # keypoints_r = np.array(keypoints_r)
+        # print(keypoints_q)
+        # print(keypoints_r)
+        # print(len(keypoints_q),len(keypoints_r))
         num_inliers, transform_model = estimate_transform(keypoints_q, keypoints_r, None, None)
 
         score_list.append((num_inliers, sheet_name))
@@ -511,16 +541,18 @@ def retrieve_best_match_index(query_image, processing_size, sheets_path, restric
             # closest_image = 1#reference_river_image
             closest_bbox = bbox
             best_dist = num_inliers
+            best_sheet = sheet_name
 
         maha = mahalanobis_distance([x[0] for x in score_list])
         logging.info("target %d/%d Sheet %s, Score %d Best %d, maha: %f, bbox: %s, time: %f" % (idx+1, len(bboxes), sheet_name, num_inliers, best_dist, maha, bbox, time.time()-time_now))
-        if idx>5 and maha >= 5.0:
-            break # todo: should reflect how recent the change is, e.g. probability for better solution smaller than threshold, or maha didn't change for n sheets
+        # if idx>5 and maha >= 5.0:
+        #     break # todo: should reflect how recent the change is, e.g. probability for better solution smaller than threshold, or maha didn't change for n sheets
 
     end_time = time.time()
     logging.info("total time spent: %f" % (end_time - start_time))
+    logging.info("avg time spent: %f" % ((end_time - start_time)/len(bboxes)))
     score_list.sort(key=lambda x: x[0], reverse=True)
-    best_sheet = find_sheet.find_name_for_bbox(sheets_path, closest_bbox)
+    # best_sheet = find_sheet.find_name_for_bbox(sheets_path, closest_bbox)
     print("predicted sheet: %s" % best_sheet)
     rivers_json = osm.get_from_osm(closest_bbox)
     closest_image = osm.paint_features(rivers_json, bbox)
