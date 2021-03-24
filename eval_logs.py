@@ -159,10 +159,10 @@ if __name__ == "__main__":
                 # get ground truth
                 # get result
                 elif "result:" in line:
-                    pred = re.search(r"(?<=pred:)[^,']*", line)[0]
-                    experiment_data["prediction"] = pred
-                    gt = re.search(r"(?<=gt:)[^,']*", line)[0]
-                    experiment_data["ground_truth"] = gt
+                    pred = re.search(r"(?<=pred:)\s*[^,'\s]*", line)[0]
+                    experiment_data["prediction"] = pred.strip()
+                    gt = re.search(r"(?<=gt:)\s*[^,'\s]*", line)[0]
+                    experiment_data["ground_truth"] = gt.strip()
 
                 elif "template matching score" in line:
                     sum_template_score += float(line.split(":")[-1])

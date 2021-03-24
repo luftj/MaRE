@@ -22,22 +22,29 @@ def resize_by_width(shape, new_width):
 
 def restrict__bboxes(sheets_path, target, num):
     # for debugging: don't check against all possible sheet locations, but only a subset
-    bboxes = find_sheet.get_bboxes_from_json(sheets_path)
-    idx = find_sheet.get_index_of_sheet(sheets_path, target)
+    bboxdict = find_sheet.get_dict(sheets_path)
+    idx = [k for (k,v) in bboxdict.items()].index(target)
+    #idx = find_sheet.get_index_of_sheet(sheets_path, target)
     if idx is None:
         raise ValueError("ground truth name %s not found" % target)
     logging.debug("restricted bbox %s by %d around idx %s" %(target, num, idx))
     start = max(0, idx-(num//2))
-    return bboxes[start:idx+(num//2)+1]
+    end = idx+(num//2)+1
+    if end-start < num + 1:
+        # make sure we have a minimum of num alternatives
+        # todo: if at the end of the dict, this might still be less than num
+        end = start + num +1
+    restricted_bboxes = dict(list(bboxdict.items())[start:end])
+    return restricted_bboxes
 
 def process_sheet(img_path, sheets_path, cb_percent, plot=False, img=True, number=None, restrict=None, resize=None, rsize=None, crop=False):
     logging.info("Processing file %s with gt: %s" % (img_path,number))
     print("Processing file %s with gt: %s" % (img_path,number))
 
     if number and restrict:
-        bboxes = restrict__bboxes(sheets_path, number, restrict)
+        bboxdict = restrict__bboxes(sheets_path, number, restrict)
     else:
-        bboxes = find_sheet.get_bboxes_from_json(sheets_path)
+        bboxdict = find_sheet.get_dict(sheets_path)
 
     map_img = cv2.imdecode(fromfile(img_path, dtype=uint8), cv2.IMREAD_UNCHANGED)
     # map_img = cv2.imread(img_path) # load map image # WARNING: imread does not allow unicode file names!
@@ -52,18 +59,19 @@ def process_sheet(img_path, sheets_path, cb_percent, plot=False, img=True, numbe
     processing_size = resize_by_width(map_img.shape, rsize if rsize else 500)
     
     # find the best bbox for this query image
-    # closest_image, closest_bbox, dist, score_list, transform_model = retrieve_best_match(water_mask, bboxes, processing_size)
-    closest_image, closest_bbox, dist, score_list, transform_model = retrieve_best_match_index(water_mask, processing_size, sheets_path, restrict_number=restrict, truth=number)
+    closest_image, closest_bbox, dist, score_list, transform_model = retrieve_best_match(water_mask, bboxdict, processing_size)
+    # closest_image, closest_bbox, dist, score_list, transform_model = retrieve_best_match_index(water_mask, processing_size, sheets_path, restrict_number=restrict, truth=number)
     
     # find sheet name for prediction
     # score_list = [(*s[:-1], find_sheet.find_name_for_bbox(sheets_file, bboxes[s[-1]])) for s in score_list]
     # score_list = [(*s[:-1], find_sheet.find_name_for_bbox(sheets_file, bboxes[s[-1]])) for s in score_list]
     sheet_name = score_list[0][-1]
+    # sheet_name = find_sheet.find_name_for_bbox(sheets_file, closest_bbox)
     logging.info("best sheet: %s with score %d" % (sheet_name, dist))
 
     if number:
         try:
-            truth_pos = [s[-1] for s in score_list].index(number)
+            truth_pos = [s[-1] for s in score_list].index(number) # todo: score_list (without index) is actually just indices, convert to sheet names
         except:
             truth_pos = -1
         logging.info("ground truth at position: %d" % (truth_pos))
@@ -101,7 +109,7 @@ def process_sheet(img_path, sheets_path, cb_percent, plot=False, img=True, numbe
             # map_img_aligned_ransac, border_ransac = registration.align_map_image_model(map_img, water_mask, closest_image, transform_model, processing_size, crop) # RANSAC only
         except cv2.error as e:
             logging.warning("%s - could not register %s with prediction %s!" % (e, img_path, sheet_name))
-            eval_entry = ["pred:"+sheet_name,"gt:"+number,"dist %d"%dist,"gt ar pos %d" % truth_pos,"registration: fail","correct: no"]
+            eval_entry = ["pred:%s gt:%s dist %d gt ar pos %d" % (sheet_name,number,dist,truth_pos),"registration: fail","correct: no"]
             logging.info("result: %s" % eval_entry)
             return 
         
@@ -128,7 +136,8 @@ def process_sheet(img_path, sheets_path, cb_percent, plot=False, img=True, numbe
             # registration.georeference(aligned_map_path_ransac, outpath.replace(".jp2","_ransac.jp2"), closest_bbox, border_ransac)
         logging.info("saved georeferenced file to: %s" % outpath)
     
-    eval_entry = ["gt:"+number,"pred:"+sheet_name,"dist %f"%dist,"gt at pos %d"%truth_pos,"registration: success","correct %r"%(str(number)==str(sheet_name))]
+    # eval_entry = ["pred:%s gt:%s dist %d gt ar pos %d" % (sheet_name,number,dist,truth_pos),"registration: fail","correct: no"]
+    eval_entry = ["gt: %s pred: %s dist %f"%(number,sheet_name,dist),"gt at pos %d"%truth_pos,"registration: success","correct %r"%(str(number)==str(sheet_name))]
     logging.info("result: %s" % eval_entry)
 
 def process_list(list_path, sheets_path, cb_percent, plot=False, img=True, restrict=None, resize=None, rsize=None, crop=False):
@@ -164,6 +173,12 @@ if __name__ == "__main__":
     parser.add_argument("-r", help="restrict search space around ground truth", default=None, type=int)
     args = parser.parse_args()
     
+    # create necessary directories
+    import os
+    os.makedirs(config.path_logs, exist_ok=True)
+    os.makedirs(config.path_osm, exist_ok=True)
+    os.makedirs(config.path_output, exist_ok=True)
+
     logging.basicConfig(filename=(config.path_logs + '/%s.log' % datetime.now().isoformat(timespec='minutes')).replace(":","-"), 
                         level=(logging.DEBUG if args.ll else logging.INFO), 
                         format="%(asctime)s [%(threadName)-12.12s] [%(levelname)-7.7s]  %(message)s") # gimme all your loggin'!

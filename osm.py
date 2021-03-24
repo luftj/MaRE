@@ -43,7 +43,9 @@ def query_overpass(query):
     print("#line+poly features:",len(result["features"]))
     return result
 
-def get_from_osm(bbox=[16.3,54.25,16.834,54.5], url = "https://overpass.openstreetmap.ru/api/interpreter"):#"https://overpass.osm.ch/api/interpreter"):#"http://overpass-api.de/api/interpreter"):
+def get_from_osm(bbox=[16.3,54.25,16.834,54.5], url = #"https://overpass.openstreetmap.ru/api/interpreter"):
+    #"https://overpass.osm.ch/api/interpreter"):
+    "http://overpass-api.de/api/interpreter"):
     data_path = path_osm + "rivers_%s.geojson" % "_".join(map(str,bbox))
 
     minxy = transform_sheet_to_osm.transform(bbox[0], bbox[1]) # reproject lower left bbox corner
@@ -60,7 +62,8 @@ def get_from_osm(bbox=[16.3,54.25,16.834,54.5], url = "https://overpass.openstre
     
                 # way (%s) [water=river];
                 # way (%s) [waterway=riverbank];
-                # way (%s) [waterway=stream] [name];
+                # way (%s) [waterway=ditch];
+                # way (%s) [waterway=drain];
 
     sorted_bbox = ",".join(map(str,[bbox[1], bbox[0], bbox[3], bbox[2]]))
     query = """[out:json];
@@ -69,15 +72,13 @@ def get_from_osm(bbox=[16.3,54.25,16.834,54.5], url = "https://overpass.openstre
                 way (%s) [type=waterway] [name]; 
                 way (%s) [waterway=river] [name];
                 way (%s) [waterway=canal] [name];
-                way (%s) [natural=coastline];
-                way (%s) [waterway=stream] [name];
-                way (%s) [waterway=ditch];
-                way (%s) [waterway=drain];
                 way (%s) [water=river];
+                way (%s) [waterway=stream] [name];
+                way (%s) [natural=coastline];
                 );
                 out body;
                 >;
-                out skel qt;""" % ((sorted_bbox,)*10) # ; (._;>;)
+                out skel qt;""" % ((sorted_bbox,)*8) # ; (._;>;)
     logging.debug("osm query: %s" % query)
 
     while True:
@@ -163,6 +164,11 @@ if __name__ == "__main__":
     import find_sheet
     import progressbar
     import sys
+    # create necessary directories
+    import os
+    os.makedirs("logs/", exist_ok=True)
+    os.makedirs(path_osm, exist_ok=True)
+
     logging.basicConfig(filename='logs/osm.log', level=logging.DEBUG) # gimme all your loggin'!
     progress = progressbar.ProgressBar()
     sheets_file = "data/blattschnitt_dr100_regular.geojson"

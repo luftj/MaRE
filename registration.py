@@ -146,16 +146,17 @@ def align_map_image(map_image, query_image, reference_image, target_size=(500,50
     # register query and retrieved reference image for fine alignment
     query_image_small = cv2.resize(query_image, target_size, cv2.INTER_AREA)
     
-    # border_size = 150
+    border_size = template_window_size
     # reference_image_border = cv2.copyMakeBorder(reference_image, border_size,border_size,border_size,border_size, cv2.BORDER_CONSTANT, None, 0)
     # reference_image_small = cv2.resize(reference_image_border, target_size, cv2.INTER_CUBIC)
 
     reference_image = cv2.resize(reference_image, 
-                                    (target_size[0] - template_window_size*2,
-                                     target_size[1] - template_window_size*2),
-                                    cv2.INTER_AREA)
+                                    (target_size[0] - border_size*2,#template_window_size*2,
+                                     target_size[1] - border_size*2),#template_window_size*2),
+                                    cv2.INTER_CUBIC)
+                                    #cv2.INTER_AREA)
     reference_image_border = cv2.copyMakeBorder(reference_image, 
-                                                template_window_size, template_window_size, template_window_size, template_window_size, 
+                                                border_size, border_size, border_size, border_size, 
                                                 cv2.BORDER_CONSTANT, None, 0)
     reference_image_small = reference_image_border
     
@@ -165,6 +166,8 @@ def align_map_image(map_image, query_image, reference_image, target_size=(500,50
         warp_mode = cv2.MOTION_EUCLIDEAN
     elif config.warp_mode_registration == "homography":
         warp_mode = cv2.MOTION_HOMOGRAPHY
+    else:
+        raise NotImplementedError("registration warp mode not supported:", config.warp_mode_registration)
 
     # get transformation matrix (map query=source to reference=target)
     warp_matrix = register_ECC(query_image_small, reference_image_small, warp_matrix=warp_matrix, warp_mode=warp_mode)
@@ -190,8 +193,8 @@ def align_map_image(map_image, query_image, reference_image, target_size=(500,50
     # border_x = int(border_size * reference_image_small.shape[1] / reference_image_border.shape[1] * map_image.shape[1] / target_size[0])
     # border_y = int(border_size * reference_image_small.shape[0] / reference_image_border.shape[0] * map_image.shape[0] / target_size[1])
     # print("border", border_x, border_y)
-    border_x = template_window_size * map_image.shape[0]/reference_image_border.shape[0]
-    border_y = template_window_size * map_image.shape[1]/reference_image_border.shape[1]
+    border_x = border_size * map_image.shape[0]/reference_image_border.shape[0]
+    border_y = border_size * map_image.shape[1]/reference_image_border.shape[1]
     print("border", border_x, border_y)
     time_passed = time() - time_start
     logging.info("time: %f s for registration" % time_passed)

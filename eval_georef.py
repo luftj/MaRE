@@ -22,7 +22,7 @@ from config import path_output, proj_sheets, proj_out
 def match_sheet_name(img_name):
     # s = re.findall(r"(?<=_)[0-9][0-9][0-9a](?=_)",img_name)
     # s = re.findall(r"[0-9][0-9][0-9a](?=_)",img_name)
-    s = re.findall(r"(?<=[\s_])[0-9]?[0-9][0-9a](?=[_\s])",img_name)
+    s = re.findall(r"(?<=[\s_])*[0-9]?[0-9][0-9a](?=[_\s])",img_name)
     s = [e.lstrip('0') for e in s]
     sheet_name = "-".join(s)
     return sheet_name
@@ -73,7 +73,26 @@ def get_coords_from_raster(georef_image_path, point):
 
     return latlong
 
-def mean_squared_error(points_a, points_b):
+def mean_absolute_error(points_a, points_b):
+    points_a = np.array(points_a).T
+    points_b = np.array(points_b).T
+
+    xx = points_a.reshape(2, -1)
+    yy = points_b.reshape(2, -1)
+
+    geod = pyproj.Geod(ellps='WGS84')
+    _, _, distances = geod.inv(
+            xx[0,:],
+            xx[1,:],
+            yy[0,:],
+            yy[1,:])
+
+    # distances = np.hypot(*(xx - yy))
+    sum_errors = np.sum(distances)
+    
+    return sum_errors/4
+
+def root_mean_squared_error(points_a, points_b):
     points_a = np.array(points_a).T
     points_b = np.array(points_b).T
 
@@ -87,11 +106,13 @@ def mean_squared_error(points_a, points_b):
             yy[0,:],
             yy[1,:])
     print("distances",distances)
+    sq_distances = np.square(distances)
+    print("squared distances",sq_distances)
 
     # distances = np.hypot(*(xx - yy))
-    sum_errors = np.sum(distances)
+    sum_errors = np.sum(sq_distances)
     
-    return sum_errors/4
+    return np.sqrt(sum_errors/4)
 
 def warp_images(filenames,inputpath):
     for img_name in filenames:
@@ -113,7 +134,7 @@ def get_truth_bbox(sheets, sheet_name):
     truth_bbox = find_poly_for_name(sheets, sheet_name)
     
     if len(truth_bbox) != 5:
-        raise ValueError("bbox should have 4 points, has %d" % len(truth_bbox))
+        raise ValueError("bbox should have 4 points, has %d: %s" % (len(truth_bbox), truth_bbox))
 
     truth_bbox = [transform_sheet_to_out.transform(x, y) for (x,y) in truth_bbox]
     return truth_bbox
@@ -208,13 +229,13 @@ def cascadeCorners(img_path, georef_path, truth_corners, plot, downscale_factor)
 
     return corner_coords
 
-def dump_csv(sheets_list, error_list):
+def dump_csv(sheets_list, mae_list, rmse_list):
     print("writing to file...")
     with open("eval_georef_result.csv", "w", encoding="utf-8") as eval_fp:
-        eval_fp.write("sheet name; error [m]\n") # header
+        eval_fp.write("sheet name; MAE [m]; RMSE [m]\n") # header
 
-        for sheet, error in zip(sheets_list, error_list):
-            eval_fp.write("%s; %.2f\n" % (sheet, error))
+        for sheet, mae, rmse in zip(sheets_list, mae_list, rmse_list):
+            eval_fp.write("%s; %.2f; %.2f\n" % (sheet, mae, rmse))
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -239,6 +260,7 @@ if __name__ == "__main__":
         warp_images(img_list,inputpath) # this has to be done before calculating coords, because proj db breaks
 
     error_results = []
+    rmse_results = []
     sheet_names = []
 
     for img_name in img_list:
@@ -248,19 +270,29 @@ if __name__ == "__main__":
 
         img_path = inputpath + "/" + img_name
         georef_path = path_output + "/georef_sheet_%s_warp.tif" % sheet_name
+        
+        if not os.path.exists(georef_path):
+            print("Couldn't find file for registered sheet %s.\nIt probably failed to get a registration solution" % sheet_name)
+            continue
 
         # find corner coordinates of registered image (geo-coordinates)
-        corner_coords = cascadeCorners(img_path, georef_path, sheet_corners[img_name], plot=args.plot, downscale_factor=3)
+        corner_coords = cascadeCorners(img_path, georef_path, sheet_corners[img_name], plot=args.plot, downscale_factor=4)
 
         truth_bbox = get_truth_bbox(args.sheets, sheet_name)
-        mse = mean_squared_error(corner_coords[0:4], truth_bbox[0:4])
-        if mse > 2000:
-            # maybe a corner wasn't properly detected, try again with full resolution ;)
-            corner_coords = cascadeCorners(img_path, georef_path, sheet_corners[img_name], plot=args.plot, downscale_factor=1)
-            truth_bbox = get_truth_bbox(args.sheets, sheet_name)
-            mse = mean_squared_error(corner_coords[0:4], truth_bbox[0:4])
-        print("mean error: %f m" % mse)
-        error_results.append(mse)
+        mae = mean_absolute_error(corner_coords[0:4], truth_bbox[0:4])
+        rmse = root_mean_squared_error(corner_coords[0:4], truth_bbox[0:4])
+        # if mae > 2000:
+        #     print("mean absolute error: %f m" % mae)
+        #     print("root mean squared error: %f m" % rmse)
+        #     # maybe a corner wasn't properly detected, try again with full resolution ;)
+        #     corner_coords = cascadeCorners(img_path, georef_path, sheet_corners[img_name], plot=args.plot, downscale_factor=1)
+        #     truth_bbox = get_truth_bbox(args.sheets, sheet_name)
+        #     mae = mean_absolute_error(corner_coords[0:4], truth_bbox[0:4])
+        #     rmse = root_mean_squared_error(corner_coords[0:4], truth_bbox[0:4])
+        print("mean absolute error: %f m" % mae)
+        print("root mean squared error: %f m" % rmse)
+        error_results.append(mae)
+        rmse_results.append(rmse)
         sheet_names.append(sheet_name)
 
         print("time for image:", time.time() - t0, "s")
@@ -269,17 +301,26 @@ if __name__ == "__main__":
             plt.show()
     
     total_mean_error = sum(error_results)/len(error_results)
+    total_mean_rmse = sum(rmse_results)/len(rmse_results)
     print("total mean error: %f m" % total_mean_error)
+    print("total mean RMSE: %f m" % total_mean_rmse)
 
     results_sorted = sorted(zip(sheet_names,error_results), key=lambda tup: tup[1])
     sheet_names_sorted = [x[0] for x in results_sorted]
     error_sorted = [x[1] for x in results_sorted]
 
     median_error = error_sorted[len(error_sorted)//2]
-    print("median error: %f m" % median_error)
+    print("median MAE: %f m" % median_error)
+
+    results_sorted = sorted(zip(sheet_names,rmse_results), key=lambda tup: tup[1])
+    sheet_names_sorted = [x[0] for x in results_sorted]
+    error_sorted = [x[1] for x in results_sorted]
+
+    median_error = error_sorted[len(error_sorted)//2]
+    print("median RMSE: %f m" % median_error)
 
     if not args.single:
-        dump_csv(sheet_names, error_results)
+        dump_csv(sheet_names, error_results, rmse_results)
 
     plt.subplot(2, 1, 1)
     plt.bar(sheet_names_sorted, error_sorted)
