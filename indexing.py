@@ -432,13 +432,11 @@ def predict(sample, clf, truth=None):
     prediction_class = prediction[0][0]
     return prediction_class, prediction, match_dict
 
-def predict_annoy(descriptors, sheetsdict, indexpath="index.ann"):
+def predict_annoy(descriptors, sheetsdict, indexpath="index.ann",reference_keypoints = joblib.load("keypoints.clf")):
     u = AnnoyIndex(64, annoydist)
     u.load('index.ann') # super fast, will just mmap the file
-    reference_keypoints = joblib.load("keypoints.clf")
+    
     from annoytest import get_sheet_for_id
-
-    match_dict = {}
 
     votes = {k:0 for k in sheetsdict.keys()}
     for desc in descriptors:

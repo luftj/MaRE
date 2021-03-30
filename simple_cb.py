@@ -58,7 +58,8 @@ def simplest_cb_gray(img, percent):
 
 def simplest_cb(img, percent):
     assert(img.shape[2] == 3)
-    assert(percent > 0 and percent < 100)
+    if not (percent > 0 and percent < 100):
+        return img
     logging.debug("Colour balance: treshold %.2f %%" % (percent))
 
     half_percent = percent / 200.0

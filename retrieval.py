@@ -477,7 +477,7 @@ def retrieve_best_match_index(query_image, processing_size, sheets_path, restric
     # classify sheet with index
     print("Retrieving from index...")
     # prediction_class, prediction, match_dict = indexing.predict(descriptors, clf)
-    prediction_class, prediction, _ = indexing.predict_annoy(descriptors_query, sheetsdict)
+    prediction_class, prediction, _ = indexing.predict_annoy(descriptors_query, sheetsdict, reference_keypoints=reference_keypoints)
     prediction=prediction[:restrict_number]
     score_cap = 1#0.4
     # print(prediction)

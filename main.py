@@ -59,8 +59,8 @@ def process_sheet(img_path, sheets_path, cb_percent, plot=False, img=True, numbe
     processing_size = resize_by_width(map_img.shape, rsize if rsize else 500)
     
     # find the best bbox for this query image
-    closest_image, closest_bbox, dist, score_list, transform_model = retrieve_best_match(water_mask, bboxdict, processing_size)
-    # closest_image, closest_bbox, dist, score_list, transform_model = retrieve_best_match_index(water_mask, processing_size, sheets_path, restrict_number=restrict, truth=number)
+    # closest_image, closest_bbox, dist, score_list, transform_model = retrieve_best_match(water_mask, bboxdict, processing_size)
+    closest_image, closest_bbox, dist, score_list, transform_model = retrieve_best_match_index(water_mask, processing_size, sheets_path, restrict_number=restrict, truth=number)
     
     # find sheet name for prediction
     # score_list = [(*s[:-1], find_sheet.find_name_for_bbox(sheets_file, bboxes[s[-1]])) for s in score_list]

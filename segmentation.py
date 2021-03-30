@@ -146,6 +146,12 @@ def extract_blue(img, cb_percent, plot=False):
     return img_thresh
 
 
+def load_and_run(map_path,percent):
+    map_img = cv2.imread(map_path) # load map image
+    
+    segmented_image = extract_blue(map_img, percent, plot=False)
+    return segmented_image
+
 if __name__ == "__main__":
     import argparse
     from matplotlib import pyplot as plt
@@ -155,7 +161,7 @@ if __name__ == "__main__":
     parser.add_argument("--percent", help="colour balancethreshold", default=5, type=int)
     args = parser.parse_args()
     
-    map_img = cv2.imread(args.input) # load map image
+    segmented_image = load_and_run(args.input, args.percent)
     
     map_img_rgb = cv2.cvtColor(map_img, cv2.COLOR_BGR2RGB)
     segmented_image = extract_blue(map_img, args.percent, plot=False)
