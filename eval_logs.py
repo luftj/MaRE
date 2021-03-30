@@ -118,6 +118,7 @@ if __name__ == "__main__":
 
         experiment_data = None
         sum_template_score = 0
+        command = ""
 
         with open(file_path) as log_fp:
 

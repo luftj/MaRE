@@ -462,7 +462,7 @@ def retrieve_best_match_index(query_image, processing_size, sheets_path, restric
 
     score_list = []
 
-    # todo: if restrict number < 0, just return ground truth. this would help for testing registration only
+    # todo: if restrict number < 0, just return ground truth. this would speed up testing registration only
 
     # reduce image size for performance with fixed aspect ratio
     query_image_small = cv2.resize(query_image, (width,height), interpolation=cv2.INTER_AREA)
@@ -487,6 +487,16 @@ def retrieve_best_match_index(query_image, processing_size, sheets_path, restric
     truth_index = sheet_predictions.index(truth) if truth in sheet_predictions else -1
     logging.info("Truth at position %d in index." % truth_index)
     print("Truth at position %d in index." % truth_index)
+    test_ratio = prediction[0][1]/prediction[1][1]
+    logging.info("test ratio between first two indices: %0.2f" % test_ratio)
+    print("test ratio between first two indices: %0.2f" % test_ratio)
+
+    # don't to spatial verification if we have no chance of getting the correct prediction anyway
+    if truth and (truth_index < 0 or truth_index > restrict_number):
+        logging.info("verification pointless, skipping sheet")
+        print("verification pointless, skipping sheet")
+        return None, None, -1, [], None
+
     # print(len(sheet_predictions))
 
     bboxes = find_sheet.get_ordered_bboxes_from_json(sheets_path, sheet_predictions)
@@ -551,6 +561,12 @@ def retrieve_best_match_index(query_image, processing_size, sheets_path, restric
         logging.info("target %d/%d Sheet %s, Score %d Best %d, maha: %f, bbox: %s, time: %f" % (idx+1, len(bboxes), sheet_name, num_inliers, best_dist, maha, bbox, time.time()-time_now))
         # if idx>5 and maha >= 5.0:
         #     break # todo: should reflect how recent the change is, e.g. probability for better solution smaller than threshold, or maha didn't change for n sheets
+        
+        # early termination when correct sheet was already likely detected by unverified index rank
+        if test_ratio > 2:
+            logging.info("breaking because of testratio " + "correctly" if truth_index==0 else "wrongly")
+            print("breaking because of testratio " + "correctly" if truth_index==0 else "wrongly")
+            break
 
     end_time = time.time()
     logging.info("total time spent: %f" % (end_time - start_time))

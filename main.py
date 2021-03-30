@@ -65,7 +65,7 @@ def process_sheet(img_path, sheets_path, cb_percent, plot=False, img=True, numbe
     # find sheet name for prediction
     # score_list = [(*s[:-1], find_sheet.find_name_for_bbox(sheets_file, bboxes[s[-1]])) for s in score_list]
     # score_list = [(*s[:-1], find_sheet.find_name_for_bbox(sheets_file, bboxes[s[-1]])) for s in score_list]
-    sheet_name = score_list[0][-1]
+    sheet_name = score_list[0][-1] if len(score_list) > 0 else "unknown"
     # sheet_name = find_sheet.find_name_for_bbox(sheets_file, closest_bbox)
     logging.info("best sheet: %s with score %d" % (sheet_name, dist))
 

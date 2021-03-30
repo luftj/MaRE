@@ -1,5 +1,5 @@
 import cv2
-from simple_cb import simplest_cb
+from simple_cb import simplest_cb, better_cb
 import random
 from mpl_toolkits.mplot3d import axes3d
 import matplotlib.pyplot as plt
@@ -74,7 +74,7 @@ def plot_hsv_2d(rgb_img):
 def extract_blue(img, cb_percent, plot=False):
     img_cie = cv2.cvtColor(img, cv2.COLOR_BGR2Lab)
 
-    img_cie = simplest_cb(img_cie, cb_percent)
+    img_cie = better_cb(img_cie, cb_percent)
 
     # TODO: adjust kernel sizes to image resolution
     ksize = (5, 5) 
