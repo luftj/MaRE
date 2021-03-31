@@ -321,8 +321,8 @@ def estimate_transform(keypoints_q, keypoints_r, query_image, reference_image_bo
         return 0, np.eye(3,3) # need to have enough samples for ransac.min_samples. For affine, at least 3
 
     model, inliers = ransac((keypoints_q, keypoints_r),
-                        warp_mode, min_samples=3,
-                        residual_threshold=5, max_trials=7000)
+                        warp_mode, min_samples=3, stop_probability=config.ransac_stop_probability,
+                        residual_threshold=5, max_trials=config.ransac_max_trials, random_state=config.ransac_random_state)
 
     if inliers is None:
         num_inliers = 0
@@ -564,8 +564,8 @@ def retrieve_best_match_index(query_image, processing_size, sheets_path, restric
         
         # early termination when correct sheet was already likely detected by unverified index rank
         if test_ratio > 2:
-            logging.info("breaking because of testratio " + "correctly" if truth_index==0 else "wrongly")
-            print("breaking because of testratio " + "correctly" if truth_index==0 else "wrongly")
+            logging.info("breaking spatial verification because of testratio " + ("correctly" if truth_index==0 else "wrongly"))
+            print("breaking spatial verification because of testratio " + ("correctly" if truth_index==0 else "wrongly"))
             break
 
     end_time = time.time()

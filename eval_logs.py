@@ -100,21 +100,21 @@ def plot_score_dist(x):
     plt.show()
     exit()
 
-if __name__ == "__main__":
+def eval_logs(logpath):
     # plot_score_dist([6, 9, 14, 9, 12, 8, 7, 11, 7, 9, 10, 8, 10, 9, 7, 10, 9, 9, 7, 8, 9])
     # plot_score_dist( [4, 3, 3, 3, 3, 4, 4, 3, 4, 4, 5, 4, 5, 4, 5, 4, 3, 4, 5, 4, 4])
     # plot_score_dist( [8, 9, 7, 6, 5, 11, 5, 8, 11, 9, 15, 5, 7, 7, 6, 6, 4, 6, 8, 5, 7])
     # plot_score_dist( [4, 5, 6, 6, 4, 4, 5, 4, 6, 5, 9, 6, 5, 4, 5, 6, 4, 5, 5, 5, 5])
     # plot_score_dist( [4, 5, 6, 6, 4, 4, 5, 4, 6, 5, 9, 6, 5, 4, 5, 6, 4, 5, 5, 5, 5])
 
-    log_files = [f for f in listdir(path_logs) if isfile(join(path_logs, f))]
+    log_files = [f for f in listdir(logpath) if isfile(join(logpath, f))]
 
 
     experiments = {}
 
     for log_file in log_files:
         print(log_file)
-        file_path = join(path_logs, log_file)
+        file_path = join(logpath, log_file)
 
         experiment_data = None
         sum_template_score = 0
@@ -229,3 +229,6 @@ if __name__ == "__main__":
 
     dump_csv(experiments)
     dump_json(experiments)
+
+if __name__ == "__main__":
+    eval_logs(config.path_logs)

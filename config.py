@@ -1,7 +1,7 @@
 path_output = "E:/experiments/perf_test/" # end with slash /
 # path_osm = "./data/osm_old/" # end with slash /
 path_osm = "E:/experiments/osm_streams/" # end with slash /
-path_logs = "./logs_perf_test/"#"./logs/" # end with slash /
+path_logs = "./logs_perf_test2/"#"./logs/" # end with slash /
 
 proj_map = "+proj=longlat +ellps=bessel +towgs84=598.1,73.7,418.2,0.202,0.045,-2.455,6.7 +no_defs" # Potsdam datum
 proj_sheets = proj_map
@@ -9,6 +9,10 @@ proj_osm = "+proj=longlat +datum=WGS84 +ellps=WGS84 +no_defs" # EPSG:4326#
 proj_out = proj_osm
 
 template_window_size = 30
+
+ransac_max_trials = 100 
+ransac_stop_probability = 0.99
+ransac_random_state = 1337 # only for profiling and validation. default: None
 
 warp_mode_retrieval = "similarity"
 warp_mode_registration = "affine"

@@ -1,0 +1,11 @@
+Wed Mar 31 15:39:19 2021    profiling/profile_100.prf
+
+         339666813 function calls (339205311 primitive calls) in 283.151 seconds
+
+   Ordered by: internal time
+   List reduced from 549 to 1 due to restriction <'_umeyama'>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+    31697    2.014    0.000    9.914    0.000 C:\Users\user\AppData\Local\Programs\Python\Python37\lib\site-packages\skimage\transform\_geometric.py:72(_umeyama)
+
+
