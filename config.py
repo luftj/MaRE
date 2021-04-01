@@ -10,7 +10,7 @@ proj_out = proj_osm
 
 template_window_size = 30
 
-ransac_max_trials = 100 
+ransac_max_trials = 1000
 ransac_stop_probability = 0.99
 ransac_random_state = 1337 # only for profiling and validation. default: None
 

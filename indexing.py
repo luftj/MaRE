@@ -323,7 +323,7 @@ def build_index(rsize=None, restrict_class=None, restrict_range=None):
     # save index to disk
     joblib.dump(sheet_names, "sheets.clf")
     joblib.dump(index_dict, "index.clf", compress=3)
-    joblib.dump(keypoint_dict, "keypoints.clf", compress=3)
+    joblib.dump(keypoint_dict, "keypoints.clf")#, compress=3)
     print("compress and store time: %f s" % (time()-t1))
     # return clf
     return index_dict
@@ -432,7 +432,7 @@ def predict(sample, clf, truth=None):
     prediction_class = prediction[0][0]
     return prediction_class, prediction, match_dict
 
-def predict_annoy(descriptors, sheetsdict, indexpath="index.ann",reference_keypoints = joblib.load("keypoints.clf")):
+def predict_annoy(descriptors, sheetsdict, indexpath="index.ann"):
     u = AnnoyIndex(64, annoydist)
     u.load('index.ann') # super fast, will just mmap the file
     

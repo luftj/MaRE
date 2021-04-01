@@ -81,11 +81,12 @@ if __name__ == "__main__":
     #input_file = "E:/data/deutsches_reich/SLUB/cut/%s.png" % sheet
     # input_file = "E:/data/deutsches_reich/SLUB/cut/raw/%s.bmp" % sheet
     input_file = "E:/data/deutsches_reich/SBB/cut/list.txt"
+    input_file = "E:/data/deutsches_reich/SBB/cut/list_small.txt"
     sheets_file = "data/blattschnitt_dr100_regular.geojson"
-    restrict=20
+    restrict=10
 
     param_to_tune = "ransac_max_trials"
-    possible_values = [50,100,500,1000,3000]
+    possible_values = [1000]
 
     # param_to_tune = "ransac_random_state"
     # possible_values = [1,2,3,4]
@@ -105,11 +106,11 @@ if __name__ == "__main__":
             ### RUN
             from main import process_sheet, process_list
             # from segmentation import load_and_run
-            # cProfile.run('process_list(input_file,sheets_file,5,plot=False,img=False,restrict=restrict)',"profiling/profile_%s.prf" % val)
+            cProfile.run('process_list(input_file,sheets_file,5,plot=False,img=False,restrict=restrict)',"profiling/profile_%s.prf" % val)
             # cProfile.run('process_sheet(input_file,sheets_file,5,plot=False,img=False,number=sheet,restrict=restrict)',"profiling/profile_%s.prf" % val)
             # cProfile.run('load_and_run(input_file,5)',"profile.prf")
 
-            print_profile("profiling/profile_%s.prf" % val,"profiling/pr_out_%s.txt" % val, "_umeyama")
+            print_profile("profiling/profile_%s.prf" % val,"profiling/pr_out_%s.txt" % val)
             total_time, func_ncalls, func_cumtime = read_time_calls("profiling/pr_out_%s.txt" % val)
 
             avg_score = results("profiling/logs_perf_test_%s/" % val, "profiling/results_%s.csv" % val)

@@ -447,7 +447,7 @@ def retrieve_best_match(query_image, bboxdict, processing_size):
     score_list.sort(key=lambda x: x[0], reverse=True)
     return closest_image, closest_bbox, best_dist, score_list, transform_model
 
-def retrieve_best_match_index(query_image, processing_size, sheets_path, restrict_number=100, truth=None):
+def retrieve_best_match_index(query_image, processing_size, sheets_path, restrict_number=100, truth=None, preload_reference=False):
     import joblib
     import indexing
     import find_sheet
@@ -469,15 +469,18 @@ def retrieve_best_match_index(query_image, processing_size, sheets_path, restric
 
     # extract features from query sheet
     keypoints, descriptors_query = indexing.extract_features(query_image_small, first_n=indexing.n_descriptors_query)
-    # set up features as test set
-    # load index from disk
-    clf = joblib.load("index.clf")#"index_KAZE300.clf")
+    
+    if preload_reference:
+        # load index from disk
+        clf = joblib.load("index.clf")#"index_KAZE300.clf")
+        reference_keypoints = joblib.load("keypoints.clf")
+
     sheetsdict = joblib.load("sheets.clf")#"index_KAZE300.clf")
-    reference_keypoints = joblib.load("keypoints.clf")
+
     # classify sheet with index
     print("Retrieving from index...")
     # prediction_class, prediction, match_dict = indexing.predict(descriptors, clf)
-    prediction_class, prediction, _ = indexing.predict_annoy(descriptors_query, sheetsdict, reference_keypoints=reference_keypoints)
+    prediction_class, prediction, _ = indexing.predict_annoy(descriptors_query, sheetsdict)
     prediction=prediction[:restrict_number]
     score_cap = 1#0.4
     # print(prediction)
@@ -521,12 +524,17 @@ def retrieve_best_match_index(query_image, processing_size, sheets_path, restric
         # keypoints_q, keypoints_r = feature_matching_kaze(query_image_small, reference_image_small)
         
         # with precomputed descriptors
-        # create BFMatcher object
-        bf = cv2.BFMatcher(cv2.NORM_L2, crossCheck=True)
+        if preload_reference:
+            kp_reference = reference_keypoints[sheet_name]
+            descriptors_reference = clf[sheet_name]
+        else:
+            descriptors_reference = joblib.load("descriptors/%s.clf" % sheet_name)
+            kp_reference = joblib.load("keypoints/%s.clf" % sheet_name)
+        
         # Match descriptors.
-        matches = bf.match(descriptors_query, clf[sheet_name])
+        bf = cv2.BFMatcher(cv2.NORM_L2, crossCheck=True)
+        matches = bf.match(descriptors_query, descriptors_reference)#clf[sheet_name])
         keypoints_q = [keypoints[x.queryIdx].pt for x in matches]
-        kp_reference = reference_keypoints[sheet_name]
         keypoints_r = [kp_reference[x.trainIdx] for x in matches]
         keypoints_r = [[x-indexing.border_train,y-indexing.border_train] for [x,y] in keypoints_r] # remove border from ref images, as they will not be there for registration
         keypoints_q = np.array(keypoints_q)
