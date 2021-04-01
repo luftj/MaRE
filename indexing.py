@@ -322,8 +322,10 @@ def build_index(rsize=None, restrict_class=None, restrict_range=None):
     # t.save("index.ann")
     # save index to disk
     joblib.dump(sheet_names, "sheets.clf")
-    joblib.dump(index_dict, "index.clf", compress=3)
-    joblib.dump(keypoint_dict, "keypoints.clf")#, compress=3)
+    for sheet, descs in index_dict.items():
+        joblib.dump(descs, "descriptors/%s.clf" % sheet)
+    for sheet, kps in keypoint_dict.items():
+        joblib.dump(kps, "keypoints/%s.clf" % sheet)
     print("compress and store time: %f s" % (time()-t1))
     # return clf
     return index_dict
