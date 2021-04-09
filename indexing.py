@@ -11,6 +11,7 @@ import logging
 
 import segmentation
 import find_sheet, osm
+import config
 
 from annoy import AnnoyIndex
 
@@ -247,7 +248,7 @@ sheet_names = {}
 
 from dask import delayed
 
-def build_index(rsize=None, restrict_class=None, restrict_range=None):
+def build_index(rsize=None, restrict_class=None, restrict_range=None, index_file=config.reference_index_path):
     print("building index...")
     t0 = time()
 
@@ -260,7 +261,7 @@ def build_index(rsize=None, restrict_class=None, restrict_range=None):
     keypoint_dict = {}
 
     t = AnnoyIndex(64, annoydist)
-    t.on_disk_build("index.ann")
+    t.on_disk_build(index_file)
     idx_id = 0
     
     # def calc(bboxes):
@@ -321,11 +322,11 @@ def build_index(rsize=None, restrict_class=None, restrict_range=None):
     t.build(10, n_jobs=-1)
     # t.save("index.ann")
     # save index to disk
-    joblib.dump(sheet_names, "sheets.clf")
+    joblib.dump(sheet_names, config.reference_sheets_path)
     for sheet, descs in index_dict.items():
-        joblib.dump(descs, "descriptors/%s.clf" % sheet)
+        joblib.dump(descs, config.reference_descriptors_folder+"/%s.clf" % sheet)
     for sheet, kps in keypoint_dict.items():
-        joblib.dump(kps, "keypoints/%s.clf" % sheet)
+        joblib.dump(kps,  config.reference_keypoints_folder+"/%s.clf" % sheet)
     print("compress and store time: %f s" % (time()-t1))
     # return clf
     return index_dict
@@ -434,13 +435,13 @@ def predict(sample, clf, truth=None):
     prediction_class = prediction[0][0]
     return prediction_class, prediction, match_dict
 
-def predict_annoy(descriptors, sheetsdict, indexpath="index.ann"):
+def predict_annoy(descriptors, indexpath=config.reference_index_path):
     u = AnnoyIndex(64, annoydist)
-    u.load('index.ann') # super fast, will just mmap the file
+    u.load(indexpath) # super fast, will just mmap the file
     
-    from annoytest import get_sheet_for_id
+    from annoytest import get_sheet_for_id,sheets
 
-    votes = {k:0 for k in sheetsdict.keys()}
+    votes = {k:0 for k in sheets}
     for desc in descriptors:
         # NN_ids = u.get_nns_by_vector(desc, 2) # will find the n nearest neighbors
         NN_ids = u.get_nns_by_vector(desc, 50, include_distances=True) # will find the n nearest neighbors
@@ -454,9 +455,8 @@ def predict_annoy(descriptors, sheetsdict, indexpath="index.ann"):
             else:
                 continue
 
-        NN_names = [get_sheet_for_id(sheetsdict,i) for i in NN_ids]
+        NN_names = [get_sheet_for_id(i) for i in NN_ids]
         # print("truth:",class_label_truth)
-        # print(NN_ids)
         # print("predictions:",NN_names)
         # index_in_pred = NN_names.index(class_label_truth) if class_label_truth in NN_names else -1
         # print("index:", index_in_pred)
@@ -474,7 +474,7 @@ def predict_annoy(descriptors, sheetsdict, indexpath="index.ann"):
 
     return prediction_class, prediction, None
 
-def search_in_index(img_path, class_label_truth, cb_percent=5, clf=None):
+def search_in_index(img_path, class_label_truth, cb_percent=5):
     # u = AnnoyIndex(64, annoydist)
     # u.load('index.ann') # super fast, will just mmap the file
     # load query sheet
@@ -488,12 +488,8 @@ def search_in_index(img_path, class_label_truth, cb_percent=5, clf=None):
     water_mask_small = cv2.resize(water_mask, processing_size, interpolation=cv2.INTER_AREA)
     # extract features from query sheet
     kps, descriptors = extract_features(water_mask_small, first_n=n_descriptors_query)
-    # set up features as test set
-    # load index from disk
-    if not clf:
-        clf = joblib.load("sheets.clf")  
-    
-    prediction_class, prediction, match_dict = predict_annoy(descriptors, clf)
+    # set up features as test set    
+    prediction_class, prediction, match_dict = predict_annoy(descriptors)
 
     # classify sheet with index
     # prediction_class, prediction, _ = predict(descriptors, clf, truth=class_label_truth)
@@ -511,7 +507,7 @@ def search_in_index(img_path, class_label_truth, cb_percent=5, clf=None):
         print("truth not in index")
         return -1
 
-def search_list(list_path, clf=None):
+def search_list(list_path):
     # iterate over all sheets in list
     t0 = time()
     positions = []
@@ -528,7 +524,7 @@ def search_list(list_path, clf=None):
                 if not os.path.isabs(img_path[0]):
                     list_dir = os.path.dirname(list_path) + "/"
                     img_path = os.path.join(list_dir,img_path)
-                pos = search_in_index(img_path, class_label, clf=clf)
+                pos = search_in_index(img_path, class_label)
                 positions.append(pos)
                 labels.append(class_label)
     except KeyboardInterrupt:

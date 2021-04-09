@@ -6,9 +6,9 @@ from math import sqrt
 
 from config import path_logs
 
-def dump_csv(experiments):
+def dump_csv(experiments, resultpath):
     print("writing to file...")
-    with open("eval_result.csv", "w", encoding="utf-8") as eval_fp:
+    with open("%s.csv" % resultpath, "w", encoding="utf-8") as eval_fp:
         # header
         eval_fp.write("ground truth; prediction; ground truth position; georef success; avg time per sheet; times; scores; number of detected keypoints; template scores; registration time; command; percent segmented; mahalanobis; Lowe's test ratio; index rank\n")
 
@@ -18,10 +18,10 @@ def dump_csv(experiments):
                                                                 exp["prediction"],
                                                                 exp["gt_pos"],
                                                                 exp["georef_success"],
-                                                                exp["avg_time"],
-                                                                exp["times"],
-                                                                exp["scores"],
-                                                                exp["num_keypoints"],
+                                                                exp.get("avg_time",-1),
+                                                                exp.get("times",[]),
+                                                                exp.get("scores",[]),
+                                                                exp.get("num_keypoints",-1),
                                                                 exp.get("template_scores","[]"),
                                                                 exp.get("register_time",-1), # might not have been registered
                                                                 exp["command"],
@@ -33,8 +33,8 @@ def dump_csv(experiments):
                 print(e)
                 print("skipping exp for %s" % exp.get("ground_truth",None))
 
-def dump_json(experiments):
-    with open("eval_result.json", "w", encoding="utf-8") as eval_fp:
+def dump_json(experiments,resultpath):
+    with open("%s.json" % resultpath, "w", encoding="utf-8") as eval_fp:
         json.dump(experiments, eval_fp)
 
 def mahalanobis_distance(scores):
@@ -100,7 +100,7 @@ def plot_score_dist(x):
     plt.show()
     exit()
 
-def eval_logs(logpath):
+def eval_logs(logpath, resultpath="eval_result"):
     # plot_score_dist([6, 9, 14, 9, 12, 8, 7, 11, 7, 9, 10, 8, 10, 9, 7, 10, 9, 9, 7, 8, 9])
     # plot_score_dist( [4, 3, 3, 3, 3, 4, 4, 3, 4, 4, 5, 4, 5, 4, 5, 4, 3, 4, 5, 4, 4])
     # plot_score_dist( [8, 9, 7, 6, 5, 11, 5, 8, 11, 9, 15, 5, 7, 7, 6, 6, 4, 6, 8, 5, 7])
@@ -226,9 +226,9 @@ def eval_logs(logpath):
                 experiments[experiment_data["ground_truth"]] = experiment_data
                 print("end for gt", experiment_data["ground_truth"])
 
-
-    dump_csv(experiments)
-    dump_json(experiments)
+    resultpath = resultpath.split(".")[0]
+    dump_csv(experiments, resultpath)
+    dump_json(experiments, resultpath)
 
 if __name__ == "__main__":
-    eval_logs(config.path_logs)
+    eval_logs(path_logs)

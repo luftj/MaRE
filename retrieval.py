@@ -472,35 +472,32 @@ def retrieve_best_match_index(query_image, processing_size, sheets_path, restric
     
     if preload_reference:
         # load index from disk
-        clf = joblib.load("index.clf")#"index_KAZE300.clf")
-        reference_keypoints = joblib.load("keypoints.clf")
-
-    sheetsdict = joblib.load("sheets.clf")#"index_KAZE300.clf")
+        clf = joblib.load(config.reference_descriptors_path)
+        reference_keypoints = joblib.load(config.reference_keypoints_path)
 
     # classify sheet with index
     print("Retrieving from index...")
     # prediction_class, prediction, match_dict = indexing.predict(descriptors, clf)
-    prediction_class, prediction, _ = indexing.predict_annoy(descriptors_query, sheetsdict)
+    prediction_class, prediction, _ = indexing.predict_annoy(descriptors_query)
     prediction=prediction[:restrict_number]
     score_cap = 1#0.4
-    # print(prediction)
     sheet_predictions = [x[0] for x in prediction]
     # sheet_predictions = [x[0] for x in prediction if x[1] < score_cap]
 
     truth_index = sheet_predictions.index(truth) if truth in sheet_predictions else -1
     logging.info("Truth at position %d in index." % truth_index)
     print("Truth at position %d in index." % truth_index)
-    test_ratio = prediction[0][1]/prediction[1][1]
-    logging.info("test ratio between first two indices: %0.2f" % test_ratio)
-    print("test ratio between first two indices: %0.2f" % test_ratio)
+    
+    if truth_index > -1:
+        test_ratio = prediction[0][1]/prediction[1][1]
+        logging.info("test ratio between first two indices: %0.2f" % test_ratio)
+        # print("test ratio between first two indices: %0.2f" % test_ratio)
 
     # don't to spatial verification if we have no chance of getting the correct prediction anyway
     if truth and (truth_index < 0 or truth_index > restrict_number):
         logging.info("verification pointless, skipping sheet")
         print("verification pointless, skipping sheet")
         return None, None, -1, [], None
-
-    # print(len(sheet_predictions))
 
     bboxes = find_sheet.get_ordered_bboxes_from_json(sheets_path, sheet_predictions)
     print("Verifying predictions...")
@@ -528,8 +525,8 @@ def retrieve_best_match_index(query_image, processing_size, sheets_path, restric
             kp_reference = reference_keypoints[sheet_name]
             descriptors_reference = clf[sheet_name]
         else:
-            descriptors_reference = joblib.load("descriptors/%s.clf" % sheet_name)
-            kp_reference = joblib.load("keypoints/%s.clf" % sheet_name)
+            descriptors_reference = joblib.load(config.reference_descriptors_folder+"/%s.clf" % sheet_name)
+            kp_reference = joblib.load(config.reference_keypoints_folder+"/%s.clf" % sheet_name)
         
         # Match descriptors.
         bf = cv2.BFMatcher(cv2.NORM_L2, crossCheck=True)

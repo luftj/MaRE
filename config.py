@@ -1,14 +1,44 @@
 path_output = "E:/experiments/perf_test/" # end with slash /
 # path_osm = "./data/osm_old/" # end with slash /
 path_osm = "E:/experiments/osm_streams/" # end with slash /
-path_logs = "./logs_perf_test2/"#"./logs/" # end with slash /
+path_logs = "./profiling/logs_perf_test_0.99/"#"./logs/" # end with slash /
 
 proj_map = "+proj=longlat +ellps=bessel +towgs84=598.1,73.7,418.2,0.202,0.045,-2.455,6.7 +no_defs" # Potsdam datum
 proj_sheets = proj_map
 proj_osm = "+proj=longlat +datum=WGS84 +ellps=WGS84 +no_defs" # EPSG:4326#
 proj_out = proj_osm
 
+osm_query = """[out:json];
+                (nwr ({{bbox}}) [water=lake]; 
+                way ({{bbox}}) [natural=water] [name]; 
+                way ({{bbox}}) [type=waterway] [name]; 
+                way ({{bbox}}) [waterway=river] [name];
+                way ({{bbox}}) [waterway=canal] [name];
+                way ({{bbox}}) [water=river];
+                way ({{bbox}}) [waterway=stream] [name];
+                way ({{bbox}}) [natural=coastline];
+                );
+                out body;
+                >;
+                out skel qt;"""
+                # way (%s) [waterway=riverbank];
+                # way (%s) [waterway=ditch];
+                # way (%s) [waterway=drain];
+
+force_osm_download = False
+
 template_window_size = 30
+reference_sheets_path = "sheets.clf"
+reference_index_path = "index.ann"
+reference_descriptors_path = "index.clf"
+reference_descriptors_folder = "descriptors"
+reference_keypoints_path = "keypoints.clf"
+reference_keypoints_folder = "keypoints"
+
+segmentation_blurkernel = (19,19)
+segmentation_lowerbound = (0,0,10)
+segmentation_upperbound = (255, 90, 100)#(255,70,80) #(255, 90, 80) # (255, 90, 70)
+segmentation_openingkernel = (0,0)# (11,11)
 
 ransac_max_trials = 1000
 ransac_stop_probability = 0.99

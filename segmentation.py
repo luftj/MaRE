@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 import logging
+import config
 
 def plot_lab_3d(img_cie, rgb_img):
     n_points = 5000
@@ -76,16 +77,15 @@ def extract_blue(img, cb_percent, plot=False):
 
     img_cie = better_cb(img_cie, cb_percent)
 
-    # TODO: adjust kernel sizes to image resolution
-    ksize = (5, 5) 
-    img_cie = cv2.blur(img_cie, ksize)  
+    # adjust kernel sizes to image resolution
+    ksize = config.segmentation_blurkernel
+    if ksize[0] > 1: # only blur with sensible kernel
+        img_cie = cv2.blur(img_cie, ksize)  
 
     l,a,b = cv2.split(img_cie)
 
-    # cv2.imshow("b",cv2.resize(b,(b.shape[1]//2,b.shape[0]//2)))
-
-    lowerBound = (10, 0, 0)
-    upperBound = (255, 90, 100)#(255,70,80) #(255, 90, 80) # (255, 90, 70)
+    lowerBound = config.segmentation_lowerbound
+    upperBound = config.segmentation_upperbound
 
     img_thresh = cv2.inRange(img_cie, lowerBound, upperBound)
 
@@ -93,13 +93,6 @@ def extract_blue(img, cb_percent, plot=False):
     percent_blue_pixels = num_blue_pixels / (img_thresh.shape[0] * img_thresh.shape[1]) * 100
     logging.info("segmented %d pixels, %.2f percent" % (num_blue_pixels, percent_blue_pixels))
 
-    # retm,b_threshold = cv2.threshold(b,5,255,cv2.THRESH_BINARY)
-    # cv2.imshow("b_threshold",cv2.resize(b_threshold,(b_threshold.shape[1]//2,b_threshold.shape[0]//2)))
-    # retm,a_threshold = cv2.threshold(a,5,255,cv2.THRESH_BINARY)
-    # cv2.imshow("a_threshold",cv2.resize(a_threshold,(a_threshold.shape[1]//2,a_threshold.shape[0]//2)))
-
-    # ksize = (3, 3) 
-    # img_thresh = cv2.morphologyEx(img_thresh, cv2.MORPH_ERODE, ksize)
     if plot:
         # print(img[:,:,2].shape)
         # # rgb_img = np.stack([img[:,:,2],img[:,:,1],img[:,:,0]],axis=-1)
@@ -123,28 +116,12 @@ def extract_blue(img, cb_percent, plot=False):
         plot_lab_2d(img_cie,rgb_img)
         exit()
 
-    ksize = (11, 11) 
-    opening = cv2.morphologyEx(img_thresh, cv2.MORPH_OPEN, ksize)
-    # # opening = cv2.morphologyEx(opening, cv2.MORPH_ERODE, ksize)
-    # plt.subplot("121"), plt.imshow(img_thresh)
-    # plt.title('thresh Image'), plt.xticks([]), plt.yticks([])
-    # plt.subplot("122")
-    # plt.imshow(opening)
-    # plt.title('opened Image'), plt.xticks([]), plt.yticks([])
-    # plt.show()
-    # exit()
-    # # cv2.imshow("opening",cv2.resize(opening,(opening.shape[1]//2,opening.shape[0]//2)))
-    img_thresh = opening
-
-    # ksize = (33, 33) 
-    # # closing = cv2.morphologyEx(img_thresh, cv2.MORPH_CLOSE, ksize)
-    # # cv2.imshow("closing",cv2.resize(closing,(closing.shape[1]//2,closing.shape[0]//2)))
-
-    # dilation = cv2.dilate(img_thresh,ksize,iterations = 4)
-    # cv2.imshow("dilation",cv2.resize(dilation,(dilation.shape[1]//2,dilation.shape[0]//2)))
+    ksize = config.segmentation_openingkernel
+    if ksize[0] > 1: # only open when sensible kernel
+        opening = cv2.morphologyEx(img_thresh, cv2.MORPH_OPEN, ksize)
+        img_thresh = opening
 
     return img_thresh
-
 
 def load_and_run(map_path,percent):
     map_img = cv2.imread(map_path) # load map image

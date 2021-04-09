@@ -8,7 +8,7 @@ import logging
 from osmtogeojson import osmtogeojson
 from pyproj import Transformer
 
-from config import path_osm, proj_map, proj_osm, proj_sheets
+from config import path_osm, proj_map, proj_osm, proj_sheets, osm_query, force_osm_download
 
 transform_osm_to_map = Transformer.from_proj(proj_osm, proj_map, skip_equivalent=True, always_xy=True)
 transform_sheet_to_osm = Transformer.from_proj(proj_sheets, proj_osm, skip_equivalent=True, always_xy=True)
@@ -51,34 +51,15 @@ def get_from_osm(bbox=[16.3,54.25,16.834,54.5], url = #"https://overpass.openstr
     minxy = transform_sheet_to_osm.transform(bbox[0], bbox[1]) # reproject lower left bbox corner
     maxxy = transform_sheet_to_osm.transform(bbox[2], bbox[3]) # reproject upper right bbox corner
     bbox = minxy+maxxy
-
     # don't query if we already have the data on disk
-    if os.path.isfile( data_path ):
+    if not force_osm_download and os.path.isfile( data_path ):
         logging.debug("fetching osm data from disk: %s" % data_path)
         with open(data_path, encoding="utf-8") as file:
             json_data = json.load(file)
             return json_data
 
-    
-                # way (%s) [water=river];
-                # way (%s) [waterway=riverbank];
-                # way (%s) [waterway=ditch];
-                # way (%s) [waterway=drain];
-
     sorted_bbox = ",".join(map(str,[bbox[1], bbox[0], bbox[3], bbox[2]]))
-    query = """[out:json];
-                (nwr (%s) [water=lake]; 
-                way (%s) [natural=water] [name]; 
-                way (%s) [type=waterway] [name]; 
-                way (%s) [waterway=river] [name];
-                way (%s) [waterway=canal] [name];
-                way (%s) [water=river];
-                way (%s) [waterway=stream] [name];
-                way (%s) [natural=coastline];
-                );
-                out body;
-                >;
-                out skel qt;""" % ((sorted_bbox,)*8) # ; (._;>;)
+    query = osm_query.replace("{{bbox}}","%s" % sorted_bbox)
     logging.debug("osm query: %s" % query)
 
     while True:
