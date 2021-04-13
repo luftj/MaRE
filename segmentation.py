@@ -72,10 +72,10 @@ def plot_hsv_2d(rgb_img):
     plt.ylabel("V")
     plt.show()
 
-def extract_blue(img, cb_percent, plot=False):
+def extract_blue(img, plot=False):
     img_cie = cv2.cvtColor(img, cv2.COLOR_BGR2Lab)
 
-    img_cie = better_cb(img_cie, cb_percent)
+    img_cie = better_cb(img_cie, config.segmentation_colourbalance_percent)
 
     # adjust kernel sizes to image resolution
     ksize = config.segmentation_blurkernel

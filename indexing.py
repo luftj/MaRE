@@ -189,7 +189,8 @@ patch_size = 30 # relevant for plotting
 detector_dict = {
     "kaze_upright": cv2.KAZE_create(upright=True),
     "akaze_upright": cv2.AKAZE_create(descriptor_type=cv2.AKAZE_DESCRIPTOR_KAZE_UPRIGHT),
-    "surf_upright": cv2.xfeatures2d_SURF.create(upright=1),
+    # "surf_upright": cv2.xfeatures2d_SURF.create(upright=1),
+    # "sift": cv2.SIFT.create(),
     "ski_fast": Skimage_fast_detector(min_dist=5,thresh=0),
     "cv_fast": cv2.FastFeatureDetector.create()
     }
@@ -249,13 +250,9 @@ def restrict_bboxes(sheets_path, target, num):
 
 sheet_names = {}
 
-from dask import delayed
-
-def build_index(restrict_class=None, restrict_range=None, index_file=config.reference_index_path, store_desckp=True):
+def build_index(sheets_path, restrict_class=None, restrict_range=None, store_desckp=True):
     print("building index...")
-    t0 = time()
 
-    sheets_path = "data/blattschnitt_dr100_regular.geojson"
     if restrict_class and restrict_range:
         bboxes = restrict_bboxes(sheets_path, restrict_class, restrict_range)
     else:
@@ -264,7 +261,7 @@ def build_index(restrict_class=None, restrict_range=None, index_file=config.refe
     keypoint_dict = {}
 
     t = AnnoyIndex(config.index_descriptor_length, config.index_annoydist)
-    t.on_disk_build(index_file)
+    t.on_disk_build(config.reference_index_path)
     idx_id = 0
     
     index_dict = {}
@@ -305,20 +302,6 @@ def build_index(restrict_class=None, restrict_range=None, index_file=config.refe
             t.add_item(idx_id, x)
             idx_id += 1
         sheet_names[class_label] = len(descriptors)
-    
-    # index_dictd = delayed(calc)(bboxes)
-    # from dask.diagnostics import ProgressBar
-    # ProgressBar().register()
-    # with ProgressBar():
-    #     index_dict = index_dictd.compute()
-    # for class_label, descriptors in index_dict.items():
-    #     sheet_names[class_label] = len(descriptors)
-    #     for x in descriptors:
-    #         t.add_item(idx_id, x)
-    #         idx_id += 1
-
-    t1 = time()
-    print("building index took %f seconds. %f s per sheet" % (t1-t0,(t1-t0)/len(bboxes)))
 
     t.build(10, n_jobs=-1) # compile index and save to disk
     # save other data to disk to disk
@@ -328,8 +311,6 @@ def build_index(restrict_class=None, restrict_range=None, index_file=config.refe
             joblib.dump(descs, config.reference_descriptors_folder+"/%s.clf" % sheet)
         for sheet, kps in keypoint_dict.items():
             joblib.dump(kps,  config.reference_keypoints_folder+"/%s.clf" % sheet)
-    print("compress and store time: %f s" % (time()-t1))
-    return index_dict
 
 bf = None
 
@@ -435,11 +416,11 @@ def predict(sample, clf, truth=None):
     prediction_class = prediction[0][0]
     return prediction_class, prediction, match_dict
 
-def predict_annoy(descriptors, indexpath=config.reference_index_path):
+def predict_annoy(descriptors):
     u = AnnoyIndex(config.index_descriptor_length, config.index_annoydist)
-    u.load(indexpath) # super fast, will just mmap the file
+    u.load(config.reference_index_path) # super fast, will just mmap the file
     
-    from annoytest import get_sheet_for_id,sheets
+    from annoytest import get_sheet_for_id, sheets
 
     votes = {k:0 for k in sheets}
     for desc in descriptors:
@@ -456,10 +437,7 @@ def predict_annoy(descriptors, indexpath=config.reference_index_path):
                 continue
 
         NN_names = [get_sheet_for_id(i) for i in NN_ids]
-        # print("truth:",class_label_truth)
-        # print("predictions:",NN_names)
-        # index_in_pred = NN_names.index(class_label_truth) if class_label_truth in NN_names else -1
-        # print("index:", index_in_pred)
+        # vote for the nearest neighbours (codebook response)
         for name in NN_names:
             if config.index_voting_scheme == "antiprop":
                 votes[name] += 1/(NN_names.index(name)+1) # antiproportional weighting
@@ -472,29 +450,26 @@ def predict_annoy(descriptors, indexpath=config.reference_index_path):
         return -1
 
     votes = sorted(votes.items(),key=lambda x:x[1], reverse=True)
-    # print(votes)
     # print("truth:",class_label_truth,"index:",[x[0] for x in votes].index(class_label_truth))
-    prediction_class = votes[0][0]
-    prediction = votes
 
-    return prediction_class, prediction, None
+    return votes # most similar prediction is in 0th position
 
-def search_in_index(img_path, class_label_truth, cb_percent=5):
-    # u = AnnoyIndex(config.index_descriptor_length, config.index_annoydist)
-    # u.load('index.ann') # super fast, will just mmap the file
+def search_in_index(img_path, class_label_truth):
+    """ Predict the identity of a single map located at img_path.
+    """
     # load query sheet
     map_img = cv2.imdecode(np.fromfile(img_path, dtype=np.uint8), cv2.IMREAD_UNCHANGED)
     # seegment query sheet
-    water_mask = segmentation.extract_blue(map_img, cb_percent) # extract rivers
+    water_mask = segmentation.extract_blue(map_img) # extract rivers
     # image size for intermediate processing
     processing_size = resize_by_width(map_img.shape, config.index_img_width_query)
     water_mask_small = cv2.resize(water_mask, processing_size, interpolation=cv2.INTER_AREA)
     # extract features from query sheet
     kps, descriptors = extract_features(water_mask_small, first_n=config.index_n_descriptors_query)
     # set up features as test set    
-    prediction_class, prediction, match_dict = predict_annoy(descriptors)
+    prediction = predict_annoy(descriptors)
 
-    # classify sheet with index
+    # classify sheet with BF feature matching
     # prediction_class, prediction, _ = predict(descriptors, clf, truth=class_label_truth)
     
     # probabilities = list(zip(clf.classes_,prediction[0]))
@@ -503,7 +478,7 @@ def search_in_index(img_path, class_label_truth, cb_percent=5):
     # print(probabilities)
     try:
         gt_index = [x[0] for x in prediction].index(class_label_truth)
-        print("Prediction", prediction_class, "Truth at index", gt_index)
+        print("Prediction", prediction[0][0], "Truth at index", gt_index)
         # print("Prediction score %.3f Truth score %.3f" % (prediction[0][1], prediction[gt_index][1]))
         return gt_index
     except:
@@ -541,17 +516,16 @@ def search_list(list_path):
 
 if __name__ == "__main__":
     if rebuild_index:
-        clf = build_index()#restrict_class="524", restrict_range=200)
-
+        sheets_path_reference = "data/blattschnitt_dr100_regular.geojson"
+        build_index(sheets_path_reference)
 
     # img_path = "E:/data/deutsches_reich/SBB/cut/SBB_IIIC_Kart_L 1330_Blatt 343_von_1925.tif"
     # ret = search_in_index(img_path, "343")
     # print(ret)
-    # exit()
 
     list_path = "E:/data/deutsches_reich/SBB/cut/list.txt"
     # list_path = "E:/data/deutsches_reich/SLUB/cut/list_160_320.txt"
-    lps = search_list(list_path)#, clf=clf)
+    lps = search_list(list_path)
 
     with open("index_result.csv","w") as fp:
         for l,p in lps:

@@ -37,7 +37,7 @@ def restrict__bboxes(sheets_path, target, num):
     restricted_bboxes = dict(list(bboxdict.items())[start:end])
     return restricted_bboxes
 
-def process_sheet(img_path, sheets_path, cb_percent, plot=False, img=True, number=None, restrict=None, resize=None, rsize=None, crop=False):
+def process_sheet(img_path, sheets_path, plot=False, img=True, number=None, restrict=None, resize=None, rsize=None, crop=False):
     logging.info("Processing file %s with gt: %s" % (img_path,number))
     print("Processing file %s with gt: %s" % (img_path,number))
 
@@ -53,7 +53,7 @@ def process_sheet(img_path, sheets_path, cb_percent, plot=False, img=True, numbe
         target_size = resize_by_width(map_img.shape, resize)
         map_img = cv2.resize(map_img, target_size, cv2.INTER_AREA if target_size[0] < map_img.shape[1] else cv2.INTER_CUBIC) # area interpolation for downisizing, cubic upscaling
 
-    water_mask = segmentation.extract_blue(map_img, cb_percent) # extract rivers
+    water_mask = segmentation.extract_blue(map_img) # extract rivers
 
     # image size for intermediate processing
     processing_size = resize_by_width(map_img.shape, rsize if rsize else 500)
@@ -104,9 +104,15 @@ def process_sheet(img_path, sheets_path, cb_percent, plot=False, img=True, numbe
 
         # align map image
         try:
-            # map_img_aligned, border = registration.align_map_image(map_img, water_mask, closest_image, processing_size, crop) # ECC only
-            map_img_aligned, border = registration.align_map_image(map_img, water_mask, closest_image, processing_size, crop, transform_model) # ECC with RANSAC prior
-            # map_img_aligned_ransac, border_ransac = registration.align_map_image_model(map_img, water_mask, closest_image, transform_model, processing_size, crop) # RANSAC only
+            if config.registration_mode == "ransac": # RANSAC only
+                map_img_aligned, border = registration.align_map_image_model(map_img, water_mask, closest_image, transform_model, processing_size, crop)
+            elif config.registration_mode == "ecc": # ECC only
+                map_img_aligned, border = registration.align_map_image(map_img, water_mask, closest_image, processing_size, crop)
+            elif config.registration_mode == "both": # ECC with RANSAC prior
+                map_img_aligned, border = registration.align_map_image(map_img, water_mask, closest_image, processing_size, crop, transform_model)
+            else:
+                raise NotImplementedError("registration mode %s not implemented" % config.registration_mode)
+            
         except cv2.error as e:
             logging.warning("%s - could not register %s with prediction %s!" % (e, img_path, sheet_name))
             eval_entry = ["pred:%s gt:%s dist %d gt ar pos %d" % (sheet_name,number,dist,truth_pos),"registration: fail","correct: no"]
@@ -120,10 +126,8 @@ def process_sheet(img_path, sheets_path, cb_percent, plot=False, img=True, numbe
 
         # save aligned map image
         aligned_map_path = config.path_output + "aligned_%s_%s.jpg" % (sheet_name, "-".join(map(str,closest_bbox)))
-        aligned_map_path_ransac = config.path_output + "aligned_%s_%s_ransac.jpg" % (sheet_name, "-".join(map(str,closest_bbox)))
         logging.info("saved aligned image file to: %s" % aligned_map_path)
         cv2.imwrite(aligned_map_path, map_img_aligned, [cv2.IMWRITE_JPEG_QUALITY, config.jpg_compression])
-        # cv2.imwrite(aligned_map_path_ransac, map_img_aligned_ransac, [cv2.IMWRITE_JPEG_QUALITY, config.jpg_compression])
 
         # georeference aligned query image with bounding box
         if crop:
@@ -133,14 +137,13 @@ def process_sheet(img_path, sheets_path, cb_percent, plot=False, img=True, numbe
             outpath = config.path_output + "georef_sheet_%s.%s" % (sheet_name,config. output_file_ending)
             # registration.georeference_gcp(aligned_map_path, outpath, closest_bbox, gcps=border)
             registration.georeference(aligned_map_path, outpath, closest_bbox, border)
-            # registration.georeference(aligned_map_path_ransac, outpath.replace(".jp2","_ransac.jp2"), closest_bbox, border_ransac)
         logging.info("saved georeferenced file to: %s" % outpath)
     
     # eval_entry = ["pred:%s gt:%s dist %d gt ar pos %d" % (sheet_name,number,dist,truth_pos),"registration: fail","correct: no"]
     eval_entry = ["gt: %s pred: %s dist %f"%(number,sheet_name,dist),"gt at pos %d"%truth_pos,"registration: success","correct %r"%(str(number)==str(sheet_name))]
     logging.info("result: %s" % eval_entry)
 
-def process_list(list_path, sheets_path, cb_percent, plot=False, img=True, restrict=None, resize=None, rsize=None, crop=False):
+def process_list(list_path, sheets_path, plot=False, img=True, restrict=None, resize=None, rsize=None, crop=False):
     import os
     list_dir = os.path.dirname(list_path) + "/"
     with open(list_path, encoding="utf-8") as list_file:
@@ -152,7 +155,7 @@ def process_list(list_path, sheets_path, cb_percent, plot=False, img=True, restr
             img_path, ground_truth = line.split(",")
             if not os.path.isabs(img_path[0]):
                 img_path = os.path.join(list_dir,img_path)
-            process_sheet(img_path, sheets_path, cb_percent, plot=plot, img=img, number=str(ground_truth), resize=resize, rsize=rsize, crop=crop, restrict=restrict)
+            process_sheet(img_path, sheets_path, plot=plot, img=img, number=str(ground_truth), resize=resize, rsize=rsize, crop=crop, restrict=restrict)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -167,7 +170,6 @@ if __name__ == "__main__":
     parser.add_argument("-v", help="set this to true to print log info to stdout", action="store_true")
     parser.add_argument("-ll", help="set this to get additional debug logging", action="store_true")
 
-    parser.add_argument("--percent", help="colour balance threshold", default=5, type=int)
     parser.add_argument("--isize", help="resize input image to target width", default=None, type=int)
     parser.add_argument("--rsize", help="resize registration image to target width", default=None, type=int)    
     parser.add_argument("-r", help="restrict search space around ground truth", default=None, type=int)
@@ -189,6 +191,6 @@ if __name__ == "__main__":
     sheets_file = args.sheets
     
     if args.input[-4:] == ".txt":
-        process_list(args.input, sheets_file, args.percent, plot=args.plot, img=(not args.noimg), resize=args.isize, rsize=args.rsize, crop=args.crop, restrict=args.r)
+        process_list(args.input, sheets_file, plot=args.plot, img=(not args.noimg), resize=args.isize, rsize=args.rsize, crop=args.crop, restrict=args.r)
     else:
-        process_sheet(args.input, sheets_file, args.percent, plot=args.plot, img=(not args.noimg), resize=args.isize, rsize=args.rsize, crop=args.crop, number=args.gt, restrict=args.r)
+        process_sheet(args.input, sheets_file, plot=args.plot, img=(not args.noimg), resize=args.isize, rsize=args.rsize, crop=args.crop, number=args.gt, restrict=args.r)

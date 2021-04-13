@@ -473,13 +473,13 @@ def retrieve_best_match_index(query_image, processing_size, sheets_path, restric
     
     if preload_reference:
         # load index from disk
-        clf = joblib.load(config.reference_descriptors_path)
+        reference_descriptors = joblib.load(config.reference_descriptors_path)
         reference_keypoints = joblib.load(config.reference_keypoints_path)
 
     # classify sheet with index
     print("Retrieving from index...")
-    # prediction_class, prediction, match_dict = indexing.predict(descriptors, clf)
-    prediction_class, prediction, _ = indexing.predict_annoy(descriptors_query)
+    # prediction_class, prediction, match_dict = indexing.predict(descriptors, reference_descriptors)
+    prediction_class, prediction = indexing.predict_annoy(descriptors_query)
     prediction=prediction[:restrict_number]
     score_cap = 1#0.4
     # sheet_predictions = [x[0] for x in prediction]
@@ -523,14 +523,14 @@ def retrieve_best_match_index(query_image, processing_size, sheets_path, restric
         # with precomputed descriptors
         if preload_reference:
             kp_reference = reference_keypoints[sheet_name]
-            descriptors_reference = clf[sheet_name]
+            descriptors_reference = reference_descriptors[sheet_name]
         else:
             descriptors_reference = joblib.load(config.reference_descriptors_folder+"/%s.clf" % sheet_name)
             kp_reference = joblib.load(config.reference_keypoints_folder+"/%s.clf" % sheet_name)
         
         # Match descriptors.
         bf = cv2.BFMatcher(cv2.NORM_L2, crossCheck=True)
-        matches = bf.match(descriptors_query, descriptors_reference)#clf[sheet_name])
+        matches = bf.match(descriptors_query, descriptors_reference)#reference_descriptors[sheet_name])
         keypoints_q = [keypoints[x.queryIdx].pt for x in matches]
         keypoints_r = [kp_reference[x.trainIdx] for x in matches]
         keypoints_r = [[x-config.index_border_train,y-config.index_border_train] for [x,y] in keypoints_r] # remove border from ref images, as they will not be there for registration
@@ -546,7 +546,7 @@ def retrieve_best_match_index(query_image, processing_size, sheets_path, restric
         # keypoints_r = []
         # for desc in descriptors_query:
         #     nn = u.get_nns_by_vector(desc, 1)[0]
-        #     keypoints_r.append(get_kp_for_id(clf,reference_keypoints,nn))
+        #     keypoints_r.append(get_kp_for_id(reference_descriptors,reference_keypoints,nn))
         # keypoints_q = [x.pt for x in keypoints]
         # keypoints_q = np.array(keypoints_q)
         # keypoints_r = np.array(keypoints_r)

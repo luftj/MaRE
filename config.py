@@ -42,10 +42,9 @@ index_border_train = 30
 index_annoydist = "euclidean"
 index_n_descriptors_train = 300
 detector = kp_detector = "kaze_upright"
-# possible detectors: "kaze_upright","akaze_upright","surf_upright","ski_fast","cv_fast"
-index_descriptor_length = 64
+# possible detectors: "kaze_upright","akaze_upright","sift","surf_upright","ski_fast","cv_fast"
+index_descriptor_length = 64 # depends on detector!
 
-template_window_size = 30
 reference_sheets_path = "sheets.clf"
 reference_index_path = "index.ann"
 reference_descriptors_path = "index.clf"
@@ -53,6 +52,9 @@ reference_descriptors_folder = "descriptors"
 reference_keypoints_path = "keypoints.clf"
 reference_keypoints_folder = "keypoints"
 
+template_window_size = 30
+
+segmentation_colourbalance_percent = 5
 segmentation_blurkernel = (19,19)
 segmentation_lowerbound = (0,0,10)
 segmentation_upperbound = (255, 90, 100)#(255,70,80) #(255, 90, 80) # (255, 90, 70)
@@ -66,6 +68,8 @@ codebook_response_threshold = 2 # maybe even 1.8
 
 warp_mode_retrieval = "similarity"
 warp_mode_registration = "affine"
+
+registration_mode = "both" # possible: ["ransac","ecc","both"]
 
 gdal_output_options = '-a_srs "' + proj_out + '" -a_nodata 0 -of JP2OpenJPEG -co "QUALITY=5"'# -co "TILED=YES"'# -co "COMPRESS=JPEG" -co "PHOTOMETRIC=YCBCR" '
 # gdal_output_options = '-a_srs EPSG:4326 -a_nodata 0 -of JP2OpenJPEG -co "QUALITY=5"'# -co "TILED=YES"'# -co "COMPRESS=JPEG" -co "PHOTOMETRIC=YCBCR" '
