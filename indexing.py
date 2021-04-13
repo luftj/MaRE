@@ -167,36 +167,39 @@ logging.basicConfig(filename='logs/dump.log', level=logging.INFO) # gimme all yo
 
 plot = False
 
-lowes_test_ratio = None#0.8
+# for feature matching only (not for annoy)
 n_matches = 100
 score_eq = "avg_score" # "num_match"
 norm = cv2.NORM_L2
 cross_check = False
-n_descriptors_query = 500
-img_width_query = 500
-
-if lowes_test_ratio and cross_check:
+if config.index_lowes_test_ratio and cross_check:
     raise ValueError("can't do cross-check with lowe's test")
 
 # the following parameters require rebuilding the index
-rebuild_index = True
-annoydist = "euclidean"
-n_descriptors_train = 300
-img_width_train = 500
-border_train = 30
+rebuild_index = False
+
 # detector = cv2.xfeatures2d_LATCH.create(rotationInvariance=False, half_ssd_size=3)
 # detector = cv2.xfeatures2d_LATCH.create(rotationInvariance=False)
 patch_size = 30 # relevant for plotting
 # detector = Patch_extractor(patch_size_desc=patch_size, minArea=0.15, maxArea=0.9, 
 #                             plot=False, patch_mag = 8.0)
 # detector = Patch_extractor_2(patch_size_desc=patch_size, scale_range=[30,30], minArea=0.1, maxArea=0.8)
-# detector = cv2.xfeatures2d_SURF.create(upright=1)
-# detector = kp_detector = cv2.xfeatures2d_SURF.create(upright=1)
-# detector = kp_detector = cv2.AKAZE_create(descriptor_type=cv2.AKAZE_DESCRIPTOR_KAZE_UPRIGHT)
-detector = kp_detector = cv2.KAZE_create(upright=True)
 # kp_detector = cv2.AgastFeatureDetector.create()
-# kp_detector = cv2.FastFeatureDetector.create()
-# kp_detector = Skimage_fast_detector(min_dist=5,thresh=0)
+
+detector_dict = {
+    "kaze_upright": cv2.KAZE_create(upright=True),
+    "akaze_upright": cv2.AKAZE_create(descriptor_type=cv2.AKAZE_DESCRIPTOR_KAZE_UPRIGHT),
+    "surf_upright": cv2.xfeatures2d_SURF.create(upright=1),
+    "ski_fast": Skimage_fast_detector(min_dist=5,thresh=0),
+    "cv_fast": cv2.FastFeatureDetector.create()
+    }
+
+kp_detector = detector_dict[config.kp_detector]
+
+if config.detector in ["ski_fast","cv_fast"]:
+    raise ValueError("%s detector only detects keypoints, doesn't compute descriptors" % config.detector)
+
+detector = detector_dict[config.detector]
 
 def extract_features(image, first_n=None):
     """Detect and extract features in given image.
@@ -248,7 +251,7 @@ sheet_names = {}
 
 from dask import delayed
 
-def build_index(rsize=None, restrict_class=None, restrict_range=None, index_file=config.reference_index_path):
+def build_index(restrict_class=None, restrict_range=None, index_file=config.reference_index_path, store_desckp=True):
     print("building index...")
     t0 = time()
 
@@ -260,24 +263,22 @@ def build_index(rsize=None, restrict_class=None, restrict_range=None, index_file
 
     keypoint_dict = {}
 
-    t = AnnoyIndex(64, annoydist)
+    t = AnnoyIndex(config.index_descriptor_length, config.index_annoydist)
     t.on_disk_build(index_file)
     idx_id = 0
     
-    # def calc(bboxes):
     index_dict = {}
     progress = progressbar.ProgressBar(maxval=len(bboxes))
     for bbox in progress(bboxes):
-    # for bbox in bboxes:
         rivers_json = osm.get_from_osm(bbox)
         reference_river_image = osm.paint_features(rivers_json, bbox)
 
         # reduce image size for performance with fixed aspect ratio
-        processing_size = resize_by_width(reference_river_image.shape, rsize if rsize else 500)
+        processing_size = resize_by_width(reference_river_image.shape, config.index_img_width_train)
         reference_image_small = cv2.resize(reference_river_image, processing_size, cv2.INTER_AREA)
-        if border_train:
+        if config.index_border_train:
             reference_image_small = cv2.copyMakeBorder(reference_image_small, 
-                                        border_train, border_train, border_train, border_train, 
+                                        config.index_border_train, config.index_border_train, config.index_border_train, config.index_border_train, 
                                         cv2.BORDER_CONSTANT, None, 0)
         # get class label
         class_label = find_sheet.find_name_for_bbox(sheets_path, bbox)
@@ -287,7 +288,7 @@ def build_index(rsize=None, restrict_class=None, restrict_range=None, index_file
 
         # extract features of sheet
         try:
-            keypoints, descriptors = extract_features(reference_image_small, first_n=n_descriptors_train)
+            keypoints, descriptors = extract_features(reference_image_small, first_n=config.index_n_descriptors_train)
         except ValueError as e:
             print(type(e),e)
             print("error in descriptors. skipping sheet", class_label)
@@ -319,16 +320,15 @@ def build_index(rsize=None, restrict_class=None, restrict_range=None, index_file
     t1 = time()
     print("building index took %f seconds. %f s per sheet" % (t1-t0,(t1-t0)/len(bboxes)))
 
-    t.build(10, n_jobs=-1)
-    # t.save("index.ann")
-    # save index to disk
+    t.build(10, n_jobs=-1) # compile index and save to disk
+    # save other data to disk to disk
     joblib.dump(sheet_names, config.reference_sheets_path)
-    for sheet, descs in index_dict.items():
-        joblib.dump(descs, config.reference_descriptors_folder+"/%s.clf" % sheet)
-    for sheet, kps in keypoint_dict.items():
-        joblib.dump(kps,  config.reference_keypoints_folder+"/%s.clf" % sheet)
+    if store_desckp:
+        for sheet, descs in index_dict.items():
+            joblib.dump(descs, config.reference_descriptors_folder+"/%s.clf" % sheet)
+        for sheet, kps in keypoint_dict.items():
+            joblib.dump(kps,  config.reference_keypoints_folder+"/%s.clf" % sheet)
     print("compress and store time: %f s" % (time()-t1))
-    # return clf
     return index_dict
 
 bf = None
@@ -376,7 +376,7 @@ def predict(sample, clf, truth=None):
         #     continue
 
         # Match descriptors.
-        if not lowes_test_ratio:
+        if not config.index_lowes_test_ratio:
             matches = bf.match(sample, clf[label]) # simple matching
         else:
             # Lowe's test ratio refinement
@@ -384,7 +384,7 @@ def predict(sample, clf, truth=None):
             if len(nn_matches[0]) < 2:
                 continue
             matches = []
-            nn_match_ratio = lowes_test_ratio # Nearest neighbor matching ratio
+            nn_match_ratio = config.index_lowes_test_ratio # Nearest neighbor matching ratio
             for m,n in nn_matches:
                 if m.distance < nn_match_ratio * n.distance:
                     matches.append(m)
@@ -436,20 +436,20 @@ def predict(sample, clf, truth=None):
     return prediction_class, prediction, match_dict
 
 def predict_annoy(descriptors, indexpath=config.reference_index_path):
-    u = AnnoyIndex(64, annoydist)
+    u = AnnoyIndex(config.index_descriptor_length, config.index_annoydist)
     u.load(indexpath) # super fast, will just mmap the file
     
     from annoytest import get_sheet_for_id,sheets
 
     votes = {k:0 for k in sheets}
     for desc in descriptors:
-        # NN_ids = u.get_nns_by_vector(desc, 2) # will find the n nearest neighbors
-        NN_ids = u.get_nns_by_vector(desc, 50, include_distances=True) # will find the n nearest neighbors
+        # will find the k nearest neighbors
+        NN_ids = u.get_nns_by_vector(desc, config.index_k_nearest_neighbours, include_distances=True) # will find the n nearest neighbors
         distances = NN_ids[1]
         NN_ids = NN_ids[0]
 
-        if lowes_test_ratio:
-            if min(distances) < lowes_test_ratio * max(distances):
+        if config.index_lowes_test_ratio:
+            if min(distances) < config.index_lowes_test_ratio * max(distances):
                 # good match
                 NN_ids = [NN_ids[0]]
             else:
@@ -461,7 +461,12 @@ def predict_annoy(descriptors, indexpath=config.reference_index_path):
         # index_in_pred = NN_names.index(class_label_truth) if class_label_truth in NN_names else -1
         # print("index:", index_in_pred)
         for name in NN_names:
-            votes[name] += 1/(NN_names.index(name)+1) # antiproportional weighting
+            if config.index_voting_scheme == "antiprop":
+                votes[name] += 1/(NN_names.index(name)+1) # antiproportional weighting
+            else:
+                # todo: allow other voting schemes in config
+                raise NotImplementedError("voting scheme '%s' not implemented" % config.index_voting_scheme)
+                
     if votes == {}:
         print("truth not in index")
         return -1
@@ -475,19 +480,17 @@ def predict_annoy(descriptors, indexpath=config.reference_index_path):
     return prediction_class, prediction, None
 
 def search_in_index(img_path, class_label_truth, cb_percent=5):
-    # u = AnnoyIndex(64, annoydist)
+    # u = AnnoyIndex(config.index_descriptor_length, config.index_annoydist)
     # u.load('index.ann') # super fast, will just mmap the file
     # load query sheet
     map_img = cv2.imdecode(np.fromfile(img_path, dtype=np.uint8), cv2.IMREAD_UNCHANGED)
-    img1 = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
     # seegment query sheet
     water_mask = segmentation.extract_blue(map_img, cb_percent) # extract rivers
     # image size for intermediate processing
-    rsize = img_width_query
-    processing_size = resize_by_width(map_img.shape, rsize if rsize else 500)
+    processing_size = resize_by_width(map_img.shape, config.index_img_width_query)
     water_mask_small = cv2.resize(water_mask, processing_size, interpolation=cv2.INTER_AREA)
     # extract features from query sheet
-    kps, descriptors = extract_features(water_mask_small, first_n=n_descriptors_query)
+    kps, descriptors = extract_features(water_mask_small, first_n=config.index_n_descriptors_query)
     # set up features as test set    
     prediction_class, prediction, match_dict = predict_annoy(descriptors)
 
@@ -538,7 +541,7 @@ def search_list(list_path):
 
 if __name__ == "__main__":
     if rebuild_index:
-        clf = build_index(rsize=img_width_train)#restrict_class="524", restrict_range=200)
+        clf = build_index()#restrict_class="524", restrict_range=200)
 
 
     # img_path = "E:/data/deutsches_reich/SBB/cut/SBB_IIIC_Kart_L 1330_Blatt 343_von_1925.tif"
@@ -546,8 +549,8 @@ if __name__ == "__main__":
     # print(ret)
     # exit()
 
-    # list_path = "E:/data/deutsches_reich/SBB/cut/list.txt"
-    list_path = "E:/data/deutsches_reich/SLUB/cut/list_160_320.txt"
+    list_path = "E:/data/deutsches_reich/SBB/cut/list.txt"
+    # list_path = "E:/data/deutsches_reich/SLUB/cut/list_160_320.txt"
     lps = search_list(list_path)#, clf=clf)
 
     with open("index_result.csv","w") as fp:

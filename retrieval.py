@@ -2,6 +2,7 @@ import numpy as np
 import cv2
 import time
 import logging
+from operator import itemgetter
 
 import osm
 import progressbar
@@ -468,7 +469,7 @@ def retrieve_best_match_index(query_image, processing_size, sheets_path, restric
     query_image_small = cv2.resize(query_image, (width,height), interpolation=cv2.INTER_AREA)
 
     # extract features from query sheet
-    keypoints, descriptors_query = indexing.extract_features(query_image_small, first_n=indexing.n_descriptors_query)
+    keypoints, descriptors_query = indexing.extract_features(query_image_small, first_n=config.index_n_descriptors_query)
     
     if preload_reference:
         # load index from disk
@@ -481,18 +482,17 @@ def retrieve_best_match_index(query_image, processing_size, sheets_path, restric
     prediction_class, prediction, _ = indexing.predict_annoy(descriptors_query)
     prediction=prediction[:restrict_number]
     score_cap = 1#0.4
-    sheet_predictions = [x[0] for x in prediction]
+    # sheet_predictions = [x[0] for x in prediction]
+    sheet_predictions, codebook_response = zip(*prediction)
     # sheet_predictions = [x[0] for x in prediction if x[1] < score_cap]
 
     truth_index = sheet_predictions.index(truth) if truth in sheet_predictions else -1
     logging.info("Truth at position %d in index." % truth_index)
     print("Truth at position %d in index." % truth_index)
+    logging.info("codebook response: %s" % (codebook_response,))
+    ratios = [n1/n for n,n1 in zip(codebook_response,codebook_response[1:])]
+    logging.info("ratios: %s " % (ratios,))
     
-    if truth_index > -1:
-        test_ratio = prediction[0][1]/prediction[1][1]
-        logging.info("test ratio between first two indices: %0.2f" % test_ratio)
-        # print("test ratio between first two indices: %0.2f" % test_ratio)
-
     # don't to spatial verification if we have no chance of getting the correct prediction anyway
     if truth and (truth_index < 0 or truth_index > restrict_number):
         logging.info("verification pointless, skipping sheet")
@@ -516,7 +516,7 @@ def retrieve_best_match_index(query_image, processing_size, sheets_path, restric
         # # reduce image size for performance with fixed aspect ratio
         # reference_image_small = cv2.resize(reference_river_image, (width, height))
         # reference_image_small = cv2.copyMakeBorder(reference_image_small, 
-        #                                 indexing.border_train, indexing.border_train, indexing.border_train, indexing.border_train, 
+        #                                 config.index_border_train, config.index_border_train, config.index_border_train, config.index_border_train, 
         #                                 cv2.BORDER_CONSTANT, None, 0)
         # keypoints_q, keypoints_r = feature_matching_kaze(query_image_small, reference_image_small)
         
@@ -533,7 +533,7 @@ def retrieve_best_match_index(query_image, processing_size, sheets_path, restric
         matches = bf.match(descriptors_query, descriptors_reference)#clf[sheet_name])
         keypoints_q = [keypoints[x.queryIdx].pt for x in matches]
         keypoints_r = [kp_reference[x.trainIdx] for x in matches]
-        keypoints_r = [[x-indexing.border_train,y-indexing.border_train] for [x,y] in keypoints_r] # remove border from ref images, as they will not be there for registration
+        keypoints_r = [[x-config.index_border_train,y-config.index_border_train] for [x,y] in keypoints_r] # remove border from ref images, as they will not be there for registration
         keypoints_q = np.array(keypoints_q)
         keypoints_r = np.array(keypoints_r)
         
@@ -568,15 +568,21 @@ def retrieve_best_match_index(query_image, processing_size, sheets_path, restric
         #     break # todo: should reflect how recent the change is, e.g. probability for better solution smaller than threshold, or maha didn't change for n sheets
         
         # early termination when correct sheet was already likely detected by unverified index rank
-        if test_ratio > 2:
-            logging.info("breaking spatial verification because of testratio " + ("correctly" if truth_index==0 else "wrongly"))
-            print("breaking spatial verification because of testratio " + ("correctly" if truth_index==0 else "wrongly"))
-            break
+        if idx < len(bboxes)-1:
+            test_ratio = codebook_response[idx]/codebook_response[idx+1]
+            # logging.info("test ratio between this and next index: %0.2f" % test_ratio)
+            # print("test ratio between this and next index: %0.2f" % test_ratio)
+            # print("test ratio between first two indices: %0.2f" % test_ratio)
+            if test_ratio > config.codebook_response_threshold:
+                # if this sheet has a significantly higher CB response than the next, the remaining are probably just noise
+                logging.info("breaking spatial verification because of testratio " + ("correctly" if truth_index <= idx else "wrongly"))
+                print("breaking spatial verification because of testratio " + ("correctly" if truth_index <= idx else "wrongly"))
+                break
 
     end_time = time.time()
     logging.info("total time spent: %f" % (end_time - start_time))
     logging.info("avg time spent: %f" % ((end_time - start_time)/len(bboxes)))
-    score_list.sort(key=lambda x: x[0], reverse=True)
+    score_list.sort(key=itemgetter(0), reverse=True)
     # best_sheet = find_sheet.find_name_for_bbox(sheets_path, closest_bbox)
     print("predicted sheet: %s" % best_sheet)
     rivers_json = osm.get_from_osm(closest_bbox)
