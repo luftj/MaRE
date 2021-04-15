@@ -189,7 +189,7 @@ patch_size = 30 # relevant for plotting
 detector_dict = {
     "kaze_upright": cv2.KAZE_create(upright=True),
     "akaze_upright": cv2.AKAZE_create(descriptor_type=cv2.AKAZE_DESCRIPTOR_KAZE_UPRIGHT),
-    # "surf_upright": cv2.xfeatures2d_SURF.create(upright=1),
+    "surf_upright": cv2.xfeatures2d_SURF.create(upright=1),
     # "sift": cv2.SIFT.create(),
     "ski_fast": Skimage_fast_detector(min_dist=5,thresh=0),
     "cv_fast": cv2.FastFeatureDetector.create()
@@ -211,17 +211,16 @@ def extract_features(image, first_n=None):
 
     Returns a list of keypoints and a list of descriptors """
 
-    if first_n:
-        kps = kp_detector.detect(image)
-        kps = sorted(kps, key=lambda x: x.response, reverse=True)[:first_n]
-        
-        kps, dsc = detector.compute(image, kps)  # prefer cv2.detectAndCompute instead, is faster
+    if detector == kp_detector:
+        kps, dsc = detector.detectAndCompute(image, None)
     else:
-        if detector == kp_detector:
-            kps, dsc = detector.detectAndCompute(image, None)
-        else:
-            kps = kp_detector.detect(image)
-            kps, dsc = detector.compute(image, kps)
+        kps = kp_detector.detect(image)
+        kps, dsc = detector.compute(image, kps)
+    
+    if first_n:
+        kd = zip(kps,dsc)
+        kd = sorted(kd, key=lambda x: x[0].response, reverse=True)[:first_n]
+        kps, dsc = zip(*kd) # unzip
 
     if plot:
         vis_img1 = None
@@ -259,7 +258,6 @@ def build_index(sheets_path, restrict_class=None, restrict_range=None, store_des
         bboxes = find_sheet.get_bboxes_from_json(sheets_path)
 
     keypoint_dict = {}
-
     t = AnnoyIndex(config.index_descriptor_length, config.index_annoydist)
     t.on_disk_build(config.reference_index_path)
     idx_id = 0
@@ -303,7 +301,7 @@ def build_index(sheets_path, restrict_class=None, restrict_range=None, store_des
             idx_id += 1
         sheet_names[class_label] = len(descriptors)
 
-    t.build(10, n_jobs=-1) # compile index and save to disk
+    t.build(config.index_num_trees, n_jobs=-1) # compile index and save to disk
     # save other data to disk to disk
     joblib.dump(sheet_names, config.reference_sheets_path)
     if store_desckp:
@@ -419,7 +417,6 @@ def predict(sample, clf, truth=None):
 def predict_annoy(descriptors):
     u = AnnoyIndex(config.index_descriptor_length, config.index_annoydist)
     u.load(config.reference_index_path) # super fast, will just mmap the file
-    
     from annoytest import get_sheet_for_id, sheets
 
     votes = {k:0 for k in sheets}
@@ -455,7 +452,8 @@ def predict_annoy(descriptors):
     return votes # most similar prediction is in 0th position
 
 def search_in_index(img_path, class_label_truth):
-    """ Predict the identity of a single map located at img_path.
+    """
+    Predict the identity of a single map located at img_path.
     """
     # load query sheet
     map_img = cv2.imdecode(np.fromfile(img_path, dtype=np.uint8), cv2.IMREAD_UNCHANGED)
@@ -487,34 +485,65 @@ def search_in_index(img_path, class_label_truth):
 
 def search_list(list_path):
     # iterate over all sheets in list
-    t0 = time()
     positions = []
     labels = []
-    try:
-        with open(list_path, encoding="utf-8") as list_file:
-            for line in list_file:
-                line = line.strip()
-                print(line)
-                if not "," in line:
-                    print("skipping line: no ground truth given %s" % line)
-                    continue
-                img_path, class_label = line.split(",")
-                if not os.path.isabs(img_path[0]):
-                    list_dir = os.path.dirname(list_path) + "/"
-                    img_path = os.path.join(list_dir,img_path)
-                pos = search_in_index(img_path, class_label)
-                positions.append(pos)
-                labels.append(class_label)
-    except KeyboardInterrupt:
-        pass
-    finally:
-        t1 = time()
-        if len(positions) > 0:
-            print("searching list took %f seconds. %f s per sheet" % (t1-t0,(t1-t0)/len(positions)))
-            print(positions)
+
+    with open(list_path, encoding="utf-8") as list_file:
+        for line in list_file:
+            line = line.strip()
+            print(line)
+            if not "," in line:
+                print("skipping line: no ground truth given %s" % line)
+                continue
+            img_path, class_label = line.split(",")
+            if not os.path.isabs(img_path[0]):
+                list_dir = os.path.dirname(list_path) + "/"
+                img_path = os.path.join(list_dir,img_path)
+            pos = search_in_index(img_path, class_label)
+            positions.append(pos)
+            labels.append(class_label)
+    
     return zip(labels,positions)
 
+def profile_index_building():
+    # profile index building
+    import cProfile, pstats
+    from pstats import SortKey
+    sheets_path_reference = "data/blattschnitt_dr100_regular.geojson"
+    prf_file = "profile_indexbuild.prf"
+    # change paths in config
+    config.reference_sheets_path = "profiling/sheets.clf"
+    config.reference_index_path  = "profiling/index.ann"
+    cProfile.run('build_index("%s", store_desckp=False)' % sheets_path_reference, prf_file)
+
+    p = pstats.Stats(prf_file)
+    # p.print_stats()
+    # p.sort_stats(-1).print_stats()
+    # p.sort_stats(SortKey.NAME)
+    p.sort_stats(SortKey.CUMULATIVE).print_stats(30)
+    # p.sort_stats(SortKey.TIME).print_stats(30)
+    # p.sort_stats(SortKey.TIME).print_stats(function_of_interest)
+    # p.print_callers(1,"sort")
+
+def reproject_all_osm():
+    osm_path = config.path_osm
+    outpath = config.path_osm[:-1]+"_reproj/"
+    os.makedirs(outpath, exist_ok=True)
+    t0 = time()
+    for osm_file in os.listdir(osm_path):
+        in_file = osm_path + osm_file
+        out_file = outpath + osm_file
+        command = 'ogr2ogr -f "GeoJSON" %s %s -s_srs "%s" -t_srs "%s"' % (out_file, in_file, config.proj_osm, config.proj_map)
+        os.system(command)
+    t1 = time()
+    print("time for convert: %f" % (t1-t0))
+
 if __name__ == "__main__":
+    # reproject_all_osm()
+    # exit()
+    profile_index_building()
+    exit()
+
     if rebuild_index:
         sheets_path_reference = "data/blattschnitt_dr100_regular.geojson"
         build_index(sheets_path_reference)

@@ -1,5 +1,6 @@
 path_output = "E:/experiments/perf_test/" # end with slash /
 # path_osm = "./data/osm_old/" # end with slash /
+# path_osm = "E:/experiments/osm_drain_reproj/" # end with slash /
 path_osm = "E:/experiments/osm_drain/" # end with slash /
 path_logs = "./logs_evalphase/"#"./logs/" # end with slash /
 
@@ -7,7 +8,13 @@ proj_map = "+proj=longlat +ellps=bessel +towgs84=598.1,73.7,418.2,0.202,0.045,-2
 proj_sheets = proj_map
 proj_osm = "+proj=longlat +datum=WGS84 +ellps=WGS84 +no_defs" # EPSG:4326#
 proj_out = proj_osm
+# proj_osm = proj_map
 
+osm_url = "https://nc.hcu-hamburg.de/api/interpreter"
+#"http://overpass-api.de/api/interpreter"
+#"https://overpass.openstreetmap.ru/api/interpreter"
+#"https://overpass.osm.ch/api/interpreter"
+#"http://overpass-api.de/api/interpreter"
 osm_query = """[out:json];
                 (nwr ({{bbox}}) [water=lake]; 
                 way ({{bbox}}) [natural=water] [name]; 
@@ -44,6 +51,7 @@ index_n_descriptors_train = 300
 detector = kp_detector = "kaze_upright"
 # possible detectors: "kaze_upright","akaze_upright","sift","surf_upright","ski_fast","cv_fast"
 index_descriptor_length = 64 # depends on detector!
+index_num_trees = 10
 
 reference_sheets_path = "sheets.clf"
 reference_index_path = "index.ann"
