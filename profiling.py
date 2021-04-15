@@ -35,7 +35,8 @@ def print_profile(prf_file="profile.prf", outfile=None, function_of_interest="")
     # p.sort_stats(-1).print_stats()
     # p.sort_stats(SortKey.NAME)
     # p.sort_stats(SortKey.CUMULATIVE).print_stats(30)
-    p.sort_stats(SortKey.TIME).print_stats(function_of_interest)
+    p.sort_stats(SortKey.TIME).print_stats(30)
+    # p.sort_stats(SortKey.TIME).print_stats(function_of_interest)
     # p.print_callers(1,"sort")
     if outfile:
         fw.close()
@@ -58,9 +59,11 @@ def results(logpath, results_file):
             rank = int(vals[-1])
             prediction_results[gt] = (rank, max_score)
 
+    scores = [x[1] for x in prediction_results.values()]
+    num_incorrect = scores.count(-1)
     # print("prediction scores (index rank, ransac score)",prediction_results)
-    avg_score = sum([x[1] for x in prediction_results.values()])/len(prediction_results)
-    return avg_score
+    avg_score = sum(scores)/len(prediction_results)
+    return avg_score, num_incorrect
 
 def read_time_calls(prf_file):
     with open(prf_file) as fr:
@@ -81,12 +84,12 @@ if __name__ == "__main__":
     #input_file = "E:/data/deutsches_reich/SLUB/cut/%s.png" % sheet
     # input_file = "E:/data/deutsches_reich/SLUB/cut/raw/%s.bmp" % sheet
     input_file = "E:/data/deutsches_reich/SBB/cut/list.txt"
-    input_file = "E:/data/deutsches_reich/SBB/cut/list_small.txt"
+    # input_file = "E:/data/deutsches_reich/SBB/cut/list_small.txt"
     sheets_file = "data/blattschnitt_dr100_regular.geojson"
-    restrict=10
+    restrict=20
 
     param_to_tune = "ransac_max_trials"
-    possible_values = [1000]
+    possible_values = [50,100,300,500,1000,1500,2000,3000]
 
     # param_to_tune = "ransac_random_state"
     # possible_values = [1,2,3,4]
@@ -106,16 +109,16 @@ if __name__ == "__main__":
             ### RUN
             from main import process_sheet, process_list
             # from segmentation import load_and_run
-            cProfile.run('process_list(input_file,sheets_file,5,plot=False,img=False,restrict=restrict)',"profiling/profile_%s.prf" % val)
+            # cProfile.run('process_list(input_file,sheets_file,5,plot=False,img=False,restrict=restrict)',"profiling/profile_%s.prf" % val)
             # cProfile.run('process_sheet(input_file,sheets_file,5,plot=False,img=False,number=sheet,restrict=restrict)',"profiling/profile_%s.prf" % val)
             # cProfile.run('load_and_run(input_file,5)',"profile.prf")
 
-            print_profile("profiling/profile_%s.prf" % val,"profiling/pr_out_%s.txt" % val)
+            print_profile("profiling/profile_%s.prf" % val,"profiling/pr_out_%s.txt" % val, function_of_interest="_umeyama")
             total_time, func_ncalls, func_cumtime = read_time_calls("profiling/pr_out_%s.txt" % val)
 
-            avg_score = results("profiling/logs_perf_test_%s/" % val, "profiling/results_%s.csv" % val)
+            avg_score, num_incorrect = results("profiling/logs_perf_test_%s/" % val, "profiling/results_%s.csv" % val)
 
-            resultdict = {"value": val, "totaltime": total_time, "ncalls": func_ncalls, "cumtime": func_cumtime, "score": avg_score}
+            resultdict = {"value": val, "totaltime": total_time, "ncalls": func_ncalls, "cumtime": func_cumtime, "score": avg_score, "#wrong": num_incorrect}
             print(resultdict)
             results_compare.append(resultdict)
     finally:
@@ -123,14 +126,16 @@ if __name__ == "__main__":
 
     import matplotlib.pyplot as plt
 
-    # plt.plot(possible_values,[x["ncalls"] for x in results_compare], label="# calls", color="orange")
-    plt.plot(possible_values,[x["totaltime"] for x in results_compare], label="total time", color="orange")
+    # plt.plot(possible_values,[x["ncalls"] for x in results_compare], label="# calls", color="black")
+    plt.plot(possible_values,[x["totaltime"] for x in results_compare], label="total time [s]", color="green")
     # plt.tick_params(axis="y")
     plt.legend(loc="upper left")
+    plt.xlabel(param_to_tune)
     plt.twinx()
     plt.plot(possible_values,[x["score"] for x in results_compare], label="avg. score")
+    plt.plot(possible_values,[x["#wrong"] for x in results_compare], label="# misses")
     # plt.tick_params(axis="y")
     # plt.xticks(range(0,possible_values[-1],50),possible_values)
-    plt.xlabel(param_to_tune)
+    
     plt.legend(loc="upper right")
     plt.show()
