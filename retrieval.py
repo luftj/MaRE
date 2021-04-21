@@ -470,7 +470,8 @@ def retrieve_best_match_index(query_image, processing_size, sheets_path, restric
 
     # extract features from query sheet
     keypoints, descriptors_query = indexing.extract_features(query_image_small, first_n=config.index_n_descriptors_query)
-    
+    descriptors_query = np.asarray(descriptors_query)
+
     if preload_reference:
         # load index from disk
         reference_descriptors = joblib.load(config.reference_descriptors_path)
@@ -479,8 +480,8 @@ def retrieve_best_match_index(query_image, processing_size, sheets_path, restric
     # classify sheet with index
     print("Retrieving from index...")
     # prediction_class, prediction, match_dict = indexing.predict(descriptors, reference_descriptors)
-    prediction_class, prediction = indexing.predict_annoy(descriptors_query)
-    prediction=prediction[:restrict_number]
+    prediction = indexing.predict_annoy(descriptors_query)
+    prediction = prediction[:restrict_number]
     score_cap = 1#0.4
     # sheet_predictions = [x[0] for x in prediction]
     sheet_predictions, codebook_response = zip(*prediction)
@@ -568,7 +569,7 @@ def retrieve_best_match_index(query_image, processing_size, sheets_path, restric
         #     break # todo: should reflect how recent the change is, e.g. probability for better solution smaller than threshold, or maha didn't change for n sheets
         
         # early termination when correct sheet was already likely detected by unverified index rank
-        if idx < len(bboxes)-1:
+        if config.codebook_response_threshold and idx < len(bboxes)-1:
             test_ratio = codebook_response[idx]/codebook_response[idx+1]
             # logging.info("test ratio between this and next index: %0.2f" % test_ratio)
             # print("test ratio between this and next index: %0.2f" % test_ratio)

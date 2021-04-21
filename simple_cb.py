@@ -97,6 +97,10 @@ def better_cb(img, percent=1):
     """Apply Simplest Color Balance algorithm
     Reimplemented based on https://gist.github.com/DavidYKay/9dad6c4ab0d8d7dbf3dc
     thanks to https://gist.github.com/JackDesBwa"""
+
+    if not percent or percent == 0 or percent == 100:
+        return img
+    
     out_channels = []
     cumstops = (
         img.shape[0] * img.shape[1] * percent / 200.0,

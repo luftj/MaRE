@@ -32,7 +32,8 @@ def plot_lab_3d(img_cie, rgb_img):
     ax.set_zlabel("L")
     plt.show()
 
-def plot_lab_2d(img_cie, rgb_img):
+def plot_lab_2d(rgb_img):
+    img_cie = cv2.cvtColor(rgb_img, cv2.COLOR_BGR2LAB)
     n_points = 10000
     pp = np.reshape(img_cie,(img_cie.shape[0]*img_cie.shape[1],3))
     rgbpp = list(np.reshape(rgb_img,(rgb_img.shape[0]*rgb_img.shape[1],3)))
@@ -53,7 +54,7 @@ def plot_lab_2d(img_cie, rgb_img):
     plt.show()
 
 def plot_hsv_2d(rgb_img):
-    img_hsv = cv2.cvtColor(rgb_img, cv2.COLOR_RGB2HSV)
+    img_hsv = cv2.cvtColor(rgb_img, cv2.COLOR_BGR2HSV)
     n_points = 100000
     pp = np.reshape(img_hsv,(img_hsv.shape[0]*img_hsv.shape[1],3))
     rgbpp = list(np.reshape(rgb_img,(rgb_img.shape[0]*rgb_img.shape[1],3)))
@@ -73,21 +74,31 @@ def plot_hsv_2d(rgb_img):
     plt.show()
 
 def extract_blue(img, plot=False):
-    img_cie = cv2.cvtColor(img, cv2.COLOR_BGR2Lab)
+    """Perform colour-based segmentation of an image.
 
-    img_cie = better_cb(img_cie, config.segmentation_colourbalance_percent)
+    Keyword arguments:
+    img -- opencv compatible image (BGR)
+    
+    returns: the segmented image as binary matrix
+    """
+    if config.segmentation_colourspace == "lab":
+        img_converted = cv2.cvtColor(img, cv2.COLOR_BGR2Lab)
+    elif config.segmentation_colourspace == "hsv":
+        img_converted = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+    else:
+        raise NotImplementedError("colour space %s not implemented!" % config.segmentation_colourspace)
+
+    img_converted = better_cb(img_converted, config.segmentation_colourbalance_percent)
 
     # adjust kernel sizes to image resolution
     ksize = config.segmentation_blurkernel
     if ksize[0] > 1: # only blur with sensible kernel
-        img_cie = cv2.blur(img_cie, ksize)  
-
-    l,a,b = cv2.split(img_cie)
+        img_converted = cv2.blur(img_converted, ksize)  
 
     lowerBound = config.segmentation_lowerbound
     upperBound = config.segmentation_upperbound
 
-    img_thresh = cv2.inRange(img_cie, lowerBound, upperBound)
+    img_thresh = cv2.inRange(img_converted, lowerBound, upperBound)
 
     num_blue_pixels = cv2.countNonZero(img_thresh)
     percent_blue_pixels = num_blue_pixels / (img_thresh.shape[0] * img_thresh.shape[1]) * 100
@@ -96,12 +107,12 @@ def extract_blue(img, plot=False):
     if plot:
         # print(img[:,:,2].shape)
         # # rgb_img = np.stack([img[:,:,2],img[:,:,1],img[:,:,0]],axis=-1)
-        rgb_img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        # rgb_img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         # plt.subplot(2,2,1)
         # plt.imshow(rgb_img)
         # plt.title('Original Image'), plt.xticks([]), plt.yticks([])
         # plt.subplot(2,2,2)
-        # plt.imshow(img_cie)
+        # plt.imshow(img_converted)
         # plt.title('LAB Image'), plt.xticks([]), plt.yticks([])
         # plt.subplot(2,2,3)
         # plt.imshow(img_thresh)
@@ -112,21 +123,20 @@ def extract_blue(img, plot=False):
         # plt.legend()
         # plt.show()
 
-        plot_hsv_2d(rgb_img)
-        plot_lab_2d(img_cie,rgb_img)
-        exit()
+        plot_hsv_2d(img)
+        # plot_lab_2d(img)
 
     ksize = config.segmentation_openingkernel
-    if ksize[0] > 1: # only open when sensible kernel
+    if ksize[0] > 1: # only open when a sensible kernel is set
         opening = cv2.morphologyEx(img_thresh, cv2.MORPH_OPEN, ksize)
         img_thresh = opening
 
-    return img_thresh
+    return img_thresh#, img_converted
 
-def load_and_run(map_path,percent):
+def load_and_run(map_path):
     map_img = cv2.imread(map_path) # load map image
     
-    segmented_image = extract_blue(map_img, percent, plot=False)
+    segmented_image = extract_blue(map_img, plot=False)
     return segmented_image
 
 if __name__ == "__main__":
@@ -135,17 +145,19 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("input", help="input file path string")
-    parser.add_argument("--percent", help="colour balancethreshold", default=5, type=int)
     args = parser.parse_args()
     
-    segmented_image = load_and_run(args.input, args.percent)
+    # segmented_image = load_and_run(args.input)
     
+    map_img = cv2.imread(args.input) # load map image
     map_img_rgb = cv2.cvtColor(map_img, cv2.COLOR_BGR2RGB)
-    segmented_image = extract_blue(map_img, args.percent, plot=False)
-    plt.subplot(1, 2, 1)
-    plt.imshow(map_img_rgb)
-    plt.subplot(1, 2, 2)
+    segmented_image,map_img_hsv = extract_blue(map_img, plot=False)
+    ax1 = plt.subplot(1, 3, 1)
+    ax1.imshow(map_img_rgb)
+    ax2 = plt.subplot(1, 3, 2, sharex=ax1, sharey=ax1)
+    ax2.imshow(map_img_hsv)
+    ax3 = plt.subplot(1, 3, 3, sharex=ax1, sharey=ax1)
     plt.gray()
-    plt.imshow(segmented_image)
+    ax3.imshow(segmented_image)
     plt.title("segmented map image")
     plt.show()

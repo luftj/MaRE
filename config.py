@@ -64,6 +64,9 @@ template_window_size = 30
 
 segmentation_colourbalance_percent = 5
 segmentation_blurkernel = (19,19)
+segmentation_colourspace = "lab" # can be ["lab","hsv"]
+# HSV segmentation_lowerbound = (120,  0,  90)
+# HSV segmentation_upperbound = (255, 255, 255)
 segmentation_lowerbound = (0,0,10)
 segmentation_upperbound = (255, 90, 100)#(255,70,80) #(255, 90, 80) # (255, 90, 70)
 segmentation_openingkernel = (0,0)# (11,11)
@@ -72,7 +75,7 @@ ransac_max_trials = 1000
 ransac_stop_probability = 0.99
 ransac_random_state = 1337 # only for profiling and validation. default: None
 
-codebook_response_threshold = 2 # maybe even 1.8
+codebook_response_threshold = 2 # maybe even 1.8 # todo: allow setting to None to disable
 
 warp_mode_retrieval = "similarity"
 warp_mode_registration = "affine"
