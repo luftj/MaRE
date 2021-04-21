@@ -18,9 +18,7 @@ def init():
 
 def results(logpath, results_file):
     from eval_logs import eval_logs
-    # os.system("py -3.7 eval_logs.py > NUL")
-    eval_logs(logpath,results_file)
-    # os.system("mv eval_result.csv %s" % results_file)
+    eval_logs(logpath, results_file)
     prediction_results = {}
     with open(results_file) as fr:
         fr.readline() # skip header
@@ -55,35 +53,36 @@ def save_results(results, path):
 
 def run_experiment(param_to_tune, possible_values, change_param_func):
     input_file = "E:/data/deutsches_reich/SBB/cut/list_med.txt"
+    input_file = "E:/data/deutsches_reich/SLUB/cut/raw/list_20.txt"
     sheets_file = "data/blattschnitt_dr100_regular.geojson"
-    restrict=20
+    restrict=50
 
     results_compare = []
 
-    try:
-        for val in possible_values:
-            config.path_logs = "eval/logs_%s_%s/" % (param_to_tune,val)
+    # try:
+    for val in possible_values:
+        config.path_logs = "eval/logs_%s_%s/" % (param_to_tune,val)
 
-            init()
-            change_param_func(val)
-            ### RUN
-            from main import process_sheet, process_list
-            process_list(input_file,sheets_file,5,plot=False,img=False,restrict=restrict)
-            # process_sheet(input_file,sheets_file,5,plot=False,img=False,number=sheet,restrict=restrict)
+        init()
+        change_param_func(val)
+        ### RUN
+        from main import process_sheet, process_list
+        process_list(input_file,sheets_file,plot=False,img=False,restrict=restrict)
+        # process_sheet(input_file,sheets_file,plot=False,img=False,number=sheet,restrict=restrict)
 
-            avg_score, num_incorrect = results(config.path_logs, "eval/results_%s_%s.csv" % (param_to_tune, val))
+        avg_score, num_incorrect = results(config.path_logs, "eval/results_%s_%s.csv" % (param_to_tune, val))
 
-            resultdict = {"value": val, "score": avg_score, "#wrong": num_incorrect}
-            print(resultdict)
-            results_compare.append(resultdict)
-    except Exception as e:
-        print(e)
-    finally:
-        print(*results_compare, sep="\n")
-        save_results(results_compare,"eval/%s.csv" % param_to_tune)
-        results_compare_sorted = sorted(results_compare, key=lambda x: x["score"], reverse=True)
-        # print(results_compare_sorted)
-        print("best value: %s, with score %f (next best: %f)" % (results_compare_sorted[0]["value"], results_compare_sorted[0]["score"], results_compare_sorted[1]["score"]))
+        resultdict = {"value": val, "score": avg_score, "#wrong": num_incorrect}
+        print(resultdict)
+        results_compare.append(resultdict)
+    # except Exception as e:
+    #     print(e)
+    # finally:
+    print(*results_compare, sep="\n")
+    save_results(results_compare,"eval/%s.csv" % param_to_tune)
+    results_compare_sorted = sorted(results_compare, key=lambda x: x["score"], reverse=True)
+    # print(results_compare_sorted)
+    print("best value: %s, with score %f (next best: %f)" % (results_compare_sorted[0]["value"], results_compare_sorted[0]["score"], results_compare_sorted[1]["score"]))
 
 def test_osm():
     osm_values = {
@@ -144,9 +143,27 @@ def test_segmentation():
     #     config.segmentation_openingkernel = val
     # run_experiment("opening_kernel", opening_values, change_func2)
 
+def test_hsvlab():
+    values = ["hsv","lab"]
+
+    def change_func(val):
+        config.segmentation_colourspace = val
+        config.codebook_response_threshold = False
+        if val=="hsv":
+            # config.segmentation_blurkernel = (9,9)
+            config.segmentation_colourbalance_percent = 3
+            config.segmentation_lowerbound = (120,  0,  90)
+            config.segmentation_upperbound = (255, 255, 255)
+        elif val=="lab":
+            # config.segmentation_blurkernel = (19,19)
+            config.segmentation_colourbalance_percent = 5
+            config.segmentation_lowerbound = (0,0,10)
+            config.segmentation_upperbound = (255, 90, 100)
+    
+    run_experiment("colourspace", values, change_func)
 
 if __name__ == "__main__":
-    # run with $ py -3.7 -m eval_scripts.run_all_geolocation_experiments
+    # run with $ py -3.7 -m eval_scripts.parameter_tuning
 
     # profile index building
     # needs local OSM data, otherwise it takes too long
@@ -155,6 +172,9 @@ if __name__ == "__main__":
     # test_osm()
     
     # test different segmentation parameters
-    test_segmentation()
+    # test_segmentation()
+
+    # test hsv vs lab segmentation
+    test_hsvlab()
 
     print("finished all experiments!")
