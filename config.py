@@ -53,12 +53,12 @@ detector = kp_detector = "kaze_upright"
 index_descriptor_length = 64 # depends on detector!
 index_num_trees = 10
 
-reference_sheets_path = "sheets.clf"
-reference_index_path = "index.ann"
-reference_descriptors_path = "index.clf"
-reference_descriptors_folder = "descriptors"
-reference_keypoints_path = "keypoints.clf"
-reference_keypoints_folder = "keypoints"
+reference_sheets_path = "index/sheets.clf"
+reference_index_path = "index/index.ann"
+reference_descriptors_path = "index/index.clf"
+reference_descriptors_folder = "index/descriptors"
+reference_keypoints_path = "index/keypoints.clf"
+reference_keypoints_folder = "index/keypoints"
 
 template_window_size = 30
 

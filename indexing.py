@@ -510,10 +510,10 @@ def profile_index_building():
     import cProfile, pstats
     from pstats import SortKey
     sheets_path_reference = "data/blattschnitt_dr100_regular.geojson"
-    prf_file = "profile_indexbuild.prf"
+    prf_file = "eval/profiling/profile_indexbuild.prf"
     # change paths in config
-    config.reference_sheets_path = "profiling/sheets.clf"
-    config.reference_index_path  = "profiling/index.ann"
+    config.reference_sheets_path = "eval/profiling/sheets.clf"
+    config.reference_index_path  = "eval/profiling/index.ann"
     cProfile.run('build_index("%s", store_desckp=False)' % sheets_path_reference, prf_file)
 
     p = pstats.Stats(prf_file)
