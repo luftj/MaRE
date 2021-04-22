@@ -14,35 +14,6 @@ transform_osm_to_map = Transformer.from_proj(proj_osm, proj_map, skip_equivalent
 transform_sheet_to_osm = Transformer.from_proj(proj_sheets, proj_osm, skip_equivalent=True, always_xy=True)
 transform_sheet_to_map = Transformer.from_proj(proj_sheets, proj_map, skip_equivalent=True, always_xy=True)
 
-def query_overpass(query):
-    import overpass
-    api = overpass.API()
-    while True:
-        try:
-            result = api.get(query, responseformat="json")
-            break
-        except Exception as e:
-            print("overpass query failed!",e)
-            sleep(10)
-            continue # try again
-    
-    result = as_geojson(result["elements"])
-
-    print("#raw features:",len(result["features"]))
-    # clean up geojson: no empty geometries
-    result["features"] = [ f for f in result["features"] if len(f["geometry"]["coordinates"]) > 0]
-    # filter geojson: no point features
-    result["features"] = [ f for f in result["features"] if f["geometry"]["type"] != "Point"]
-    for feat in result["features"]:
-        if "type" in feat["properties"] and feat["properties"]["type"] == "multipolygon" and feat["geometry"]["coordinates"][0][0] is list:# and (len(feat["geometry"]["coordinates"][0]) > 2 or len(feat["geometry"]["coordinates"][0]) == 1):
-            print("MP, len coord",len(feat["geometry"]["coordinates"][0]))
-            feat["geometry"]["type"] = "MultiPolygon"
-        elif feat["geometry"]["coordinates"][0] == feat["geometry"]["coordinates"][-1]:
-            feat["geometry"]["type"] = "Polygon"
-            feat["geometry"]["coordinates"] = [feat["geometry"]["coordinates"]]
-    print("#line+poly features:",len(result["features"]))
-    return result
-
 def get_from_osm(bbox=[16.3,54.25,16.834,54.5], url = osm_url):
     data_path = path_osm + "rivers_%s.geojson" % "_".join(map(str,bbox))
 

@@ -3,11 +3,15 @@ import cv2
 import time
 import logging
 from operator import itemgetter
+import joblib
 
 import osm
 import progressbar
 
 import config
+import indexing
+import find_sheet
+from eval_logs import mahalanobis_distance
 
 def hist(ax, lbp):
     print("start hists")
@@ -15,148 +19,6 @@ def hist(ax, lbp):
     n_bins = int(lbp.max() + 1)
     return ax.hist(lbp.ravel(), density=True, bins=n_bins, range=(0, n_bins),
                 facecolor='0.5')
-
-def lbp(image):
-    from skimage.transform import rotate
-    from skimage.feature import local_binary_pattern
-    from skimage import data
-    from skimage.color import label2rgb
-    from matplotlib import pyplot as plt
-
-    # settings for LBP
-    radius = 3
-    n_points = 8 * radius
-
-    image = cv2.resize(image,(250,212))
-
-
-    def overlay_labels(image, lbp, labels):
-        mask = np.logical_or.reduce([lbp == each for each in labels])
-        return label2rgb(mask, image=image, bg_label=0, alpha=0.5)
-
-
-    def highlight_bars(bars, indexes):
-        for i in indexes:
-            bars[i].set_facecolor('r')
-
-    lbp = local_binary_pattern(image, n_points, radius)
-    cv2.imshow("lbp",lbp)
-    cv2.waitKey(30)
-
-    # plot histograms of LBP of textures
-    fig, (ax_img, ax_hist) = plt.subplots(nrows=2, ncols=3, figsize=(9, 6))
-    plt.gray()
-
-    titles = ('edge', 'flat', 'corner')
-    w = width = radius - 1
-    edge_labels = range(n_points // 2 - w, n_points // 2 + w + 1)
-    flat_labels = list(range(0, w + 1)) + list(range(n_points - w, n_points + 2))
-    i_14 = n_points // 4            # 1/4th of the histogram
-    i_34 = 3 * (n_points // 4)      # 3/4th of the histogram
-    corner_labels = (list(range(i_14 - w, i_14 + w + 1)) +
-                    list(range(i_34 - w, i_34 + w + 1)))
-
-    label_sets = (edge_labels, flat_labels, corner_labels)
-
-    for ax, labels in zip(ax_img, label_sets):
-        ax.imshow(overlay_labels(image, lbp, labels))
-
-    print("start plots")
-    for ax, labels, name in zip(ax_hist, label_sets, titles):
-        print("a plots")
-        counts, _, bars = hist(ax, lbp)
-        print("b plots")
-        highlight_bars(bars, labels)
-        ax.set_ylim(top=np.max(counts[:-1]))
-        ax.set_xlim(right=n_points + 2)
-        ax.set_title(name)
-
-    ax_hist[0].set_ylabel('Percentage')
-    for ax in ax_img:
-        ax.axis('off')
-
-def compute_hausdorff(query_image, reference_image, dist_fxn="cosine"):
-    from hausdorff import hausdorff_distance
-
-    query_points = cv2.findNonZero(query_image)
-    reference_points = cv2.findNonZero(reference_image)
-    if reference_points is None or len(reference_points) == 0:
-        # empty image
-        return [float("inf")]
-
-    X = np.array([ p[0] for p in query_points])
-    Y = np.array([ p[0] for p in reference_points])
-
-    return  hausdorff_distance(Y, X, distance=dist_fxn)
-
-def feature_matching_brief(img1, img2):
-    from skimage import data
-    from skimage import transform
-    from skimage.feature import (match_descriptors, corner_peaks, corner_harris,
-                                plot_matches, BRIEF)
-    from skimage.color import rgb2gray
-    import matplotlib.pyplot as plt
-
-
-    img1 = cv2.resize(img1,(500,500))
-    img2 = cv2.resize(img2,(500,500))
-
-
-    keypoints1 = corner_peaks(corner_harris(img1), min_distance=5,
-                            threshold_rel=0.1)
-    keypoints2 = corner_peaks(corner_harris(img2), min_distance=5,
-                            threshold_rel=0.1)
-
-    extractor = BRIEF()
-
-    extractor.extract(img1, keypoints1)
-    keypoints1 = keypoints1[extractor.mask]
-    descriptors1 = extractor.descriptors
-
-    extractor.extract(img2, keypoints2)
-    keypoints2 = keypoints2[extractor.mask]
-    descriptors2 = extractor.descriptors
-
-
-    matches12 = match_descriptors(descriptors1, descriptors2, cross_check=True)
-    return len(matches12)
-    
-    # matched_keypoints_1 = keypoints1[matches12[:,0],:]
-    # matched_keypoints_2 = keypoints2[matches12[:,1],:]
-
-    # from skimage.transform import  AffineTransform,SimilarityTransform,EuclideanTransform
-
-    # from skimage.measure import ransac
-
-    # model_robust, inliers = ransac((matched_keypoints_1, matched_keypoints_2), AffineTransform, min_samples=3,
-    #                             residual_threshold=0.2, max_trials=1000)
-    # outliers = inliers == False
-    # print(len(outliers), len(inliers))
-
-    fig, ax = plt.subplots(nrows=1, ncols=1)
-
-    plt.gray()
-
-    plot_matches(ax, img1, img2, keypoints1, keypoints2, matches12)
-    ax.axis('off')
-    ax.set_title("Query Image vs. Reference Image")
-
-    # plt.show()
-
-def compute_similarities(query_image, reference_image):
-    # from skimage.metrics import structural_similarity as ssim
-    # from skimage.metrics import mean_squared_error
-    
-    if cv2.countNonZero(query_image) == 0 or cv2.countNonZero(reference_image) == 0:
-        # empty image
-        return [0]
-    
-    query_image_resized = cv2.resize(query_image,reference_image.shape[::-1])
-    n_matches = feature_matching_brief(query_image_resized,reference_image)
-    
-    # mse = mean_squared_error(query_image_resized, reference_image)
-    # ssim_v = ssim(query_image_resized, reference_image, data_range=reference_image.max() - reference_image.min())
-    return [n_matches]
 
 def detect_corners(image):
     from skimage.feature import corner_harris, corner_fast, corner_subpix, corner_peaks
@@ -234,7 +96,6 @@ def plot_template_matches(keypoints_q, keypoints_r, inliers,query_image, referen
     plt.show()
 
 def template_matching(query_image, reference_image_border, window_size, patch_min_area=0.1, patch_max_area=0.8, plot=False):
-    import cv2
     import dask
 
     keypoints_q = []
@@ -353,8 +214,6 @@ def estimate_transform(keypoints_q, keypoints_r, query_image, reference_image_bo
     return num_inliers, model
 
 def feature_matching_kaze(query_image_small, reference_image_small):
-    import cv2
-
     detector = cv2.KAZE_create(upright=True)
     # kp_query = detector.detect(query_image_small)
     # kp_reference = detector.detect(reference_image_small)
@@ -410,7 +269,6 @@ def retrieve_best_match(query_image, bboxdict, processing_size):
 
     progress = progressbar.ProgressBar(maxval=len(bboxdict))
     for sheet_name,bbox in progress(bboxdict.items()):
-        # sheet_name = sheet_names[idx]
         idx = list(bboxdict.keys()).index(sheet_name)
         time_now = time.time()
         rivers_json = osm.get_from_osm(bbox)
@@ -426,7 +284,6 @@ def retrieve_best_match(query_image, bboxdict, processing_size):
         window_size=config.template_window_size
         # reduce image size for performance with fixed aspect ratio. approx- same size as query, to make tempalte amtching work
         reference_image_small = cv2.resize(reference_river_image, (width-window_size*2, height-window_size*2), interpolation=cv2.INTER_AREA)
-        # reference_image = cv2.resize(reference_image, query_image.shape[::-1])
 
         # make border of window size around reference image, to catch edge cases
         reference_image_border = cv2.copyMakeBorder(reference_image_small, 
@@ -434,7 +291,6 @@ def retrieve_best_match(query_image, bboxdict, processing_size):
                                                     cv2.BORDER_CONSTANT, None, 0)
         keypoints_q, keypoints_r = template_matching(query_image_small, reference_image_border, window_size=window_size)
         num_inliers, transform_model = estimate_transform(keypoints_q, keypoints_r, query_image_small, reference_image_border)
-
 
         score_list.append((num_inliers, sheet_name))
         if closest_image is None or num_inliers > best_dist:
@@ -449,11 +305,6 @@ def retrieve_best_match(query_image, bboxdict, processing_size):
     return closest_image, closest_bbox, best_dist, score_list, transform_model
 
 def retrieve_best_match_index(query_image, processing_size, sheets_path, restrict_number=100, truth=None, preload_reference=False):
-    import joblib
-    import indexing
-    import find_sheet
-    from eval_logs import mahalanobis_distance
-
     width, height = processing_size
     closest_image = None
     closest_bbox = None
@@ -573,7 +424,6 @@ def retrieve_best_match_index(query_image, processing_size, sheets_path, restric
             test_ratio = codebook_response[idx]/codebook_response[idx+1]
             # logging.info("test ratio between this and next index: %0.2f" % test_ratio)
             # print("test ratio between this and next index: %0.2f" % test_ratio)
-            # print("test ratio between first two indices: %0.2f" % test_ratio)
             if test_ratio > config.codebook_response_threshold:
                 # if this sheet has a significantly higher CB response than the next, the remaining are probably just noise
                 logging.info("breaking spatial verification because of testratio " + ("correctly" if truth_index <= idx else "wrongly"))
@@ -581,10 +431,9 @@ def retrieve_best_match_index(query_image, processing_size, sheets_path, restric
                 break
 
     end_time = time.time()
-    logging.info("total time spent: %f" % (end_time - start_time))
-    logging.info("avg time spent: %f" % ((end_time - start_time)/len(bboxes)))
+    logging.info("total time spent for retrieval: %f" % (end_time - start_time))
+    logging.info("avg time spent for retrieval: %f" % ((end_time - start_time)/len(bboxes)))
     score_list.sort(key=itemgetter(0), reverse=True)
-    # best_sheet = find_sheet.find_name_for_bbox(sheets_path, closest_bbox)
     print("predicted sheet: %s" % best_sheet)
     rivers_json = osm.get_from_osm(closest_bbox)
     closest_image = osm.paint_features(rivers_json, bbox)
