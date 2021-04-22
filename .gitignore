@@ -2,6 +2,9 @@ data/osm/*.geojson
 *.tif
 *.qgz
 *.jpg
+*.clf
+*.prf
+*.ann
 
 # Created by https://www.toptal.com/developers/gitignore/api/python
 # Edit at https://www.toptal.com/developers/gitignore?templates=python
