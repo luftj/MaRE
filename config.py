@@ -1,8 +1,8 @@
-path_output = "E:/experiments/perf_test/" # end with slash /
+path_output = "E:/experiments/register_eval/" # end with slash /
 # path_osm = "./data/osm_old/" # end with slash /
 # path_osm = "E:/experiments/osm_drain_reproj/" # end with slash /
 path_osm = "E:/experiments/osm_drain/" # end with slash /
-path_logs = "./logs_evalphase/"#"./logs/" # end with slash /
+path_logs = "E:/experiments/logs_evalphase_register/"#"./logs/" # end with slash /
 
 proj_map = "+proj=longlat +ellps=bessel +towgs84=598.1,73.7,418.2,0.202,0.045,-2.455,6.7 +no_defs" # Potsdam datum
 proj_sheets = proj_map

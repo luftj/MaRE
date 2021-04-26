@@ -22,7 +22,8 @@ from config import path_output, proj_sheets, proj_out
 def match_sheet_name(img_name):
     # s = re.findall(r"(?<=_)[0-9][0-9][0-9a](?=_)",img_name)
     # s = re.findall(r"[0-9][0-9][0-9a](?=_)",img_name)
-    s = re.findall(r"(?<=[\s_])*[0-9]?[0-9][0-9a](?=[_\s])",img_name)
+    # s = re.findall(r"(?<=[\s_])*[0-9]?[0-9][0-9a](?=[_\s])",img_name)
+    s = re.findall(r"(?<=[\s_])[0-9]?[0-9][0-9a](?=[_\s])",img_name)
     s = [e.lstrip('0') for e in s]
     sheet_name = "-".join(s)
     return sheet_name

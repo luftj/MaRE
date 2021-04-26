@@ -314,8 +314,6 @@ def retrieve_best_match_index(query_image, processing_size, sheets_path, restric
 
     score_list = []
 
-    # todo: if restrict number < 0, just return ground truth. this would speed up testing registration only
-
     # reduce image size for performance with fixed aspect ratio
     query_image_small = cv2.resize(query_image, (width,height), interpolation=cv2.INTER_AREA)
 
@@ -328,30 +326,39 @@ def retrieve_best_match_index(query_image, processing_size, sheets_path, restric
         reference_descriptors = joblib.load(config.reference_descriptors_path)
         reference_keypoints = joblib.load(config.reference_keypoints_path)
 
-    # classify sheet with index
-    print("Retrieving from index...")
-    # prediction_class, prediction, match_dict = indexing.predict(descriptors, reference_descriptors)
-    prediction = indexing.predict_annoy(descriptors_query)
-    prediction = prediction[:restrict_number]
-    score_cap = 1#0.4
-    # sheet_predictions = [x[0] for x in prediction]
-    sheet_predictions, codebook_response = zip(*prediction)
-    # sheet_predictions = [x[0] for x in prediction if x[1] < score_cap]
-
-    truth_index = sheet_predictions.index(truth) if truth in sheet_predictions else -1
-    logging.info("Truth at position %d in index." % truth_index)
-    print("Truth at position %d in index." % truth_index)
-    logging.info("codebook response: %s" % (codebook_response,))
-    ratios = [n1/n for n,n1 in zip(codebook_response,codebook_response[1:])]
-    logging.info("ratios: %s " % (ratios,))
     
-    # don't to spatial verification if we have no chance of getting the correct prediction anyway
-    if truth and (truth_index < 0 or truth_index > restrict_number):
-        logging.info("verification pointless, skipping sheet")
-        print("verification pointless, skipping sheet")
-        return None, None, -1, [], None
+    # todo: if restrict number < 0, just return ground truth. this would speed up testing registration only
+    # BUT: this doesn't provide a transform model
+    if restrict_number == 0 and truth:
+        bbox = find_sheet.find_bbox_for_name(sheets_path, truth)
+        bboxes = [bbox]
+        sheet_predictions = [truth]
+    else:
+        # classify sheet with index
+        print("Retrieving from index...")
+        # prediction_class, prediction, match_dict = indexing.predict(descriptors, reference_descriptors)
+        prediction = indexing.predict_annoy(descriptors_query)
+        prediction = prediction[:restrict_number]
+        score_cap = 1#0.4
+        # sheet_predictions = [x[0] for x in prediction]
+        sheet_predictions, codebook_response = zip(*prediction)
+        # sheet_predictions = [x[0] for x in prediction if x[1] < score_cap]
 
-    bboxes = find_sheet.get_ordered_bboxes_from_json(sheets_path, sheet_predictions)
+        truth_index = sheet_predictions.index(truth) if truth in sheet_predictions else -1
+        logging.info("Truth at position %d in index." % truth_index)
+        print("Truth at position %d in index." % truth_index)
+        logging.info("codebook response: %s" % (codebook_response,))
+        ratios = [n1/n for n,n1 in zip(codebook_response,codebook_response[1:])]
+        logging.info("ratios: %s " % (ratios,))
+        
+        # don't to spatial verification if we have no chance of getting the correct prediction anyway
+        if truth and (truth_index < 0 or truth_index > restrict_number):
+            logging.info("verification pointless, skipping sheet")
+            print("verification pointless, skipping sheet")
+            return None, None, -1, [], None
+
+        bboxes = find_sheet.get_ordered_bboxes_from_json(sheets_path, sheet_predictions)
+    
     print("Verifying predictions...")
     progress = progressbar.ProgressBar(maxval=len(bboxes))
     for idx,bbox in progress(enumerate(bboxes)):
