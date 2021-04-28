@@ -1,8 +1,8 @@
-path_output = "E:/experiments/register_eval/" # end with slash /
+path_output = "E:/experiments/register_eval_bordertransform_wiki/" # end with slash /
 # path_osm = "./data/osm_old/" # end with slash /
 # path_osm = "E:/experiments/osm_drain_reproj/" # end with slash /
 path_osm = "E:/experiments/osm_drain/" # end with slash /
-path_logs = "E:/experiments/logs_evalphase_register/"#"./logs/" # end with slash /
+path_logs = "E:/experiments/logs_evalphase_register_bordertransform_wiki/"#"./logs/" # end with slash /
 
 proj_map = "+proj=longlat +ellps=bessel +towgs84=598.1,73.7,418.2,0.202,0.045,-2.455,6.7 +no_defs" # Potsdam datum
 proj_sheets = proj_map
@@ -70,6 +70,7 @@ segmentation_colourspace = "lab" # can be ["lab","hsv"]
 segmentation_lowerbound = (0,0,10)
 segmentation_upperbound = (255, 90, 100)#(255,70,80) #(255, 90, 80) # (255, 90, 70)
 segmentation_openingkernel = (0,0)# (11,11)
+segmentation_closingkernel = (11,11)
 
 ransac_max_trials = 1000
 ransac_stop_probability = 0.99
@@ -82,10 +83,18 @@ warp_mode_registration = "affine"
 
 registration_mode = "both" # possible: ["ransac","ecc","both"]
 
-gdal_output_options = '-a_srs "' + proj_out + '" -a_nodata 0 -of JP2OpenJPEG -co "QUALITY=5"'# -co "TILED=YES"'# -co "COMPRESS=JPEG" -co "PHOTOMETRIC=YCBCR" '
-# gdal_output_options = '-a_srs EPSG:4326 -a_nodata 0 -of JP2OpenJPEG -co "QUALITY=5"'# -co "TILED=YES"'# -co "COMPRESS=JPEG" -co "PHOTOMETRIC=YCBCR" '
+registration_ecc_iterations = 1000 # maximum number of ECC iterations
+registration_ecc_eps = 1e-7 #threshold of the increment in the correlation coefficient between two iterations
 
+# save disk space:
+# gdal_output_options = '-a_srs "' + proj_out + '" -a_nodata 0 -of JP2OpenJPEG -co "QUALITY=5"'# -co "TILED=YES"'# -co "COMPRESS=JPEG" -co "PHOTOMETRIC=YCBCR" '
+# output_file_ending = "jp2" # without dot . # for georeferenced map
 # jpg2k options: https://gdal.org/drivers/raster/jp2openjpeg.html
 # QUALITY defaults to 25
-output_file_ending = "jp2" # without dot .
-jpg_compression = 90 # default 95
+
+# save georeferencing time:
+gdal_output_options = '-a_srs "' + proj_out + '" -a_nodata 0 -of GTiff --config GDAL_CACHEMAX 15000'# -co NUM_THREADS=ALL_CPUS'# -co NUM_THREADS=ALL_CPUS'
+output_file_ending = "tiff"#"jp2" # without dot . # for georeferenced map
+
+# for aligned (not georeferenced) map image
+jpg_compression = None # default 95

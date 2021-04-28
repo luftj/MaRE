@@ -100,7 +100,7 @@ def process_sheet(img_path, sheets_path, plot=False, img=True, number=None, rest
         plt.show()
 
     if img:
-        cv2.imwrite(config.path_output + "refimg_%s_%s.png" % (sheet_name, "-".join(map(str,closest_bbox))), closest_image)
+        # cv2.imwrite(config.path_output + "refimg_%s_%s.png" % (sheet_name, "-".join(map(str,closest_bbox))), closest_image)
 
         # align map image
         try:
@@ -125,16 +125,21 @@ def process_sheet(img_path, sheets_path, plot=False, img=True, number=None, rest
             plt.show()
 
         # save aligned map image
-        aligned_map_path = config.path_output + "aligned_%s_%s.jpg" % (sheet_name, "-".join(map(str,closest_bbox)))
+        aligned_map_path = config.path_output + "aligned_%s_%s" % (sheet_name, "-".join(map(str,closest_bbox)))
+        if config.jpg_compression:
+            aligned_map_path += ".jpg"
+            cv2.imwrite(aligned_map_path, map_img_aligned, [cv2.IMWRITE_JPEG_QUALITY, config.jpg_compression])
+        else:
+            aligned_map_path += ".bmp"
+            cv2.imwrite(aligned_map_path, map_img_aligned)
         logging.info("saved aligned image file to: %s" % aligned_map_path)
-        cv2.imwrite(aligned_map_path, map_img_aligned, [cv2.IMWRITE_JPEG_QUALITY, config.jpg_compression])
 
         # georeference aligned query image with bounding box
         if crop:
-            outpath = config.path_output + "georef_sheet_%s_crop.%s" % (sheet_name,config. output_file_ending)
+            outpath = config.path_output + "georef_sheet_%s_crop.%s" % (sheet_name, config.output_file_ending)
             registration.georeference(aligned_map_path, outpath, closest_bbox)
         else:
-            outpath = config.path_output + "georef_sheet_%s.%s" % (sheet_name,config. output_file_ending)
+            outpath = config.path_output + "georef_sheet_%s.%s" % (sheet_name, config.output_file_ending)
             # registration.georeference_gcp(aligned_map_path, outpath, closest_bbox, gcps=border)
             registration.georeference(aligned_map_path, outpath, closest_bbox, border)
         logging.info("saved georeferenced file to: %s" % outpath)

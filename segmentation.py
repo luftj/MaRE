@@ -130,6 +130,10 @@ def extract_blue(img, plot=False):
     if ksize[0] > 1: # only open when a sensible kernel is set
         opening = cv2.morphologyEx(img_thresh, cv2.MORPH_OPEN, ksize)
         img_thresh = opening
+    
+    ksize = config.segmentation_closingkernel
+    if ksize[0] > 1: # only open when a sensible kernel is set
+        img_thresh = cv2.morphologyEx(img_thresh, cv2.MORPH_CLOSE, config.segmentation_closingkernel)
 
     return img_thresh#, img_converted
 
