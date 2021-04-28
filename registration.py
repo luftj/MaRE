@@ -3,36 +3,34 @@ import numpy as np
 import os
 import logging
 from time import time
+from pyproj import Transformer
 
 import config
 
+transform_sheet_to_out = Transformer.from_proj(config.proj_sheets, config.proj_out, skip_equivalent=True, always_xy=True)
+
 def register_ECC(query_image, reference_image, warp_matrix=None, warp_mode = cv2.MOTION_AFFINE):
-    # taken from https://www.learnopencv.com/image-alignment-ecc-in-opencv-c-python/
+    # adapted from https://www.learnopencv.com/image-alignment-ecc-in-opencv-c-python/
     
     logging.debug("starting registration...")
 
     if warp_matrix is None:
         # Define 2x3 or 3x3 matrices and initialize the matrix to identity
-        if warp_mode == cv2.MOTION_HOMOGRAPHY :
+        if warp_mode == cv2.MOTION_HOMOGRAPHY:
             warp_matrix = np.eye(3, 3, dtype=np.float32)
-        else :
+        else:
             warp_matrix = np.eye(2, 3, dtype=np.float32)
     else:
         if warp_mode != cv2.MOTION_HOMOGRAPHY:
             warp_matrix = np.delete(warp_matrix, (2), axis=0) # drop homogeneous coordinates
 
-    # Specify the number of iterations.
-    number_of_iterations = 7000
+    # Define termination criteria: EPS or max iterations, whatever happens first
+    termination_criteria = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 
+                            config.registration_ecc_iterations,
+                            config.registration_ecc_eps)
 
-    # Specify the threshold of the increment
-    # in the correlation coefficient between two iterations
-    termination_eps = 1e-9
-
-    # Define termination criteria
-    criteria = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, number_of_iterations,  termination_eps)
-
-    # Run the ECC algorithm. The results are stored in warp_matrix.
-    (cc, warp_matrix) = cv2.findTransformECC(reference_image, query_image, warp_matrix, warp_mode, criteria)
+    # Run the ECC algorithm. The resulting transformation is stored in warp_matrix.
+    (cc, warp_matrix) = cv2.findTransformECC(reference_image, query_image, warp_matrix, warp_mode, termination_criteria)
     logging.info("found registration with score: %f" % cc)
 
     return warp_matrix
@@ -47,13 +45,6 @@ def warp(image, warp_matrix, warp_mode = cv2.MOTION_AFFINE):
         im2_aligned = cv2.warpAffine(image, warp_matrix, (sz[1],sz[0]), flags=cv2.INTER_LINEAR + cv2.WARP_INVERSE_MAP)
 
     return im2_aligned
-
-
-from pyproj import Transformer
-
-from config import path_osm, proj_sheets, proj_out, template_window_size
-
-transform_sheet_to_out = Transformer.from_proj(proj_sheets, proj_out, skip_equivalent=True, always_xy=True)
 
 def georeference_gcp(inputfile, outputfile, bbox, gcps):
     time_start = time()
@@ -105,40 +96,14 @@ def georeference(inputfile, outputfile, bbox, border=None):
         for gcp in gcps:
             command += "-gcp %d %d %f %f " % gcp # pixel line easting northing
     
-    command += inputfile + " " + outputfile # " map-with-gcps.tif"
-
+    command += ' "%s" "%s"' % (inputfile, outputfile) # " map-with-gcps.tif"
     logging.debug("gdal command: %s" % command)
     os.system(command)
 
     time_passed = time() - time_start
     logging.info("time: %f s for georeferencing" % time_passed)
 
-def ski_registration(image1, image0):
-    from skimage.transform import warp
-    from skimage.registration import optical_flow_tvl1
-    # --- Compute the optical flow
-    v, u = optical_flow_tvl1(image0, image1)
-
-    # --- Use the estimated optical flow for registration
-
-    nr, nc = image0.shape
-
-    row_coords, col_coords = np.meshgrid(np.arange(nr), np.arange(nc),
-                                        indexing='ij')
-
-    image1_warp = warp(image1, np.array([row_coords + v, col_coords + u]),
-                    mode='nearest')
-    
-    from matplotlib import pyplot as plt
-    plt.subplot("131")
-    plt.imshow(image0)
-    plt.subplot("132")
-    plt.imshow(image1)
-    plt.subplot("133")
-    plt.imshow(image1_warp)
-    plt.show()
-
-def align_map_image(map_image, query_image, reference_image, target_size=(500,500), crop=False, warp_matrix=None):
+def align_map_image(map_image, query_image, reference_image, target_size=(500,500), crop=False, transform_prior=None):
     time_start = time()
 
     logging.info("registration image resolution: %d,%d" % target_size)
@@ -146,13 +111,11 @@ def align_map_image(map_image, query_image, reference_image, target_size=(500,50
     # register query and retrieved reference image for fine alignment
     query_image_small = cv2.resize(query_image, target_size, cv2.INTER_AREA)
     
-    border_size = template_window_size
-    # reference_image_border = cv2.copyMakeBorder(reference_image, border_size,border_size,border_size,border_size, cv2.BORDER_CONSTANT, None, 0)
-    # reference_image_small = cv2.resize(reference_image_border, target_size, cv2.INTER_CUBIC)
+    border_size = config.template_window_size
 
     reference_image = cv2.resize(reference_image, 
-                                    (target_size[0] - border_size*2,#template_window_size*2,
-                                     target_size[1] - border_size*2),#template_window_size*2),
+                                    (target_size[0] - border_size*2,
+                                     target_size[1] - border_size*2),
                                     cv2.INTER_CUBIC)
                                     #cv2.INTER_AREA)
     reference_image_border = cv2.copyMakeBorder(reference_image, 
@@ -169,17 +132,26 @@ def align_map_image(map_image, query_image, reference_image, target_size=(500,50
     else:
         raise NotImplementedError("registration warp mode not supported:", config.warp_mode_registration)
 
+    if not transform_prior is None:
+        # when we pad the reference image (to keep map margins), the transform 
+        # prior from RANSAC doesn't fit anymore. Adjust it with some algebra
+        border_transform = np.eye(3,3,dtype=np.float32)
+        border_transform[0,0] = reference_image_border.shape[1] / reference_image.shape[1]
+        border_transform[1,1] = reference_image_border.shape[0] / reference_image.shape[0]
+        border_transform[0,2] = -border_size
+        border_transform[1,2] = -border_size
+        transform_prior = border_transform @ transform_prior
     # get transformation matrix (map query=source to reference=target)
-    warp_matrix = register_ECC(query_image_small, reference_image_small, warp_matrix=warp_matrix, warp_mode=warp_mode)
-
+    warp_matrix = register_ECC(query_image_small, reference_image_small, warp_matrix=transform_prior, warp_mode=warp_mode)
+    # warp_matrix_small = warp_matrix
     if config.warp_mode_registration != "homography":
         # convert affine parameters to homogeneous coordinates
         warp_matrix = np.vstack([warp_matrix, [0,0,1]])
 
     # scale by factor of target/original size
     scale_mat = np.eye(3,3,dtype=np.float32)
-    scale_mat[0,0] *= map_image.shape[1] / target_size[0] 
-    scale_mat[1,1] *= map_image.shape[0] / target_size[1] 
+    scale_mat[0,0] *= map_image.shape[1] / target_size[0] # x scaling factor
+    scale_mat[1,1] *= map_image.shape[0] / target_size[1] # y scaling factor
 
     warp_matrix = scale_mat @ warp_matrix @ np.linalg.inv(scale_mat) # complete transformation matrix
     
@@ -199,7 +171,72 @@ def align_map_image(map_image, query_image, reference_image, target_size=(500,50
     time_passed = time() - time_start
     logging.info("time: %f s for registration" % time_passed)
 
+    # from matplotlib import pyplot as plt
+    # border_x = border_y = config.template_window_size
+    # ax = plt.subplot("231")
+    # scale_m = np.eye(3,3,dtype=np.float32)
+    # scale_m[0,0] = reference_image_border.shape[1] / reference_image.shape[1]
+    # scale_m[1,1] = reference_image_border.shape[0] / reference_image.shape[0]
+    # translate_mat = np.eye(3,3,dtype=np.float32)
+    # translate_mat[0,2] = -border_size
+    # translate_mat[1,2] = -border_size
+    # ransac_transform_fixed = translate_mat @ scale_m @ transform_prior
+
+    # # ransac_transform_full = scale_mat @ ransac_transform_fixed @ np.linalg.inv(scale_mat) # complete transformation matrix
+    # ransac_transform_full = np.delete(ransac_transform_fixed, (2), axis=0)
+    # ransac_aligned_fixed = warp(query_image_small, ransac_transform_full, warp_mode=warp_mode)
+    # plt.imshow(ransac_aligned_fixed)
+    # y = ransac_aligned_fixed.shape[0]
+    # x = ransac_aligned_fixed.shape[1]
+    # plt.plot([border_size,x-border_x,x-border_x,border_y,border_y], [y-border_y,y-border_y,border_x,border_x,y-border_y], "g", linewidth=1)
+    # ax.set_title("RANSAC fixed")
+    # print("ransac fixed")
+    
+    # ax = plt.subplot("232")
+    # ecc_fixed = register_ECC(query_image_small, reference_image_small, warp_matrix=ransac_transform_fixed, warp_mode=warp_mode)
+    # print("ecc fixed",ecc_fixed)
+    # print(ransac_transform_fixed.shape,ecc_fixed.shape,scale_mat.shape)
+    # # ecc_fixed = np.vstack([ecc_fixed, [0,0,1]])
+    # # ecc_fixed = scale_mat @ ecc_fixed @ np.linalg.inv(scale_mat) # complete transformation matrix
+    # # ecc_fixed = np.delete(ecc_fixed, (2), axis=0)
+    # ecc_img_aligned_fixed = warp(query_image_small, ecc_fixed, warp_mode=warp_mode)
+    # plt.imshow(ecc_img_aligned_fixed)
+    # y = ecc_img_aligned_fixed.shape[0]
+    # x = ecc_img_aligned_fixed.shape[1]
+    # plt.plot([border_size,x-border_x,x-border_x,border_y,border_y], [y-border_y,y-border_y,border_x,border_x,y-border_y], "g", linewidth=1)
+    # ax.set_title("ECC fixed")
+
+    # ax = plt.subplot("233")
+    # ax.set_title("target")
+    # plt.imshow(reference_image_border)
+    # y = reference_image_border.shape[0]
+    # x = reference_image_border.shape[1]
+    # plt.plot([border_size,x-border_x,x-border_x,border_y,border_y], [y-border_y,y-border_y,border_x,border_x,y-border_y], "g", linewidth=1)
+
+    # ax = plt.subplot("234")
+    # # ransac_transform = scale_mat @ transform_prior @ np.linalg.inv(scale_mat) # complete transformation matrix
+    # ransac_transform = np.delete(transform_prior, (2), axis=0)
+    # ransac_aligned = warp(query_image_small, ransac_transform, warp_mode=warp_mode)
+    # plt.imshow(ransac_aligned)
+    # print(ransac_aligned.shape[0])
+    # y = ransac_aligned.shape[0]
+    # x = ransac_aligned.shape[1]
+    # plt.plot([border_size,x-border_x,x-border_x,border_y,border_y], [y-border_y,y-border_y,border_x,border_x,y-border_y], "g", linewidth=1)
+    # ax.set_title("RANSAC")
+
+    # ax = plt.subplot("235")
+    # # warp_matrix_small = np.delete(warp_matrix_small, (2), axis=0)
+    # ecc_img_aligned = warp(query_image_small, warp_matrix_small, warp_mode=warp_mode)
+    # plt.imshow(ecc_img_aligned)
+    # y = ecc_img_aligned.shape[0]
+    # x = ecc_img_aligned.shape[1]
+    # plt.plot([border_size,x-border_x,x-border_x,border_y,border_y], [y-border_y,y-border_y,border_x,border_x,y-border_y], "g", linewidth=1)
+    # ax.set_title("ECC")
+    # plt.show()
+
     if crop:
+        border_x = int(border_x)
+        border_y = int(border_y)
         map_img_aligned = map_img_aligned[border_y:map_img_aligned.shape[0]-border_y, border_x:map_img_aligned.shape[1]-border_x]
         return map_img_aligned, None    
 
@@ -218,7 +255,7 @@ def align_map_image_model(map_image, query_image, reference_image, warp_matrix, 
     scale_mat[2,2] = 1
 
     # corner points of ref image
-    window_size=template_window_size
+    window_size = config.template_window_size
     upleft = np.array([window_size,window_size,1],dtype=np.float32)
     upleft_query = scale_mat @ ((warp_matrix) @ upleft)
     print("corner point",upleft,upleft_query)

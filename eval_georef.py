@@ -3,6 +3,7 @@ import argparse
 import json
 import re
 import os
+import subprocess
 import profile
 import time
 
@@ -17,7 +18,7 @@ from PIL import Image
 
 from find_sheet import find_poly_for_name
 
-from config import path_output, proj_sheets, proj_out
+import config
 
 def match_sheet_name(img_name):
     # s = re.findall(r"(?<=_)[0-9][0-9][0-9a](?=_)",img_name)
@@ -115,7 +116,7 @@ def root_mean_squared_error(points_a, points_b):
     
     return np.sqrt(sum_errors/4)
 
-def warp_images(filenames,inputpath):
+def warp_images(filenames,inputpath,images_path):
     for img_name in filenames:
         print("warping", img_name)
         sheet_name = match_sheet_name(img_name)
@@ -124,13 +125,23 @@ def warp_images(filenames,inputpath):
         im = Image.open(img_path)
         width, height = im.size
 
-        georef_path = path_output + "georef_sheet_%s_warp.tif" % sheet_name
-        command = "gdalwarp -order 1 -t_srs EPSG:4326 -ts %d %d -overwrite %s/georef_sheet_%s.jp2 %s" %(width, height, path_output, sheet_name, georef_path)
+        georef_path = images_path + "georef_sheet_%s_warp.tif" % sheet_name
+
+        command = 'gdalwarp -order 1 -t_srs EPSG:4326 -ts %d %d -overwrite "%s/georef_sheet_%s.%s" "%s"' %(width, height, images_path, sheet_name, config.output_file_ending, georef_path)
         print("exec: %s" % command)
-        os.system(command)
+        # set GDAL_DATA "C:\Program Files\GDAL\gdal-data"
+        # set GDAL_DRIVER_PATH "C:\Program Files\GDAL\gdalplugins"
+        # set PROJ_LIB "C:\Program Files\GDAL\projlib"
+        # set PYTHONPATH "C:\Program Files\GDAL\"
+        subenv = {
+            "PROJ_LIB": "C:\\Users\\user\AppData\Local\Programs\Python\Python37\lib\site-packages\pyproj\proj_dir\share\proj",
+            "GDAL_DATA": "C:\Program Files\GDAL\gdal-data",
+            "PATH": "C:\Program Files\GDAL"
+            }
+        subprocess.run(command, shell=True, env=subenv)
 
 def get_truth_bbox(sheets, sheet_name):
-    transform_sheet_to_out = pyproj.Transformer.from_proj(proj_sheets, proj_out, skip_equivalent=True, always_xy=True)
+    transform_sheet_to_out = pyproj.Transformer.from_proj(config.proj_sheets, config.proj_out, skip_equivalent=True, always_xy=True)
 
     truth_bbox = find_poly_for_name(sheets, sheet_name)
     
@@ -185,7 +196,7 @@ def cascadeCorners(img_path, georef_path, truth_corners, plot, downscale_factor)
     # rescale truth corners to small resolution
     scaled_corners = [ (x * img_small.shape[1]//img.shape[1], y  * img_small.shape[0]//img.shape[0]) for (x,y) in truth_corners]
     # find  corners in small image
-    corner_points = findCorners(img_small, georef_img_small, scaled_corners, template_size=20, plot=args.plot)
+    corner_points = findCorners(img_small, georef_img_small, scaled_corners, template_size=20, plot=plot)
     # rescale found coordinates to original resolution
     corner_points = [ (x * georef_img.shape[1]//georef_img_small.shape[1], y  * georef_img.shape[0]//georef_img_small.shape[0]) for (x,y) in corner_points]
     corner_coords = []
@@ -230,35 +241,17 @@ def cascadeCorners(img_path, georef_path, truth_corners, plot, downscale_factor)
 
     return corner_coords
 
-def dump_csv(sheets_list, mae_list, rmse_list):
+def dump_csv(sheets_list, mae_list, rmse_list, outpath="eval_georef_result.csv"):
     print("writing to file...")
-    with open("eval_georef_result.csv", "w", encoding="utf-8") as eval_fp:
+    with open(outpath, "w", encoding="utf-8") as eval_fp:
         eval_fp.write("sheet name; MAE [m]; RMSE [m]\n") # header
 
         for sheet, mae, rmse in zip(sheets_list, mae_list, rmse_list):
             eval_fp.write("%s; %.2f; %.2f\n" % (sheet, mae, rmse))
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("input", help="input file path string with corner annotations")
-    parser.add_argument("sheets", help="sheets json file path string", default="data/blattschnitt_dr100.geojson")
-    parser.add_argument("--plot", help="set this to true to show debugging plots", action="store_true")
-    parser.add_argument("--nowarp", help="set this to not update warped images", action="store_true")
-    parser.add_argument("--single", help="provide sheet number to test only a single sheet", default=None)
-    parser.add_argument("--ransac", help="...", action="store_true")
-    args = parser.parse_args()
-    # python eval_georef.py /e/data/deutsches_reich/wiki/highres/382.csv data/blattschnitt_dr100_merged_digi.geojson
-    
-    inputpath = os.path.dirname(args.input)
-
-    sheet_corners = read_corner_CSV(args.input)
-    img_list = list(sheet_corners.keys())#[-5:-4]
-
-    if args.single:
-        img_list = [x for x in img_list if match_sheet_name(x)==args.single]
-
-    if not args.nowarp:
-        warp_images(img_list,inputpath) # this has to be done before calculating coords, because proj db breaks
+def eval_list(img_list, sheet_corners, inputpath, sheetsfile, images_path=config.path_output, nowarp=False, plot=False):
+    if not nowarp:
+        warp_images(img_list, inputpath, images_path) # this has to be done before calculating coords, because proj db breaks
 
     error_results = []
     rmse_results = []
@@ -270,24 +263,24 @@ if __name__ == "__main__":
         sheet_name = match_sheet_name(img_name)
 
         img_path = inputpath + "/" + img_name
-        georef_path = path_output + "/georef_sheet_%s_warp.tif" % sheet_name
+        georef_path = images_path + "/georef_sheet_%s_warp.tif" % sheet_name
         
         if not os.path.exists(georef_path):
             print("Couldn't find file for registered sheet %s.\nIt probably failed to get a registration solution" % sheet_name)
             continue
 
         # find corner coordinates of registered image (geo-coordinates)
-        corner_coords = cascadeCorners(img_path, georef_path, sheet_corners[img_name], plot=args.plot, downscale_factor=4)
+        corner_coords = cascadeCorners(img_path, georef_path, sheet_corners[img_name], plot=plot, downscale_factor=6)
 
-        truth_bbox = get_truth_bbox(args.sheets, sheet_name)
+        truth_bbox = get_truth_bbox(sheetsfile, sheet_name)
         mae = mean_absolute_error(corner_coords[0:4], truth_bbox[0:4])
         rmse = root_mean_squared_error(corner_coords[0:4], truth_bbox[0:4])
         # if mae > 2000:
         #     print("mean absolute error: %f m" % mae)
         #     print("root mean squared error: %f m" % rmse)
         #     # maybe a corner wasn't properly detected, try again with full resolution ;)
-        #     corner_coords = cascadeCorners(img_path, georef_path, sheet_corners[img_name], plot=args.plot, downscale_factor=1)
-        #     truth_bbox = get_truth_bbox(args.sheets, sheet_name)
+        #     corner_coords = cascadeCorners(img_path, georef_path, sheet_corners[img_name], plot=plot, downscale_factor=1)
+        #     truth_bbox = get_truth_bbox(sheetsfile, sheet_name)
         #     mae = mean_absolute_error(corner_coords[0:4], truth_bbox[0:4])
         #     rmse = root_mean_squared_error(corner_coords[0:4], truth_bbox[0:4])
         print("mean absolute error: %f m" % mae)
@@ -298,8 +291,30 @@ if __name__ == "__main__":
 
         print("time for image:", time.time() - t0, "s")
 
-        if args.plot:
+        if plot:
             plt.show()
+
+    return sheet_names, error_results, rmse_results
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("input", help="input file path string with corner annotations")
+    parser.add_argument("sheets", help="sheets json file path string", default="data/blattschnitt_dr100.geojson")
+    parser.add_argument("--plot", help="set this to true to show debugging plots", action="store_true")
+    parser.add_argument("--nowarp", help="set this to not update warped images", action="store_true")
+    parser.add_argument("--single", help="provide sheet number to test only a single sheet", default=None)
+    args = parser.parse_args()
+    # python eval_georef.py /e/data/deutsches_reich/wiki/highres/382.csv data/blattschnitt_dr100_merged_digi.geojson
+    
+    inputpath = os.path.dirname(args.input)
+
+    sheet_corners = read_corner_CSV(args.input)
+    img_list = list(sheet_corners.keys())#[-5:-4]
+
+    if args.single:
+        img_list = [x for x in img_list if match_sheet_name(x)==args.single]
+
+    sheet_names, error_results, rmse_results = eval_list(img_list, sheet_corners, args.sheets, inputpath, args.nowarp, args.plot)
     
     total_mean_error = sum(error_results)/len(error_results)
     total_mean_rmse = sum(rmse_results)/len(rmse_results)
@@ -310,31 +325,31 @@ if __name__ == "__main__":
     sheet_names_sorted = [x[0] for x in results_sorted]
     error_sorted = [x[1] for x in results_sorted]
 
-    median_error = error_sorted[len(error_sorted)//2]
-    print("median MAE: %f m" % median_error)
+    median_error_mae = error_sorted[len(error_sorted)//2]
+    print("median MAE: %f m" % median_error_mae)
 
     results_sorted = sorted(zip(sheet_names,rmse_results), key=lambda tup: tup[1])
     sheet_names_sorted = [x[0] for x in results_sorted]
     error_sorted = [x[1] for x in results_sorted]
 
-    median_error = error_sorted[len(error_sorted)//2]
-    print("median RMSE: %f m" % median_error)
+    median_error_rmse = error_sorted[len(error_sorted)//2]
+    print("median RMSE: %f m" % median_error_rmse)
 
     if not args.single:
         dump_csv(sheet_names, error_results, rmse_results)
 
     plt.subplot(2, 1, 1)
     plt.bar(sheet_names_sorted, error_sorted)
-    plt.axhline(total_mean_error, c="g", linestyle="--", label="mean")
-    plt.annotate("%.0f" % total_mean_error,(0,total_mean_error + 100))
-    plt.axhline(median_error, c="r", label="median")
-    plt.annotate("%.0f" % median_error,(0,median_error + 100))
+    plt.axhline(total_mean_rmse, c="g", linestyle="--", label="mean")
+    plt.annotate("%.0f" % total_mean_rmse,(0,total_mean_rmse + 100))
+    plt.axhline(median_error_rmse, c="r", label="median")
+    plt.annotate("%.0f" % median_error_rmse,(0,median_error_rmse + 100))
     plt.legend()
     plt.title("average error per sheet [m]")
     plt.subplot(2, 1, 2)
     plt.title('error distribution total [m]')
     plt.boxplot(error_sorted, vert=False, showmeans=True, medianprops={"color":"r"})
-    plt.axhline(total_mean_error, xmax=0, c="g", label="mean")
-    plt.axhline(median_error, xmax=0, c="r", label="median")
+    plt.axhline(total_mean_rmse, xmax=0, c="g", label="mean")
+    plt.axhline(median_error_rmse, xmax=0, c="r", label="median")
     plt.legend()
     plt.show()
