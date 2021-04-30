@@ -83,7 +83,7 @@ warp_mode_registration = "affine"
 
 registration_mode = "both" # possible: ["ransac","ecc","both"]
 
-registration_ecc_iterations = 1000 # maximum number of ECC iterations
+registration_ecc_iterations = 500 # maximum number of ECC iterations
 registration_ecc_eps = 1e-7 #threshold of the increment in the correlation coefficient between two iterations
 
 # save disk space:

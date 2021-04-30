@@ -162,7 +162,7 @@ def convert_to_cv_keypoint(x, y, size=8.0, octave=1, response=1, angle=0.0):
     k.angle=angle
     return k
 
-
+# todo: change this path according to config, might fail on different configuration (no folder logs)
 logging.basicConfig(filename='logs/dump.log', level=logging.INFO) # gimme all your loggin'!
 
 plot = False
@@ -545,6 +545,7 @@ if __name__ == "__main__":
     exit()
 
     if rebuild_index:
+        # todo: create folders
         sheets_path_reference = "data/blattschnitt_dr100_regular.geojson"
         build_index(sheets_path_reference)
 

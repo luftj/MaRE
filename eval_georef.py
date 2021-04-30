@@ -314,7 +314,7 @@ if __name__ == "__main__":
     if args.single:
         img_list = [x for x in img_list if match_sheet_name(x)==args.single]
 
-    sheet_names, error_results, rmse_results = eval_list(img_list, sheet_corners, args.sheets, inputpath, args.nowarp, args.plot)
+    sheet_names, error_results, rmse_results = eval_list(img_list, sheet_corners, inputpath, args.sheets, inputpath, args.nowarp, args.plot)
     
     total_mean_error = sum(error_results)/len(error_results)
     total_mean_rmse = sum(rmse_results)/len(rmse_results)

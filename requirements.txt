@@ -1,9 +1,13 @@
+# prerequisites
+cython
+
 # general
+numpy
 #opencv-python  #opencv-python            3.4.3.18
 opencv-contrib-python==3.4.2.17
 argparse
 pyproj
-skimage
+scikit-image
 progressbar
 dask[delayed]
 # hausdorff
@@ -18,6 +22,7 @@ osmtogeojson
 # indexing
 joblib
 extract_patches
+annoy
 
-# unclear if needed
-numpy
+# eval
+rasterio
