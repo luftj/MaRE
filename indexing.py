@@ -162,8 +162,7 @@ def convert_to_cv_keypoint(x, y, size=8.0, octave=1, response=1, angle=0.0):
     k.angle=angle
     return k
 
-# todo: change this path according to config, might fail on different configuration (no folder logs)
-logging.basicConfig(filename='logs/dump.log', level=logging.INFO) # gimme all your loggin'!
+logging.basicConfig(filename=config.path_logs+'/indexing.log', level=logging.INFO) # gimme all your loggin'!
 
 plot = False
 
@@ -176,7 +175,6 @@ if config.index_lowes_test_ratio and cross_check:
     raise ValueError("can't do cross-check with lowe's test")
 
 # the following parameters require rebuilding the index
-rebuild_index = False
 
 # detector = cv2.xfeatures2d_LATCH.create(rotationInvariance=False, half_ssd_size=3)
 # detector = cv2.xfeatures2d_LATCH.create(rotationInvariance=False)
@@ -505,15 +503,14 @@ def search_list(list_path):
     
     return zip(labels,positions)
 
-def profile_index_building():
+def profile_index_building(sheets_path_reference, outfolder):
     # profile index building
     import cProfile, pstats
     from pstats import SortKey
-    sheets_path_reference = "data/blattschnitt_dr100_regular.geojson"
-    prf_file = "eval/profiling/profile_indexbuild.prf"
+    prf_file = outfolder + "/profile_indexbuild.prf"
     # change paths in config
-    config.reference_sheets_path = "eval/profiling/sheets.clf"
-    config.reference_index_path  = "eval/profiling/index.ann"
+    config.reference_sheets_path = outfolder + "/sheets.clf"
+    config.reference_index_path  = outfolder + "/index.ann"
     cProfile.run('build_index("%s", store_desckp=False)' % sheets_path_reference, prf_file)
 
     p = pstats.Stats(prf_file)
@@ -539,24 +536,35 @@ def reproject_all_osm():
     print("time for convert: %f" % (t1-t0))
 
 if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("sheets", help="sheets json file path string", default="data/blattschnitt_dr100.geojson")
+    parser.add_argument("--output", help="path to output profiling files", default=None)
+    parser.add_argument("--list", help="path to image list to test indexing", default=None)
+    parser.add_argument("--rebuild", help="set this to true to rebuild the index", action="store_true")
+    args = parser.parse_args()
+    
     # reproject_all_osm()
     # exit()
-    profile_index_building()
-    exit()
 
-    if rebuild_index:
-        # todo: create folders
-        sheets_path_reference = "data/blattschnitt_dr100_regular.geojson"
-        build_index(sheets_path_reference)
+    if args.output:
+        print("profiling index building...")
+        os.makedirs(args.output, exist_ok=True)
+        profile_index_building(args.sheets, args.output)
+        exit()
 
-    # img_path = "E:/data/deutsches_reich/SBB/cut/SBB_IIIC_Kart_L 1330_Blatt 343_von_1925.tif"
-    # ret = search_in_index(img_path, "343")
-    # print(ret)
+    if args.rebuild:
+        print("rebuilding index...")
+        # create folders first
+        os.makedirs(config.reference_descriptors_folder, exist_ok=True)
+        os.makedirs(config.reference_keypoints_folder, exist_ok=True)
 
-    list_path = "E:/data/deutsches_reich/SBB/cut/list.txt"
-    # list_path = "E:/data/deutsches_reich/SLUB/cut/list_160_320.txt"
-    lps = search_list(list_path)
+        build_index(args.sheets)
 
-    with open("index_result.csv","w") as fp:
-        for l,p in lps:
-            fp.write("%s : %d\n"%(l,p))
+    if args.list:
+        print("evaluating index...")
+        lps = search_list(args.list)
+
+        with open("index_result.csv","w") as fp:
+            for l,p in lps:
+                fp.write("%s : %d\n"%(l,p))

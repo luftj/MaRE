@@ -348,7 +348,7 @@ def retrieve_best_match_index(query_image, processing_size, sheets_path, restric
         logging.info("Truth at position %d in index." % truth_index)
         print("Truth at position %d in index." % truth_index)
         logging.info("codebook response: %s" % (codebook_response,))
-        ratios = [n1/n for n,n1 in zip(codebook_response,codebook_response[1:])]
+        ratios = [n1/n if n>0 else 0 for n,n1 in zip(codebook_response,codebook_response[1:])]
         logging.info("ratios: %s " % (ratios,))
         
         # don't to spatial verification if we have no chance of getting the correct prediction anyway
@@ -388,7 +388,16 @@ def retrieve_best_match_index(query_image, processing_size, sheets_path, restric
             kp_reference = joblib.load(config.reference_keypoints_folder+"/%s.clf" % sheet_name)
         
         # Match descriptors.
-        bf = cv2.BFMatcher(cv2.NORM_L2, crossCheck=True)
+        norms = {
+            "inf": cv2.NORM_INF,
+            "l1" : cv2.NORM_L1,
+            "l2" : cv2.NORM_L2,
+            "l2s" : cv2.NORM_L2SQR,
+            "hamming": cv2.NORM_HAMMING,
+            "rel": cv2.NORM_RELATIVE,
+            "minmax":cv2.NORM_MINMAX
+        }
+        bf = cv2.BFMatcher(norms[config.matching_norm], crossCheck=config.matching_crosscheck)
         matches = bf.match(descriptors_query, descriptors_reference)#reference_descriptors[sheet_name])
         keypoints_q = [keypoints[x.queryIdx].pt for x in matches]
         keypoints_r = [kp_reference[x.trainIdx] for x in matches]

@@ -10,18 +10,14 @@ pyproj
 scikit-image
 progressbar
 dask[delayed]
-# hausdorff
-# numba
 matplotlib
 
 # osm download
 requests
 osmtogeojson
-# overpass
 
 # indexing
 joblib
-extract_patches
 annoy
 
 # eval

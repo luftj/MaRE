@@ -1,4 +1,4 @@
-path_output = "E:/experiments/register_eval_bordertransform_wiki/" # end with slash /
+path_output = "E:/experiments/reproduce/" # end with slash /
 # path_osm = "./data/osm_old/" # end with slash /
 # path_osm = "E:/experiments/osm_drain_reproj/" # end with slash /
 path_osm = "E:/experiments/osm_drain/" # end with slash /
@@ -16,7 +16,8 @@ osm_url = "https://nc.hcu-hamburg.de/api/interpreter"
 #"https://overpass.osm.ch/api/interpreter"
 #"http://overpass-api.de/api/interpreter"
 osm_query = """[out:json];
-                (nwr ({{bbox}}) [water=lake]; 
+                (
+                nwr ({{bbox}}) [water=lake]; 
                 way ({{bbox}}) [natural=water] [name]; 
                 way ({{bbox}}) [type=waterway] [name]; 
                 way ({{bbox}}) [waterway=river] [name];
@@ -24,14 +25,13 @@ osm_query = """[out:json];
                 way ({{bbox}}) [water=river];
                 way ({{bbox}}) [waterway=stream] [name];
                 way ({{bbox}}) [natural=coastline];
+                way ({{bbox}}) [waterway=ditch];
+                way ({{bbox}}) [waterway=drain];
                 );
                 out body;
                 >;
                 out skel qt;"""
-                # way (%s) [waterway=riverbank];
-                # way (%s) [waterway=ditch];
-                # way (%s) [waterway=drain];
-
+                # way ({{bbox}}) [waterway=riverbank];
 force_osm_download = False
 
 
@@ -77,13 +77,15 @@ ransac_stop_probability = 0.99
 ransac_random_state = 1337 # only for profiling and validation. default: None
 
 codebook_response_threshold = 2 # maybe even 1.8 # todo: allow setting to None to disable
+matching_norm = "l2"
+matching_crosscheck = True
 
 warp_mode_retrieval = "similarity"
 warp_mode_registration = "affine"
 
 registration_mode = "both" # possible: ["ransac","ecc","both"]
 
-registration_ecc_iterations = 500 # maximum number of ECC iterations
+registration_ecc_iterations = 1000 # maximum number of ECC iterations
 registration_ecc_eps = 1e-7 #threshold of the increment in the correlation coefficient between two iterations
 
 # save disk space:

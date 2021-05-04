@@ -1,3 +1,4 @@
+import sys
 import csv
 import argparse
 import json
@@ -6,6 +7,7 @@ import os
 import subprocess
 import profile
 import time
+import importlib
 
 import pyproj
 from matplotlib import pyplot as plt
@@ -126,19 +128,29 @@ def warp_images(filenames,inputpath,images_path):
         width, height = im.size
 
         georef_path = images_path + "georef_sheet_%s_warp.tif" % sheet_name
+        infile = "%s/georef_sheet_%s.%s" % (images_path, sheet_name, config.output_file_ending)
+        
+        if not os.path.isfile(infile):
+            # could't find georeferenced map image, skipping
+            continue
 
-        command = 'gdalwarp -order 1 -t_srs EPSG:4326 -ts %d %d -overwrite "%s/georef_sheet_%s.%s" "%s"' %(width, height, images_path, sheet_name, config.output_file_ending, georef_path)
+        command = 'gdalwarp -order 1 -t_srs EPSG:4326 -ts %d %d -overwrite "%s" "%s"' % (width, height, infile, georef_path)
         print("exec: %s" % command)
-        # set GDAL_DATA "C:\Program Files\GDAL\gdal-data"
-        # set GDAL_DRIVER_PATH "C:\Program Files\GDAL\gdalplugins"
-        # set PROJ_LIB "C:\Program Files\GDAL\projlib"
-        # set PYTHONPATH "C:\Program Files\GDAL\"
+
+        # Set relevant paths for subprocess to avoid proj_db errors
+        # paths are different for various setups. read those in from environment before setting them.
+        if "win" in sys.platform:
+            gdalpath = ";".join(list(filter(lambda x: "gdal" in x or "GDAL" in x, os.environ["PATH"].split(";"))))
+        else:
+            gdalpath = "/usr/bin"
         subenv = {
-            "PROJ_LIB": "C:\\Users\\user\AppData\Local\Programs\Python\Python37\lib\site-packages\pyproj\proj_dir\share\proj",
-            "GDAL_DATA": "C:\Program Files\GDAL\gdal-data",
-            "PATH": "C:\Program Files\GDAL"
+            "PROJ_LIB": os.environ["PROJ_LIB"],
+            "PATH": gdalpath
             }
-        subprocess.run(command, shell=True, env=subenv)
+        proc = subprocess.run(command, shell=True, env=subenv)
+        if proc.returncode != 0:
+            print("gdalwarp returned with error code %s" % proc.returncode)
+            raise Exception
 
 def get_truth_bbox(sheets, sheet_name):
     transform_sheet_to_out = pyproj.Transformer.from_proj(config.proj_sheets, config.proj_out, skip_equivalent=True, always_xy=True)
@@ -249,7 +261,7 @@ def dump_csv(sheets_list, mae_list, rmse_list, outpath="eval_georef_result.csv")
         for sheet, mae, rmse in zip(sheets_list, mae_list, rmse_list):
             eval_fp.write("%s; %.2f; %.2f\n" % (sheet, mae, rmse))
 
-def eval_list(img_list, sheet_corners, inputpath, sheetsfile, images_path=config.path_output, nowarp=False, plot=False):
+def eval_list(img_list, sheet_corners, inputpath, sheetsfile, images_path, nowarp=False, plot=False):
     if not nowarp:
         warp_images(img_list, inputpath, images_path) # this has to be done before calculating coords, because proj db breaks
 
@@ -314,7 +326,7 @@ if __name__ == "__main__":
     if args.single:
         img_list = [x for x in img_list if match_sheet_name(x)==args.single]
 
-    sheet_names, error_results, rmse_results = eval_list(img_list, sheet_corners, inputpath, args.sheets, inputpath, args.nowarp, args.plot)
+    sheet_names, error_results, rmse_results = eval_list(img_list, sheet_corners, inputpath, args.sheets, config.path_output, args.nowarp, args.plot)
     
     total_mean_error = sum(error_results)/len(error_results)
     total_mean_rmse = sum(rmse_results)/len(rmse_results)
