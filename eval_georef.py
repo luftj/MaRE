@@ -141,16 +141,17 @@ def warp_images(filenames,inputpath,images_path):
         # paths are different for various setups. read those in from environment before setting them.
         if "win" in sys.platform:
             gdalpath = ";".join(list(filter(lambda x: "gdal" in x or "GDAL" in x, os.environ["PATH"].split(";"))))
-        else:
-            gdalpath = "/usr/bin"
-        subenv = {
-            "PROJ_LIB": os.environ["PROJ_LIB"],
-            "PATH": gdalpath
-            }
+            subenv = {
+                "PROJ_LIB": os.environ["PROJ_LIB"],
+                "PATH": gdalpath
+                }
+        else: # unix, etc... WARNING: only tested with ubuntu 18
+            subenv = {
+                "PATH": "/usr/bin"
+                }
         proc = subprocess.run(command, shell=True, env=subenv)
         if proc.returncode != 0:
-            print("gdalwarp returned with error code %s" % proc.returncode)
-            raise Exception
+            raise OSError("gdalwarp returned with error code %s. See error message above" % proc.returncode)
 
 def get_truth_bbox(sheets, sheet_name):
     transform_sheet_to_out = pyproj.Transformer.from_proj(config.proj_sheets, config.proj_out, skip_equivalent=True, always_xy=True)
