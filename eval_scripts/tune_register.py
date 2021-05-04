@@ -53,7 +53,7 @@ def run_experiment(input_file, sheets_file, ground_truth_annotations_file, outpa
         change_param_func(val)
         ### RUN
         from main import process_sheet, process_list
-        # process_list(input_file,sheets_file,restrict=0)
+        process_list(input_file,sheets_file,restrict=0)
         
         # get georef distances
         inputpath = os.path.dirname(input_file)
