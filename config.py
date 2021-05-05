@@ -85,8 +85,8 @@ warp_mode_registration = "affine"
 
 registration_mode = "both" # possible: ["ransac","ecc","both"]
 
-registration_ecc_iterations = 1000 # maximum number of ECC iterations
-registration_ecc_eps = 1e-7 #threshold of the increment in the correlation coefficient between two iterations
+registration_ecc_iterations = 500 # maximum number of ECC iterations
+registration_ecc_eps = 1e-4 #threshold of the increment in the correlation coefficient between two iterations
 
 # save disk space:
 # gdal_output_options = '-a_srs "' + proj_out + '" -a_nodata 0 -of JP2OpenJPEG -co "QUALITY=5"'# -co "TILED=YES"'# -co "COMPRESS=JPEG" -co "PHOTOMETRIC=YCBCR" '

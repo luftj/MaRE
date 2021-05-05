@@ -59,7 +59,6 @@ def run_experiment(param_to_tune, possible_values, change_param_func):
 
     results_compare = []
 
-    # try:
     for val in possible_values:
         config.path_logs = "eval/logs_%s_%s/" % (param_to_tune,val)
 
@@ -75,9 +74,7 @@ def run_experiment(param_to_tune, possible_values, change_param_func):
         resultdict = {"value": val, "score": avg_score, "#wrong": num_incorrect}
         print(resultdict)
         results_compare.append(resultdict)
-    # except Exception as e:
-    #     print(e)
-    # finally:
+    
     print(*results_compare, sep="\n")
     save_results(results_compare,"eval/%s.csv" % param_to_tune)
     results_compare_sorted = sorted(results_compare, key=lambda x: x["score"], reverse=True)

@@ -7,6 +7,7 @@ import glob
 import cv2
 import json
 import operator
+import argparse
 
 def get_retrieval_results(results_file):
     prediction_results = []
@@ -166,41 +167,54 @@ def compare_historical_change(res, output_folder, sheetfile="data/blattschnitt_d
     plt.savefig(output_folder+"/historical_change.png")
     plt.close()
 
-results_file = "eval/results_colourspace_lab.csv"#"profiling_full_maxtrials/results_1000.csv"
-output_folder = "eval/figures/lab"
-os.makedirs(output_folder, exist_ok=True)
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("results", help="path to results csv file")
+    parser.add_argument("output", help="path for output evaluation files")
+    parser.add_argument("--sheets", help="sheets json file path string", default=None)
+    parser.add_argument("--editions", help="path to editions list", default=None)
+    parser.add_argument("--coast", help="path to coast list", default=None)
+    args = parser.parse_args()
+    # py -3.7 eval/results_colourspace_lab.csv eval/eval_retrieval/ 
 
-res = get_retrieval_results(results_file)
-skipped = [x for x in res if (x["prediction"]).strip() == "unknown"]
+    results_file = args.results
+    output_folder = args.output + "/figures/"
+    os.makedirs(output_folder, exist_ok=True)
 
-res = [x for x in res if (x["prediction"]).strip() != "unknown"]
-sheets_correct = [x["prediction"] for x in res if x["prediction"] == x["ground truth"]]
-sheets_incorrect = [x["ground truth"] for x in res if x["prediction"] != x["ground truth"]]
+    res = get_retrieval_results(results_file)
+    skipped = [x for x in res if (x["prediction"]).strip() == "unknown"]
 
-# get index rank distribution before spatial verification
-print("%d sheets unreachable because of restrict number" % (len(skipped)))
-rank_compare(res, sheets_correct, sheets_incorrect, output_folder)
+    res = [x for x in res if (x["prediction"]).strip() != "unknown"]
+    sheets_correct = [x["prediction"] for x in res if x["prediction"] == x["ground truth"]]
+    sheets_incorrect = [x["ground truth"] for x in res if x["prediction"] != x["ground truth"]]
 
-# get % correct predictions
-print("%d of %d sheets correctly predicted" % (len(sheets_correct),len(res)+len(skipped)))
+    # get index rank distribution before spatial verification
+    print("%d sheets unreachable because of restrict number" % (len(skipped)))
+    rank_compare(res, sheets_correct, sheets_incorrect, output_folder)
 
-# get RANSAC scores of correct predictions
-compare_scores(res, output_folder)
+    # get % correct predictions
+    print("%d of %d sheets correctly predicted" % (len(sheets_correct),len(res)+len(skipped)))
 
-# analyse Maha/Lowe
-maha_lowe(res, sheets_correct, sheets_incorrect, output_folder)
+    # get RANSAC scores of correct predictions
+    compare_scores(res, output_folder)
 
-# load special case lists
-# compare editions
-editions_path = "E:/data/deutsches_reich/SLUB/cut/editions.txt"
-compare_special_cases(res, "editions",editions_path)
+    # analyse Maha/Lowe
+    maha_lowe(res, sheets_correct, sheets_incorrect, output_folder)
 
-# compare coast
-coast_path = "E:/data/deutsches_reich/SLUB/cut/coast.txt"
-compare_special_cases(res, "coast",coast_path)
+    # load special case lists
+    if args.editions:
+        # compare editions
+        # editions_path = "E:/data/deutsches_reich/SLUB/cut/editions.txt"
+        compare_special_cases(res, "editions",args-editions)
 
-# compare overedge
-# todo
+    if args.coast:
+        # compare coast
+        # coast_path = "E:/data/deutsches_reich/SLUB/cut/coast.txt"
+        compare_special_cases(res, "coast",args.coast)
 
-# analyse amount of salient content and historical change (% blue pixels)
-compare_historical_change(res, output_folder)
+    # compare overedge
+    # todo
+
+    if args.sheets:
+        # analyse amount of salient content and historical change (% blue pixels)
+        compare_historical_change(res, output_folder, args.sheets)
