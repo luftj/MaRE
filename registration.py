@@ -75,6 +75,30 @@ def georeference_gcp(inputfile, outputfile, bbox, gcps):
     time_passed = time() - time_start
     logging.info("time: %f s for georeferencing" % time_passed)
 
+def make_worldfile(inputfile, bbox, border):
+    """ create a worldfile for a warped map image given bounding box GCPS
+    """
+    minxy = transform_sheet_to_out.transform(bbox[0], bbox[1]) # reproject lower left bbox corner
+    maxxy = transform_sheet_to_out.transform(bbox[2], bbox[3]) # reproject upper right bbox corner
+    bbox = minxy+maxxy
+
+    pixel_width = (bbox[2]-bbox[0])/(border[2]-border[0])
+    pixel_height = (bbox[3]-bbox[1])/(border[3]-border[1])
+
+    left_edge = bbox[0] - (border[0]-0.5) * pixel_width # subtract half pixel to get to the center of topleft corner
+    top_edge = bbox[3] - (border[3]-0.5) * pixel_height # subtract half pixel to get to the center of topleft corner
+
+    outputfile = os.path.splitext(inputfile)[0]+".wld"
+    with open(outputfile,"w") as fw:
+        fw.write(str(pixel_width)+"\n")
+        fw.write("0.0"+"\n")
+        fw.write("0.0"+"\n")
+        fw.write(str(pixel_height)+"\n")
+        fw.write(str(left_edge)+"\n")
+        fw.write(str(top_edge)+"\n")
+    
+    logging.info("saved worldfile file to: %s" % outputfile)
+
 def georeference(inputfile, outputfile, bbox, border=None):
     time_start = time()
     minxy = transform_sheet_to_out.transform(bbox[0], bbox[1]) # reproject lower left bbox corner
@@ -161,13 +185,9 @@ def align_map_image(map_image, query_image, reference_image, target_size=(500,50
     # do the warping with the full sized input image
     map_img_aligned = warp(map_image, warp_matrix, warp_mode=warp_mode)
     
-    # crop out border
-    # border_x = int(border_size * reference_image_small.shape[1] / reference_image_border.shape[1] * map_image.shape[1] / target_size[0])
-    # border_y = int(border_size * reference_image_small.shape[0] / reference_image_border.shape[0] * map_image.shape[0] / target_size[1])
-    # print("border", border_x, border_y)
-    border_x = border_size * map_image.shape[0]/reference_image_border.shape[0]
-    border_y = border_size * map_image.shape[1]/reference_image_border.shape[1]
-    print("border", border_x, border_y)
+    # pixel coordinates of estimated map neatlines
+    border_x = int(border_size * map_image.shape[0]/reference_image_border.shape[0])
+    border_y = int(border_size * map_image.shape[1]/reference_image_border.shape[1])
     time_passed = time() - time_start
     logging.info("time: %f s for registration" % time_passed)
 
@@ -235,12 +255,12 @@ def align_map_image(map_image, query_image, reference_image, target_size=(500,50
     # plt.show()
 
     if crop:
-        border_x = int(border_x)
-        border_y = int(border_y)
+        # crop out border
         map_img_aligned = map_img_aligned[border_y:map_img_aligned.shape[0]-border_y, border_x:map_img_aligned.shape[1]-border_x]
-        return map_img_aligned, None    
-
-    return map_img_aligned, (border_x, map_image.shape[0]-border_y, map_image.shape[1]-border_x, border_y)
+        border = (0, map_img_aligned.shape[0], map_img_aligned.shape[1], 0)
+    else:
+        border = (border_x, map_image.shape[0]-border_y, map_image.shape[1]-border_x, border_y)
+    return map_img_aligned, border
 
 def align_map_image_model(map_image, query_image, reference_image, warp_matrix, target_size=(500,500), crop=False):
     time_start = time()
@@ -292,16 +312,20 @@ def align_map_image_model(map_image, query_image, reference_image, warp_matrix, 
     # plt.imshow(query_aligned)
     # plt.show()
     
-    # crop out border
+    # pixel coordinates of estimated map neatlines
     border_left = int(upleft_query[0])
     border_right = int(botright_query[0])
     border_top = int(upleft_query[1])
     border_bot = int(botright_query[1])
-    print("borders:",border_left,border_right,border_top,border_bot)
-    if crop:
-        map_img_aligned = map_img_aligned[border_top:border_bot, border_left:border_right]
     
     time_passed = time() - time_start
     logging.info("time: %f s for registration" % time_passed)
 
-    return map_img_aligned, (border_left, border_bot, border_right, border_top)
+    if crop:
+        # crop out border
+        map_img_aligned = map_img_aligned[border_top:border_bot, border_left:border_right]
+        border= (0, map_img_aligned.shape[0], map_img_aligned.shape[1], 0)
+    else:
+        border = (border_left, border_bot, border_right, border_top)
+
+    return map_img_aligned, border

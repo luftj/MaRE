@@ -8,6 +8,7 @@ import subprocess
 import profile
 import time
 import importlib
+import glob
 
 import pyproj
 from matplotlib import pyplot as plt
@@ -262,10 +263,7 @@ def dump_csv(sheets_list, mae_list, rmse_list, outpath="eval_georef_result.csv")
         for sheet, mae, rmse in zip(sheets_list, mae_list, rmse_list):
             eval_fp.write("%s; %.2f; %.2f\n" % (sheet, mae, rmse))
 
-def eval_list(img_list, sheet_corners, inputpath, sheetsfile, images_path, nowarp=False, plot=False):
-    if not nowarp:
-        warp_images(img_list, inputpath, images_path) # this has to be done before calculating coords, because proj db breaks
-
+def eval_list(img_list, sheet_corners, inputpath, sheetsfile, images_path, plot=False):
     error_results = []
     rmse_results = []
     sheet_names = []
@@ -276,11 +274,13 @@ def eval_list(img_list, sheet_corners, inputpath, sheetsfile, images_path, nowar
         sheet_name = match_sheet_name(img_name)
 
         img_path = inputpath + "/" + img_name
-        georef_path = images_path + "/georef_sheet_%s_warp.tif" % sheet_name
+        georef_path = images_path + "/aligned_%s_*" % sheet_name
+        georef_path_glob = glob.glob(georef_path)
         
-        if not os.path.exists(georef_path):
+        if len(georef_path_glob) == 0:
             print("Couldn't find file for registered sheet %s.\nIt probably failed to get a registration solution" % sheet_name)
             continue
+        georef_path = georef_path_glob[0]
 
         # find corner coordinates of registered image (geo-coordinates)
         corner_coords = cascadeCorners(img_path, georef_path, sheet_corners[img_name], plot=plot, downscale_factor=6)
@@ -314,7 +314,6 @@ if __name__ == "__main__":
     parser.add_argument("input", help="input file path string with corner annotations")
     parser.add_argument("sheets", help="sheets json file path string", default="data/blattschnitt_dr100.geojson")
     parser.add_argument("--plot", help="set this to true to show debugging plots", action="store_true")
-    parser.add_argument("--nowarp", help="set this to not update warped images", action="store_true")
     parser.add_argument("--single", help="provide sheet number to test only a single sheet", default=None)
     args = parser.parse_args()
     # python eval_georef.py /e/data/deutsches_reich/wiki/highres/382.csv data/blattschnitt_dr100_merged_digi.geojson
@@ -327,7 +326,7 @@ if __name__ == "__main__":
     if args.single:
         img_list = [x for x in img_list if match_sheet_name(x)==args.single]
 
-    sheet_names, error_results, rmse_results = eval_list(img_list, sheet_corners, inputpath, args.sheets, config.path_output, args.nowarp, args.plot)
+    sheet_names, error_results, rmse_results = eval_list(img_list, sheet_corners, inputpath, args.sheets, config.path_output, args.plot)
     
     total_mean_error = sum(error_results)/len(error_results)
     total_mean_rmse = sum(rmse_results)/len(rmse_results)

@@ -126,6 +126,8 @@ def process_sheet(img_path, sheets_path, plot=False, img=True, number=None, rest
 
         # save aligned map image
         aligned_map_path = config.path_output + "aligned_%s_%s" % (sheet_name, "-".join(map(str,closest_bbox)))
+        if crop:
+            aligned_map_path += "_cropped"
         if config.jpg_compression:
             aligned_map_path += ".jpg"
             cv2.imwrite(aligned_map_path, map_img_aligned, [cv2.IMWRITE_JPEG_QUALITY, config.jpg_compression])
@@ -135,14 +137,7 @@ def process_sheet(img_path, sheets_path, plot=False, img=True, number=None, rest
         logging.info("saved aligned image file to: %s" % aligned_map_path)
 
         # georeference aligned query image with bounding box
-        if crop:
-            outpath = config.path_output + "georef_sheet_%s_crop.%s" % (sheet_name, config.output_file_ending)
-            registration.georeference(aligned_map_path, outpath, closest_bbox)
-        else:
-            outpath = config.path_output + "georef_sheet_%s.%s" % (sheet_name, config.output_file_ending)
-            # registration.georeference_gcp(aligned_map_path, outpath, closest_bbox, gcps=border)
-            registration.georeference(aligned_map_path, outpath, closest_bbox, border)
-        logging.info("saved georeferenced file to: %s" % outpath)
+        registration.make_worldfile(aligned_map_path, closest_bbox, border)
     
     # eval_entry = ["pred:%s gt:%s dist %d gt ar pos %d" % (sheet_name,number,dist,truth_pos),"registration: fail","correct: no"]
     eval_entry = ["gt: %s pred: %s dist %f"%(number,sheet_name,dist),"gt at pos %d"%truth_pos,"registration: success","correct %r"%(str(number)==str(sheet_name))]

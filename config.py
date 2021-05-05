@@ -1,4 +1,4 @@
-path_output = "E:/experiments/reproduce/" # end with slash /
+path_output = "E:/experiments/worldfile_test/crop/" # end with slash /
 # path_osm = "./data/osm_old/" # end with slash /
 # path_osm = "E:/experiments/osm_drain_reproj/" # end with slash /
 path_osm = "E:/experiments/osm_drain/" # end with slash /
