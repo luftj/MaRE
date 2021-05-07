@@ -205,7 +205,7 @@ if __name__ == "__main__":
     if args.editions:
         # compare editions
         # editions_path = "E:/data/deutsches_reich/SLUB/cut/editions.txt"
-        compare_special_cases(res, "editions",args-editions)
+        compare_special_cases(res, "editions",args.editions)
 
     if args.coast:
         # compare coast

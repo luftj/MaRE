@@ -107,7 +107,7 @@ def eval_logs(logpath, resultpath="eval_result"):
     # plot_score_dist( [4, 5, 6, 6, 4, 4, 5, 4, 6, 5, 9, 6, 5, 4, 5, 6, 4, 5, 5, 5, 5])
     # plot_score_dist( [4, 5, 6, 6, 4, 4, 5, 4, 6, 5, 9, 6, 5, 4, 5, 6, 4, 5, 5, 5, 5])
 
-    log_files = [f for f in listdir(logpath) if isfile(join(logpath, f))]
+    log_files = [f for f in listdir(logpath) if isfile(join(logpath, f)) and f.endswith(".log")]
 
 
     experiments = {}

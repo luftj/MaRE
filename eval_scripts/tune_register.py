@@ -1,47 +1,32 @@
 import os
-import logging
+# import logging
 import argparse
-import time
+# import time
 
 import config
-from eval_scripts.eval_helpers import init, save_results, load_errors_csv
+from eval_scripts.eval_helpers import init, save_results, load_errors_csv, run_and_measure
 
-def run_experiment(input_file, sheets_file, ground_truth_annotations_file, outpath, param_to_tune, possible_values, change_param_func):
-    results_compare = []
+def get_score(input_file, sheets_file, ground_truth_annotations_file, outpath):
+    # get georef distances
+    inputpath = os.path.dirname(input_file)
+    resultsfile = "%s/eval_georef_results.csv" % outpath
+    import eval_georef
+    sheet_corners = eval_georef.read_corner_CSV(ground_truth_annotations_file)
+    img_list = list(sheet_corners.keys())
+    sheet_names, error_results, rmse_results = eval_georef.eval_list(img_list, sheet_corners, inputpath, sheets_file, config.path_output)
+    eval_georef.dump_csv(sheet_names, error_results, rmse_results, outpath=resultsfile)
+    errors = load_errors_csv(resultsfile)
+    mean_error = sum(errors.values())/len(errors)
+    return {"mean error": mean_error}
 
-    for val in possible_values:
-        config.path_logs = "%s/logs_%s_%s/" % (outpath, param_to_tune, val)
-
-        outfolder = "%s/%s_%s" % (outpath, param_to_tune, val)
-        config.path_output = outfolder + "/results/"
-        init()
-
-        change_param_func(val)
-        ### RUN
-        from main import process_sheet, process_list
-        t0 = time.time()
-        process_list(input_file,sheets_file,restrict=0)
-        total_time = time.time()-t0
-        
-        # get georef distances
-        inputpath = os.path.dirname(input_file)
-        resultsfile = "%s/eval_georef_results.csv" % outfolder
-        import eval_georef
-        sheet_corners = eval_georef.read_corner_CSV(ground_truth_annotations_file)
-        img_list = list(sheet_corners.keys())
-        sheet_names, error_results, rmse_results = eval_georef.eval_list(img_list, sheet_corners, inputpath, sheets_file, config.path_output)
-        eval_georef.dump_csv(sheet_names, error_results, rmse_results, outpath=resultsfile)
-        errors = load_errors_csv(resultsfile)
-
-        resultdict = {"value": val, "mean_error": sum(errors.values())/len(errors), "total_time": total_time, "errors": errors}
-        print(resultdict)
-        results_compare.append(resultdict)
+def run_experiment(input_file, sheets_file, ground_truth_annotations_file, out_path, param_to_tune, possible_values, change_param_func):
+    results_compare = run_and_measure(input_file, sheets_file, out_path, 
+                            param_to_tune, possible_values, change_param_func, 
+                            0, get_score, [input_file, sheets_file, ground_truth_annotations_file])
     
-    print(*results_compare, sep="\n")
-    # save_results(results_compare,"eval/tune_register/%s.csv" % param_to_tune)
-    results_compare_sorted = sorted(results_compare, key=lambda x: x["mean_error"])
-    # # print(results_compare_sorted)
-    print("best value: %s, with mean RMSE %f" % (results_compare_sorted[0]["value"], results_compare_sorted[0]["mean_error"]))#, results_compare_sorted[1]["mean_error"]))
+    save_results(results_compare,"%s/%s.csv" % (out_path, param_to_tune))
+    results_compare_sorted = sorted(results_compare, key=lambda x: x["mean error"])
+    print("best value: %s, with mean RMSE %f" % (results_compare_sorted[0]["value"], results_compare_sorted[0]["mean error"]))#, results_compare_sorted[1]["mean error"]))
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -72,7 +57,7 @@ if __name__ == "__main__":
     #     config.registration_ecc_iterations = val
 
     param_to_tune = "registration_ecc_eps"
-    possible_values = [1e-2,1e-3,1e-4,1e-5]
+    possible_values = [1e-4,1e-5]
 
     def change_ecceps_func(val):
         config.registration_ecc_eps = val

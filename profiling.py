@@ -69,7 +69,8 @@ if __name__ == "__main__":
     try:
         for val in possible_values:
             config.path_logs = "%s/logs_perf_test_%s/" % (outfolder, val)
-            config.path_output = "%s/profiling_%s_%s/" % (outfolder, param_to_tune, val)
+            # config.path_output = "%s/profiling_%s_%s/" % (outfolder, param_to_tune, val)
+            config.path_output = outfolder
             # os.makedirs(config.path_output, exist_ok=True)
 
             init()
@@ -110,9 +111,10 @@ if __name__ == "__main__":
                 resultdict = {"value": val, "totaltime": total_time, "ncalls": func_ncalls, "cumtime": func_cumtime, "mean_error": sum(errors.values())/len(errors)}
             else:
                 # profile retrieval
-                avg_score, num_incorrect = results(config.path_logs, "%s/results_%s.csv" % (outfolder, val))
+                score = results(outfolder)
 
-                resultdict = {"value": val, "totaltime": total_time, "ncalls": func_ncalls, "cumtime": func_cumtime, "score": avg_score, "#wrong": num_incorrect}
+                resultdict = {"value": val, "totaltime": total_time, "ncalls": func_ncalls, "cumtime": func_cumtime}
+                resultdict.update(score)
                 print(resultdict)
             results_compare.append(resultdict)
     finally:

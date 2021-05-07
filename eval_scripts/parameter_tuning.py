@@ -1,39 +1,23 @@
 import os
-import logging
-import ast
+# import logging
+# import ast
 import argparse
 
 import config
-from eval_scripts.eval_helpers import init, results, save_results
+from eval_scripts.eval_helpers import init, results, save_results, run_and_measure
 
 def run_experiment(input_file, sheets_file, out_path, restrict, param_to_tune, possible_values, change_param_func):
-    results_compare = []
+    results_compare = run_and_measure(input_file, sheets_file, out_path, 
+                            param_to_tune, possible_values, change_param_func, 
+                            restrict, results, [])
 
-    for val in possible_values:
-        outpath = "%s/%s_%s" % (out_path, param_to_tune, val)
-        # config.path_output = outpath # not needed, since there are no output images
-        config.path_logs = "%s/logs_%s_%s/" % (outpath, param_to_tune,val)
-
-        init()
-        change_param_func(val)
-        ### RUN
-        from main import process_sheet, process_list
-        process_list(input_file,sheets_file,plot=False,img=False,restrict=restrict)
-        # process_sheet(input_file,sheets_file,plot=False,img=False,number=sheet,restrict=restrict)
-
-        avg_score, num_incorrect = results(config.path_logs, "%s/results_%s_%s.csv" % (outpath, param_to_tune, val))
-
-        resultdict = {"value": val, "score": avg_score, "#wrong": num_incorrect}
-        print(resultdict)
-        results_compare.append(resultdict)
-    
-    print(*results_compare, sep="\n")
-    save_results(results_compare,"%s/%s.csv" % (outpath, param_to_tune))
+    save_results(results_compare,"%s/%s.csv" % (out_path, param_to_tune))
     results_compare_sorted = sorted(results_compare, key=lambda x: x["score"], reverse=True)
-    # print(results_compare_sorted)
+    
     print("best value: %s, with score %f (next best: %f)" % (results_compare_sorted[0]["value"], results_compare_sorted[0]["score"], results_compare_sorted[1]["score"]))
 
-def test_osm():
+def test_osm(input_file, sheets_file, out_path, restrict):
+    # TODO: untested
     osm_values = {
         "full" : """[out:json];
                 (nwr ({{bbox}}) [water=lake]; 
@@ -65,19 +49,19 @@ def test_osm():
         # change param
         config.osm_query = osm_values[val]
         config.force_osm_download = True
-        config.path_osm = "E:/experiments/osm_exp_%s/" % val
+        config.path_osm = "%s/osm_exp_%s/" % (out_path, val)
         
         os.makedirs(config.path_osm, exist_ok=True)
         # rebuild index
-        config.reference_index_path = "index/index_%s.ann" % val
-        config.reference_descriptors_folder = "index/descriptors/desc_%s.bin" % val
-        config.reference_keypoints_folder = "index/keypoitns/desc_%s.bin" % val
+        config.reference_index_path = "%s/index/index_%s.ann" % (out_path, val)
+        config.reference_descriptors_folder = "%s/index/descriptors/desc_%s.bin" % (out_path, val)
+        config.reference_keypoints_folder = "%s/index/keypoints/desc_%s.bin" % (out_path, val)
         os.makedirs(config.reference_descriptors_folder, exist_ok=True)
         os.makedirs(config.reference_keypoints_folder, exist_ok=True)
         from indexing import build_index
-        build_index(rsize=500)
+        build_index(sheets_file)
 
-    run_experiment("osm_query",osm_values.keys(),change_func)
+    run_experiment(input_file, sheets_file, out_path, restrict, "osm_query", osm_values, change_func)
 
 def test_segmentation(input_file, sheets_file, out_path, restrict):
     # blurring
@@ -118,19 +102,15 @@ if __name__ == "__main__":
     parser.add_argument("output", help="path to output profiling files")
     parser.add_argument("--restrict", help="n most similar images to use in spatial verification", default=30)
     args = parser.parse_args()
-    # run with $ py -3.7 -m eval_scripts.parameter_tuning
-    # input_file = "E:/data/deutsches_reich/SBB/cut/list_med.txt"
-    # input_file = args.list#"E:/data/deutsches_reich/SLUB/cut/raw/list_20.txt"
-    # sheets_file = args.sheets#"data/blattschnitt_dr100_regular.geojson"
+    # run with $ py -3.7 -m eval_scripts.parameter_tuning /e/data/deutsches_reich/wiki/highres/list_small.txt data/blattschnitt_dr100_regular.geojson /e/experiments/paramtunetesthsv/
 
-    # profile index building
     # needs local OSM data, otherwise it takes too long
 
     # test different OSM queries
-    # test_osm()
+    # test_osm(args.list, args.sheets, args.output, args.restrict)
     
     # test different segmentation parameters
-    # test_segmentation()
+    # test_segmentation(args.list, args.sheets, args.output, args.restrict)
 
     # test hsv vs lab segmentation
     test_hsvlab(args.list, args.sheets, args.output, args.restrict)
