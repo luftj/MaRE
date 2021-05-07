@@ -4,42 +4,7 @@ import argparse
 import time
 
 import config
-
-def load_errors_csv(filepath):
-    with open(filepath) as fr:
-        fr.readline()
-        results = {}
-        for line in fr:
-            line.strip()
-            sheet,mae,rmse = line.split("; ")
-            results[sheet] = float(rmse)
-    return results
-
-def init():
-    os.makedirs(config.path_logs, exist_ok=True) # separate logs for eval_logs
-    os.makedirs(config.path_output, exist_ok=True) # don't overwrite images from other experiments
-
-    log = logging.getLogger()  # root logger - Good to get it only once.
-    for hdlr in log.handlers[:]:  # remove the existing file handlers
-        if isinstance(hdlr,logging.FileHandler):
-            log.removeHandler(hdlr)
-            
-    logging.basicConfig(filename=(config.path_logs + '/tune_register.log') , 
-                        level=logging.INFO, 
-                        format="%(asctime)s [%(threadName)-12.12s] [%(levelname)-7.7s]  %(message)s") # gimme all your loggin'!
-
-def save_results(results, path):
-    import csv
-    
-    if len(results) == 0:
-        print("no results")
-        exit()
-
-    with open('path', 'w') as f:  
-        writer = csv.DictWriter(f, fieldnames=results[0].keys())
-        writer.writeheader()
-        for elem in results:
-            writer.writerow(elem)
+from eval_scripts.eval_helpers import init, save_results, load_errors_csv
 
 def run_experiment(input_file, sheets_file, ground_truth_annotations_file, outpath, param_to_tune, possible_values, change_param_func):
     results_compare = []

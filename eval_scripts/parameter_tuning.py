@@ -4,32 +4,7 @@ import ast
 import argparse
 
 import config
-from eval_scripts.eval_helpers import results
-
-def init():
-    os.makedirs(config.path_logs, exist_ok=True)
-
-    log = logging.getLogger()  # root logger - Good to get it only once.
-    for hdlr in log.handlers[:]:  # remove the existing file handlers
-        if isinstance(hdlr,logging.FileHandler):
-            log.removeHandler(hdlr)
-            
-    logging.basicConfig(filename=(config.path_logs + '/prf.log') , 
-                        level=logging.INFO, 
-                        format="%(asctime)s [%(threadName)-12.12s] [%(levelname)-7.7s]  %(message)s") # gimme all your loggin'!
-
-def save_results(results, path):
-    import csv
-    
-    if len(results) == 0:
-        print("no results")
-        exit()
-
-    with open('path', 'w') as f:  
-        writer = csv.DictWriter(f, fieldnames=results[0].keys())
-        writer.writeheader()
-        for elem in results:
-            writer.writerow(elem)
+from eval_scripts.eval_helpers import init, results, save_results
 
 def run_experiment(input_file, sheets_file, out_path, restrict, param_to_tune, possible_values, change_param_func):
     results_compare = []

@@ -11,22 +11,7 @@ import importlib
 import argparse
 
 import config
-from eval_scripts.eval_helpers import results
-
-def init():
-    os.makedirs(config.path_logs, exist_ok=True)
-    # os.makedirs(config.path_osm, exist_ok=True)
-    os.makedirs(config.path_output, exist_ok=True)
-
-    log = logging.getLogger()  # root logger - Good to get it only once.
-    os.makedirs(config.path_logs, exist_ok=True)
-    for hdlr in log.handlers[:]:  # remove the existing file handlers
-        if isinstance(hdlr,logging.FileHandler):
-            log.removeHandler(hdlr)
-            
-    logging.basicConfig(filename=(config.path_logs + '/prf.log') , 
-                        level=logging.INFO, 
-                        format="%(asctime)s [%(threadName)-12.12s] [%(levelname)-7.7s]  %(message)s") # gimme all your loggin'!
+from eval_scripts.eval_helpers import init, results, load_errors_csv
 
 def print_profile(prf_file="profile.prf", outfile=None, function_of_interest=""):
     if outfile:
@@ -55,16 +40,6 @@ def read_time_calls(prf_file):
         func_ncalls = int(func_values[0])
         func_cumtime = float(func_values[3])
     return total_time, func_ncalls, func_cumtime
-
-def load_errors_csv(filepath):
-    with open(filepath) as fr:
-        fr.readline()
-        results = {}
-        for line in fr:
-            line.strip()
-            sheet,mae,rmse = line.split("; ")
-            results[sheet] = float(rmse)
-    return results
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
