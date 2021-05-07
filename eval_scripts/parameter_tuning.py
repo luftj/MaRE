@@ -1,6 +1,7 @@
 import os
 import logging
 import ast
+import argparse
 
 import config
 
@@ -51,16 +52,13 @@ def save_results(results, path):
         for elem in results:
             writer.writerow(elem)
 
-def run_experiment(param_to_tune, possible_values, change_param_func):
-    input_file = "E:/data/deutsches_reich/SBB/cut/list_med.txt"
-    input_file = "E:/data/deutsches_reich/SLUB/cut/raw/list_20.txt"
-    sheets_file = "data/blattschnitt_dr100_regular.geojson"
-    restrict=50
-
+def run_experiment(input_file, sheets_file, out_path, restrict, param_to_tune, possible_values, change_param_func):
     results_compare = []
 
     for val in possible_values:
-        config.path_logs = "eval/logs_%s_%s/" % (param_to_tune,val)
+        outpath = "%s/%s_%s" % (out_path, param_to_tune, val)
+        # config.path_output = outpath # not needed, since there are no output images
+        config.path_logs = "%s/logs_%s_%s/" % (outpath, param_to_tune,val)
 
         init()
         change_param_func(val)
@@ -69,14 +67,14 @@ def run_experiment(param_to_tune, possible_values, change_param_func):
         process_list(input_file,sheets_file,plot=False,img=False,restrict=restrict)
         # process_sheet(input_file,sheets_file,plot=False,img=False,number=sheet,restrict=restrict)
 
-        avg_score, num_incorrect = results(config.path_logs, "eval/results_%s_%s.csv" % (param_to_tune, val))
+        avg_score, num_incorrect = results(config.path_logs, "%s/results_%s_%s.csv" % (outpath, param_to_tune, val))
 
         resultdict = {"value": val, "score": avg_score, "#wrong": num_incorrect}
         print(resultdict)
         results_compare.append(resultdict)
     
     print(*results_compare, sep="\n")
-    save_results(results_compare,"eval/%s.csv" % param_to_tune)
+    save_results(results_compare,"%s/%s.csv" % (outpath, param_to_tune))
     results_compare_sorted = sorted(results_compare, key=lambda x: x["score"], reverse=True)
     # print(results_compare_sorted)
     print("best value: %s, with score %f (next best: %f)" % (results_compare_sorted[0]["value"], results_compare_sorted[0]["score"], results_compare_sorted[1]["score"]))
@@ -127,12 +125,12 @@ def test_osm():
 
     run_experiment("osm_query",osm_values.keys(),change_func)
 
-def test_segmentation():
+def test_segmentation(input_file, sheets_file, out_path, restrict):
     # blurring
     blur_values = [(17,17),(19,19),(21,21)]
     def change_func(val):
         config.segmentation_blurkernel = val
-    run_experiment("blur_kernel", blur_values, change_func)
+    run_experiment(input_file, sheets_file, out_path, restrict, "blur_kernel", blur_values, change_func)
 
     # opening
     # opening_values = [(3,3),(5,5),(7,7),(9,9)]
@@ -140,7 +138,7 @@ def test_segmentation():
     #     config.segmentation_openingkernel = val
     # run_experiment("opening_kernel", opening_values, change_func2)
 
-def test_hsvlab():
+def test_hsvlab(input_file, sheets_file, out_path, restrict):
     values = ["hsv","lab"]
 
     def change_func(val):
@@ -157,10 +155,19 @@ def test_hsvlab():
             config.segmentation_lowerbound = (0,0,10)
             config.segmentation_upperbound = (255, 90, 100)
     
-    run_experiment("colourspace", values, change_func)
+    run_experiment(input_file, sheets_file, out_path, restrict, "colourspace", values, change_func)
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("list", help="path to list of image files and truth sheet names")
+    parser.add_argument("sheets", help="sheets json file path string")
+    parser.add_argument("output", help="path to output profiling files")
+    parser.add_argument("--restrict", help="n most similar images to use in spatial verification", default=30)
+    args = parser.parse_args()
     # run with $ py -3.7 -m eval_scripts.parameter_tuning
+    # input_file = "E:/data/deutsches_reich/SBB/cut/list_med.txt"
+    # input_file = args.list#"E:/data/deutsches_reich/SLUB/cut/raw/list_20.txt"
+    # sheets_file = args.sheets#"data/blattschnitt_dr100_regular.geojson"
 
     # profile index building
     # needs local OSM data, otherwise it takes too long
@@ -172,6 +179,6 @@ if __name__ == "__main__":
     # test_segmentation()
 
     # test hsv vs lab segmentation
-    test_hsvlab()
+    test_hsvlab(args.list, args.sheets, args.output, args.restrict)
 
     print("finished all experiments!")
