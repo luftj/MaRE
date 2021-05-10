@@ -3,9 +3,9 @@
 Extract water bodies from topographic maps and match them to OSM data for georeferencing.
 ---
 
-This branch (paper supplement) contains the supplemental code to the paper XXX published at XXX. It is a cleaned up version of [this](https://github.com/luftj/MaRE/releases/tag/cbgr-paper-revision) release. In the meantime a lot of advances have been made on master [repo](https://github.com/luftj/MaRE). 
+This branch ([paper_supplement](https://github.com/luftj/MaRE/tree/paper_supplement)) contains the supplemental code to the paper XXX published at XXX. It is a cleaned up version of [this](https://github.com/luftj/MaRE/releases/tag/cbgr-paper-revision) release. In the meantime a lot of advances have been made on master [repo](https://github.com/luftj/MaRE), this branch will be left stale.
 
-We hope, providing this repo helps other researchers to reproduce and expand on our method.
+We hope providing this repo helps other researchers to reproduce and expand on our method.
 
 ## Installation
 
@@ -18,10 +18,7 @@ Requires
 
 ## Usage
 
+get some input data. In the paper we used all maps on the wikipedia page of the [Karte des Deutschen Reiches 1:100000](https://de.wikipedia.org/wiki/Karte_des_Deutschen_Reiches_(Generalstabskarte)). Run the prepare script (LINK) to download the maps and prepare all paths to reproduce our experiments.
+
 `$ python3 main.py [image path] [sheets geojson path]`
 
-## To Do
-* collect and evaluate all parameters
-* more descriptive output file names
-* harmonise cv2/skimage usage where possible
-* when not cropping map margins, remove as much of the nodata pixels as possible (least bbox)
