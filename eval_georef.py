@@ -20,9 +20,7 @@ from find_sheet import find_poly_for_name
 from config import path_output, proj_sheets, proj_out
 
 def match_sheet_name(img_name):
-    # s = re.findall(r"(?<=_)[0-9][0-9][0-9a](?=_)",img_name)
-    # s = re.findall(r"[0-9][0-9][0-9a](?=_)",img_name)
-    s = re.findall(r"(?<=[\s_])*[0-9]?[0-9][0-9a](?=[_\s])",img_name)
+    s = re.findall(r"[0-9a]+(?=[_\s.-])",img_name)
     s = [e.lstrip('0') for e in s]
     sheet_name = "-".join(s)
     return sheet_name
@@ -119,7 +117,11 @@ def warp_images(filenames,inputpath):
         print("warping", img_name)
         sheet_name = match_sheet_name(img_name)
 
-        img_path = inputpath + "/" + img_name
+        img_path = inputpath + "/georef_sheet_%s.jp2" % (sheet_name)
+        if not os.path.isfile(img_path):
+            print("didn't find file to warp: %s" % img_path)
+            continue
+
         im = Image.open(img_path)
         width, height = im.size
 
@@ -257,7 +259,7 @@ if __name__ == "__main__":
         img_list = [x for x in img_list if match_sheet_name(x)==args.single]
 
     if not args.nowarp:
-        warp_images(img_list,inputpath) # this has to be done before calculating coords, because proj db breaks
+        warp_images(img_list,path_output) # this has to be done before calculating coords, because proj db breaks
 
     error_results = []
     rmse_results = []

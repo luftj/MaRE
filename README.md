@@ -12,26 +12,33 @@ We hope providing this repo helps other researchers to reproduce our method. If 
 Requires
 * Python3
 * python-opencv
+* GDAL for evaluation
 
 ```$ python3 -m pip install -r requirements.txt ```
 
 
 ## Usage
 
-First, you have to get some input data. In the paper we used all maps on the wikipedia page of the [Karte des Deutschen Reiches 1:100000](https://de.wikipedia.org/wiki/Karte_des_Deutschen_Reiches_(Generalstabskarte)). Run the prepare script (LINK) to download the maps and prepare all paths to reproduce our experiments.
+First, you have to get some input data. In the paper we used most (some were added later and are not tested) maps on the wikipedia page of the [Karte des Deutschen Reiches 1:100000](https://de.wikipedia.org/wiki/Karte_des_Deutschen_Reiches_(Generalstabskarte)). Run the [script](download_maps.py) to download the maps and prepare all paths to reproduce our experiments.
 
-`$ python3 main.py [image path] [sheets geojson path]`
+Georeference a single or all maps in a list with the following command:
+
+`$ python3 main.py [image or list path] [sheets geojson path]`
+
+The first run can take quite a while, because the OSM data needs to be downloaded and you will get rate limited. Please consider using your own overpass instance to avoid overloading the public servers.
 
 ## data files
 
+* input maps should be cropped to only contain the map artefact and no coloured background
 * data/blattschnitt_*: these contain the sheet layout of the KDR100. *_regular contains the regular grid, *_merged has some grids merged to reflect overedge and irregularly sized sheets.
 * todo
 
 ## To do
-* prepare script (download from wikimedia)
-* add link to prepare script to this readme
 * set config paths to work with sample data
 * explain the data files and their layout a bit more
 * check requirements.txt
+* add ground truth annotations
+* make a run and eval script for a sample run
 * test installation and setup
+* add some more description/documentation here :)
 * add final paper PDF to this repo as soon as it is available and link it to this readme
