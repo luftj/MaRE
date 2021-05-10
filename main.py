@@ -76,6 +76,14 @@ def process_sheet(img_path, sheets_path, plot=False, img=True, number=None, rest
             truth_pos = -1
         logging.info("ground truth at position: %d" % (truth_pos))
 
+    # eval_entry = ["pred:%s gt:%s dist %d gt ar pos %d" % (sheet_name,number,dist,truth_pos),"registration: fail","correct: no"]
+    eval_entry = ["gt: %s pred: %s dist %f"%(number,sheet_name,dist),"gt at pos %d"%truth_pos,"registration: success","correct %r"%(str(number)==str(sheet_name))]
+    logging.info("result: %s" % eval_entry)
+
+    if number and img and number != sheet_name:
+        logging.info("incorrect prediction, skipping registration.")
+        return
+
     if plot:
         plt.subplot(2, 3, 1)
         map_img_rgb = cv2.cvtColor(map_img, cv2.COLOR_BGR2RGB)
@@ -139,9 +147,6 @@ def process_sheet(img_path, sheets_path, plot=False, img=True, number=None, rest
         # georeference aligned query image with bounding box
         registration.make_worldfile(aligned_map_path, closest_bbox, border)
     
-    # eval_entry = ["pred:%s gt:%s dist %d gt ar pos %d" % (sheet_name,number,dist,truth_pos),"registration: fail","correct: no"]
-    eval_entry = ["gt: %s pred: %s dist %f"%(number,sheet_name,dist),"gt at pos %d"%truth_pos,"registration: success","correct %r"%(str(number)==str(sheet_name))]
-    logging.info("result: %s" % eval_entry)
 
 def process_list(list_path, sheets_path, plot=False, img=True, restrict=None, resize=None, rsize=None, crop=False):
     import os
@@ -180,8 +185,10 @@ if __name__ == "__main__":
     os.makedirs(config.path_logs, exist_ok=True)
     os.makedirs(config.path_osm, exist_ok=True)
     os.makedirs(config.path_output, exist_ok=True)
-
-    logging.basicConfig(filename=(config.path_logs + '/%s.log' % datetime.now().isoformat(timespec='minutes')).replace(":","-"), 
+    
+    timestamp = datetime.now().isoformat(timespec='minutes').replace(":","-")
+    logpath = config.path_logs+('/%s.log' % timestamp)
+    logging.basicConfig(filename=logpath, 
                         level=(logging.DEBUG if args.ll else logging.INFO), 
                         format="%(asctime)s [%(threadName)-12.12s] [%(levelname)-7.7s]  %(message)s") # gimme all your loggin'!
     if args.v:

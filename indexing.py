@@ -162,8 +162,6 @@ def convert_to_cv_keypoint(x, y, size=8.0, octave=1, response=1, angle=0.0):
     k.angle=angle
     return k
 
-logging.basicConfig(filename=config.path_logs+'/indexing.log', level=logging.INFO) # gimme all your loggin'!
-
 plot = False
 
 # for feature matching only (not for annoy)
@@ -546,6 +544,9 @@ if __name__ == "__main__":
     
     # reproject_all_osm()
     # exit()
+
+    # todo make logdir
+    logging.basicConfig(filename=config.path_logs+'/indexing.log', level=logging.INFO) # gimme all your loggin'!
 
     if args.output:
         print("profiling index building...")

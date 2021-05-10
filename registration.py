@@ -3,7 +3,7 @@ import numpy as np
 import os
 import logging
 from time import time
-from pyproj import Transformer
+from pyproj import Transformer, Proj
 
 import config
 
@@ -90,12 +90,12 @@ def make_worldfile(inputfile, bbox, border):
 
     outputfile = os.path.splitext(inputfile)[0]+".wld"
     with open(outputfile,"w") as fw:
-        fw.write(str(pixel_width)+"\n")
+        fw.write("%.20f\n" % pixel_width)
         fw.write("0.0"+"\n")
         fw.write("0.0"+"\n")
-        fw.write(str(pixel_height)+"\n")
-        fw.write(str(left_edge)+"\n")
-        fw.write(str(top_edge)+"\n")
+        fw.write("%.20f\n" % pixel_height)
+        fw.write("%.20f\n" % left_edge)
+        fw.write("%.20f\n" % top_edge)
     
     logging.info("saved worldfile file to: %s" % outputfile)
 
