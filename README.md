@@ -1,10 +1,11 @@
 # MaRE
 
 Extract water bodies from topographic maps and match them to OSM data for georeferencing.
-
-WIP.
-
 ---
+
+This branch (paper supplement) contains the supplemental code to the paper XXX published at XXX. It is a cleaned up version of [this](https://github.com/luftj/MaRE/releases/tag/cbgr-paper-revision) release. In the meantime a lot of advances have been made on master [repo](https://github.com/luftj/MaRE). 
+
+We hope, providing this repo helps other researchers to reproduce and expand on our method.
 
 ## Installation
 
