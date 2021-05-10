@@ -59,7 +59,6 @@ def get_from_osm(bbox=[16.3,54.25,16.834,54.5], url = #"https://overpass.openstr
             json_data = json.load(file)
             return json_data
 
-    
                 # way (%s) [water=river];
                 # way (%s) [waterway=riverbank];
                 # way (%s) [waterway=ditch];
