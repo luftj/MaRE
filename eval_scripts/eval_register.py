@@ -24,6 +24,7 @@ def plot_error_bars(errors, outpath):
     plt.xlabel("sheet")
     plt.ylabel("error [m]")
     plt.savefig(outpath + "/errors.png")
+    plt.close()
 
 def plot_error_geo(errors, sheetfile, outpath):
     import find_sheet
@@ -37,11 +38,12 @@ def plot_error_geo(errors, sheetfile, outpath):
     x = [c[0] for c in coords]
     y = [c[1] for c in coords]
 
-    plt.scatter(x,y,c=errors.values(),cmap="Reds", label="error",norm=matplotlib.colors.LogNorm())
+    plt.scatter(x,y,c=list(errors.values()),cmap="Reds", label="error",norm=matplotlib.colors.LogNorm())
     plt.xlabel("longitude")
     plt.ylabel("latitude")
     plt.colorbar(label="log(error) [m]")
-    plt.show()
+    plt.savefig(outpath + "/error_geo.png")
+    plt.close()
 
 def get_georef_error_snub(input_file, sheets_file, ground_truth_annotations_file, outpath):
     # get georef distances
@@ -85,6 +87,7 @@ if __name__ == "__main__":
 
     # make some fancy plots...
     figurespath = args.output + "/figures/"
+    os.makedirs(figurespath, exist_ok=True)
     plot_error_bars(errors, figurespath)
     
     plot_error_geo(errors, args.sheets, figurespath)
