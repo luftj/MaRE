@@ -73,6 +73,31 @@ def results(outpath):
     avg_score = sum(scores)/len(prediction_results)
     return {"score":avg_score, "wrong": num_incorrect}
 
+def retrieval_results(outpath):
+    # logpath = outpath
+    results_file = outpath + "/retrieval_results.csv"
+    eval_logs(outpath, results_file)
+    prediction_results = {}
+    with open(results_file) as fr:
+        fr.readline() # skip header
+        for line in fr:
+            line = line.strip()
+            vals = line.split("; ")
+            gt = vals[0]
+            pred = vals[1]
+            scores = ast.literal_eval(vals[6])
+            max_score = max(scores) if gt == pred else -1
+            rank = int(vals[-1])
+            mahalonobis = float(vals[12])
+            num_kps = int(vals[7])
+            prediction_results[gt] = (rank, max_score, mahalonobis, num_kps)
+
+    scores = [x[1] for x in prediction_results.values()]
+    num_incorrect = scores.count(-1)
+    print("prediction scores (index rank, ransac score)",prediction_results)
+    avg_score = sum(scores)/len(prediction_results)
+    return {"score":avg_score, "wrong": num_incorrect, "results": prediction_results}
+
 def save_results(results, path):
     if len(results) == 0:
         print("no results")

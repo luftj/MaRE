@@ -1,7 +1,8 @@
 import os
 import argparse
 import config
-from eval_scripts.eval_helpers import get_georef_error, init
+import numpy as np
+from eval_scripts.eval_helpers import get_georef_error, init, retrieval_results
 from main import process_list
 from matplotlib import pyplot as plt
 from operator import itemgetter
@@ -139,17 +140,51 @@ if __name__ == "__main__":
     print(errors)
 
     # get eval_logs for cross-checking w/ RANSAC score etc
-    # todo
-    # compare precision of correct/incorrect predictions
-    # precision vs ransac score vs index rank -> estimate uncertainty
+    retrieval_res = retrieval_results(args.output)["results"]
+    retrieval_results_sorted = [ retrieval_res[s] for s in errors.keys()]
+
+    # precision vs ransac score -> estimate uncertainty
+    ransac = [x[1] for x in retrieval_results_sorted]
+    plt.scatter(ransac,errors.values())
+    # coef = np.polyfit(np.asarray(ransac), list(errors.values()), 2)
+    # poly1d_fn = np.poly1d(coef)
+    # plt.plot(ransac, poly1d_fn(ransac), "--k")
+    plt.xlabel("RANSAC score")
+    plt.ylabel("error [m]")
+    plt.grid(True)
+    plt.show()
+
+    num_kps = [x[3] for x in retrieval_results_sorted]
+    plt.scatter(num_kps,errors.values())
+    # coef = np.polyfit(num_kps, list(errors.values()), 2)
+    # poly1d_fn = np.poly1d(coef)
+    # plt.plot(num_kps, poly1d_fn(num_kps), "--k")
+    plt.xlabel("#keypoints")
+    plt.ylabel("error [m]")
+    plt.grid(True)
+    plt.show()
+
+    if args.restrict > 1:
+        # precision vs index rank -> estimate uncertainty
+        ranks = [x[0] for x in retrieval_results_sorted]
+        # todo
+
+        # precision vs Mahalonobis -> estimate uncertainty
+        maha = [x[2] for x in retrieval_results_sorted]
+        plt.scatter(maha,errors.values())
+        plt.xlabel("Mahalonobis score")
+        plt.ylabel("error [m]")
+        plt.grid(True)
+        plt.show()
+        # compare precision of correct/incorrect predictions
+        # todo
+    exit()
     # ECC score vs ECC iterations vs precision
 
     # make some fancy plots...
     figurespath = args.output + "/figures/"
     os.makedirs(figurespath, exist_ok=True)
     plot_error_bars(errors, figurespath)
-    
-    plot_error_geo(errors, args.sheets, figurespath)
 
     # special cases
     # coast
@@ -167,5 +202,6 @@ if __name__ == "__main__":
     compare_state_of_the_art(errors, figurespath)
 
     # eval geodesy:
+    plot_error_geo(errors, args.sheets, figurespath)
     # error vs latitude (shearing)
     # error vs distance to datum (projection deviation)
