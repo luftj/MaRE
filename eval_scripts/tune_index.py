@@ -136,13 +136,13 @@ def get_results(out_path, param_to_tune, possible_values):
         results.append({"value":val,"ranks":ranks})
     return results
 
-def run_and_eval(sheets, list, out_path, param_to_tune, possible_values, change_func):
+def run_and_eval(sheets, list, out_path, param_to_tune, possible_values, change_func, rebuild=False):
     times_build = []
     times_query = []
     for val in possible_values:
         tb,tq = run_exp(param_to_tune, val, change_func, 
                         sheets, list, out_path,
-                        rebuild_index=False, default_index=True)
+                        rebuild_index=rebuild, default_index=True)
         times_build.append(tb)
         times_query.append(tq)
 
@@ -174,22 +174,23 @@ if __name__ == "__main__":
     args = parser.parse_args()
     # py -3.7 -m eval_scripts.tune_index E:/data/deutsches_reich/SBB/cut/list_med.txt data/blattschnitt_dr100_regular.geojson eval/tune_index/
 
-    # param_to_tune = "index_annoydist"
-    # possible_values = ["dot","euclidean"]
-    # def changeAnnoyDist(val):
-    #     config.index_annoydist = val
-    # run_and_eval(args.sheets, args.list, args.out_path, param_to_tune, possible_values, changeAnnoyDist)
+    param_to_tune = "index_annoydist"
+    possible_values = ["dot","euclidean"]
+    def changeAnnoyDist(val):
+        config.index_annoydist = val
+    run_and_eval(args.sheets, args.list, args.output, 
+            param_to_tune, possible_values, changeAnnoyDist, rebuild=True)
     
     # param_to_tune = "detector"
     # possible_values = ["surf_upright","kaze_upright","akaze_upright"]
     # def changeDetector(val):
     #     config.detector = val
     #     config.kp_detector = val
-    # run_and_eval(args.sheets, args.list, args.out_path, param_to_tune, possible_values, changeDetector)
+    # run_and_eval(args.sheets, args.list, args.output, param_to_tune, possible_values, changeDetector)
 
-    param_to_tune = "n_descriptors_query"
-    possible_values = [100,300,500,None]
-    def changeDescQ(val):
-        config.index_n_descriptors_query = val
-
-    run_and_eval(args.sheets, args.list, args.out_path, param_to_tune, possible_values, changeDescQ)
+    # param_to_tune = "n_descriptors_query"
+    # possible_values = [100,300,500,None]
+    # possible_values = [500]
+    # def changeDescQ(val):
+    #     config.index_n_descriptors_query = val
+    # run_and_eval(args.sheets, args.list, args.output, param_to_tune, possible_values, changeDescQ)

@@ -97,7 +97,7 @@ def make_worldfile(inputfile, bbox, border):
         fw.write("%.20f\n" % left_edge)
         fw.write("%.20f\n" % top_edge)
     
-    logging.info("saved worldfile file to: %s" % outputfile)
+    logging.info("saved worldfile to: %s" % outputfile)
 
 def georeference(inputfile, outputfile, bbox, border=None):
     time_start = time()

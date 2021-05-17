@@ -17,6 +17,7 @@ def get_retrieval_results(results_file):
     return prediction_results
 
 def maha_lowe(res, sheets_correct, sheets_incorrect, output_folder):
+    # res = [x for x in res if float(x["mahalanobis"]) >= 0]
     maha_correct    = [float(x["mahalanobis"]) for x in res if x["ground truth"] in sheets_correct]
     maha_incorrect  = [float(x["mahalanobis"]) for x in res if x["ground truth"] in sheets_incorrect]
     lowes_correct   = [float(x["Lowe's test ratio"]) for x in res if x["ground truth"] in sheets_correct]
@@ -25,10 +26,12 @@ def maha_lowe(res, sheets_correct, sheets_incorrect, output_folder):
     lowes_correct = [1 if x == -1 else x for x in lowes_correct]
     lowes_incorrect = [0 if x == -1 else x for x in lowes_incorrect]
     # todo: deal with predictions with only one RANSAC result, which subsequently have neither Maha nor Lowe
-    print("num below 8 sigma",len([x for x in maha_correct+maha_incorrect if x <=8]))
+    print("num correct below 4 sigma: %d/%d" % (len([x for x in maha_correct if 0< x <=4]),len([x for x in maha_correct if x>0])))
+    print("num incorrect below 4 sigma: %d/%d" % (len([x for x in maha_incorrect if x <=4]),len(maha_incorrect)))
 
-    min_maha = int(min(maha_correct+maha_incorrect))
-    print("min maha to split correct: %f" % min_maha)
+    min_maha = int(max(maha_incorrect))
+    print("min maha to split incorrect: %f" % min_maha)
+    print("false rejections with this split: %d/%d" % (len(list(filter(lambda x: x<min_maha,maha_correct))),len(res)))
 
     plt.scatter(maha_correct,lowes_correct, label="correct")
     plt.scatter(maha_incorrect,lowes_incorrect, color="r", marker="+", label="incorrect")
@@ -110,7 +113,12 @@ def compare_scores(res, output_folder):
     # show best score with actual truth score
     sorted_res = sorted(res,key=lambda x: max(ast.literal_eval(x["scores"])), reverse=True)
     best_score = [max(ast.literal_eval(x["scores"])) for x in sorted_res]
-    true_score = [ast.literal_eval(x["scores"])[int(x["index rank"])] for x in sorted_res]
+    scores = [ast.literal_eval(x["scores"]) for x in sorted_res]
+    index_ranks = [int(x["index rank"]) for x in sorted_res]
+    # print(list(zip(scores,index_ranks)))
+    true_score = [sc[ir] if (len(sc) > ir) else 0 for sc,ir in zip(scores,index_ranks)]
+    # true_score = [score[index_ranks[idx]] if (index_ranks[idx]>=0 and len(score)) else 0 for idx,score in enumerate(scores)]
+    # true_score = [ast.literal_eval(x["scores"])[int(x["index rank"])] if len(ast.literal_eval(x["scores"]))>0 else 0 for x in sorted_res]
     # compare with index rank
     index_rank = [int(x["index rank"]) for x in sorted_res]
     correct = [100 if x["ground truth"]==x["prediction"] else 0 for x in sorted_res]
@@ -176,14 +184,14 @@ if __name__ == "__main__":
     parser.add_argument("--coast", help="path to coast list", default=None)
     args = parser.parse_args()
     # py -3.7 eval/results_colourspace_lab.csv eval/eval_retrieval/ 
+    # py -3.7 -m eval_scripts.eval_retrieval ../210510_geocv-kickoff/eval_result.csv ../210510_geocv-kickoff/indextest/ --sheets data/blattschnitt_dr100_regular.geojson --editions /e/data/deutsches_reich/SLUB/cut/editions.txt --coast /e/data/deutsches_reich/SLUB/cut/coast.txt
 
     results_file = args.results
     output_folder = args.output + "/figures/"
     os.makedirs(output_folder, exist_ok=True)
 
     res = get_retrieval_results(results_file)
-    skipped = [x for x in res if (x["prediction"]).strip() == "unknown"]
-
+    skipped = [x for x in res if "unknown" in (x["prediction"])]#.strip() == "unknown"]
     res = [x for x in res if (x["prediction"]).strip() != "unknown"]
     sheets_correct = [x["prediction"] for x in res if x["prediction"] == x["ground truth"]]
     sheets_incorrect = [x["ground truth"] for x in res if x["prediction"] != x["ground truth"]]
