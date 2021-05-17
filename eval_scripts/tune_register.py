@@ -4,25 +4,12 @@ import argparse
 # import time
 
 import config
-from eval_scripts.eval_helpers import init, save_results, load_errors_csv, run_and_measure
-
-def get_score(input_file, sheets_file, ground_truth_annotations_file, outpath):
-    # get georef distances
-    inputpath = os.path.dirname(input_file)
-    resultsfile = "%s/eval_georef_results.csv" % outpath
-    import eval_georef
-    sheet_corners = eval_georef.read_corner_CSV(ground_truth_annotations_file)
-    img_list = list(sheet_corners.keys())
-    sheet_names, error_results, rmse_results = eval_georef.eval_list(img_list, sheet_corners, inputpath, sheets_file, config.path_output)
-    eval_georef.dump_csv(sheet_names, error_results, rmse_results, outpath=resultsfile)
-    errors = load_errors_csv(resultsfile)
-    mean_error = sum(errors.values())/len(errors)
-    return {"mean error": mean_error}
+from eval_scripts.eval_helpers import init, save_results, load_errors_csv, run_and_measure, get_georef_error
 
 def run_experiment(input_file, sheets_file, ground_truth_annotations_file, out_path, param_to_tune, possible_values, change_param_func):
     results_compare = run_and_measure(input_file, sheets_file, out_path, 
                             param_to_tune, possible_values, change_param_func, 
-                            0, get_score, [input_file, sheets_file, ground_truth_annotations_file])
+                            0, get_georef_error, [input_file, sheets_file, ground_truth_annotations_file])
     
     save_results(results_compare,"%s/%s.csv" % (out_path, param_to_tune))
     results_compare_sorted = sorted(results_compare, key=lambda x: x["mean error"])

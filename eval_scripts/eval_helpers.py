@@ -93,3 +93,16 @@ def load_errors_csv(filepath):
             sheet,mae,rmse = line.split("; ")
             results[sheet] = float(rmse)
     return results
+
+def get_georef_error(input_file, sheets_file, ground_truth_annotations_file, outpath):
+    # get georef distances
+    inputpath = os.path.dirname(input_file)
+    resultsfile = "%s/eval_georef_results.csv" % outpath
+    import eval_georef
+    sheet_corners = eval_georef.read_corner_CSV(ground_truth_annotations_file)
+    img_list = list(sheet_corners.keys())
+    sheet_names, error_results, rmse_results = eval_georef.eval_list(img_list, sheet_corners, inputpath, sheets_file, config.path_output)
+    eval_georef.dump_csv(sheet_names, error_results, rmse_results, outpath=resultsfile)
+    errors = load_errors_csv(resultsfile)
+    mean_error = sum(errors.values())/len(errors)
+    return {"mean error": mean_error, "errors":errors}
