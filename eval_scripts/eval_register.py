@@ -10,7 +10,7 @@ from operator import itemgetter
 # annotations_file = "E:/data/deutsches_reich/SBB/cut/annotations.csv"
 # sheets_file = "data/blattschnitt_dr100_regular.geojson"
 
-def plot_error_bars(errors):
+def plot_error_bars(errors, outpath):
     # overview error bars
     median_error = list(errors.values())[len(errors)//2]
     mean_error = sum(errors.values())/len(errors)
@@ -23,6 +23,24 @@ def plot_error_bars(errors):
     plt.legend()
     plt.xlabel("sheet")
     plt.ylabel("error [m]")
+    plt.savefig(outpath + "/errors.png")
+
+def plot_error_geo(errors, sheetfile, outpath):
+    import find_sheet
+
+    bboxes = [find_sheet.find_bbox_for_name(sheetfile,name) for name in errors.keys()]
+    #bbox = [minx, miny, maxx, maxy]
+    coords = [[(b[0]-b[2])/2+b[0],(b[1]-b[3])/2+b[1]] for b in bboxes]
+
+    import matplotlib.colors
+
+    x = [c[0] for c in coords]
+    y = [c[1] for c in coords]
+
+    plt.scatter(x,y,c=errors.values(),cmap="Reds", label="error",norm=matplotlib.colors.LogNorm())
+    plt.xlabel("longitude")
+    plt.ylabel("latitude")
+    plt.colorbar(label="log(error) [m]")
     plt.show()
 
 def get_georef_error_snub(input_file, sheets_file, ground_truth_annotations_file, outpath):
@@ -66,8 +84,10 @@ if __name__ == "__main__":
     # ECC score vs ECC iterations vs precision
 
     # make some fancy plots...
-    plot_error_bars(errors)
+    figurespath = args.output + "/figures/"
+    plot_error_bars(errors, figurespath)
     
+    plot_error_geo(errors, args.sheets, figurespath)
 
     # special cases
     # load lists
