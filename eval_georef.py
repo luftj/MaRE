@@ -1,32 +1,27 @@
-import sys
 import csv
 import argparse
 import json
 import re
 import os
-import subprocess
 import profile
 import time
-import importlib
 import glob
+from operator import itemgetter
 
 import pyproj
 from matplotlib import pyplot as plt
 import numpy as np
 from skimage.io import imread
-from skimage import data
 from skimage.feature import match_template, peak_local_max
 from skimage.transform import resize
-from PIL import Image
 
-from find_sheet import find_poly_for_name
-
+from find_sheet import find_poly_for_name, get_poly_dict
 import config
 
 def match_sheet_name(img_name):
     # s = re.findall(r"(?<=_)[0-9][0-9][0-9a](?=_)",img_name)
     # s = re.findall(r"[0-9][0-9][0-9a](?=_)",img_name)
-    # s = re.findall(r"(?<=[\s_])*[0-9]?[0-9][0-9a](?=[_\s])",img_name)
+    # s = re.findall(r"(?<=[\s_])*[0-9]?[0-9][0-9a](?=[_\s])",img_name) # also matches invventory key in SBB set
     s = re.findall(r"(?<=[\s_])[0-9]?[0-9][0-9a](?=[_\s])",img_name)
     s = [e.lstrip('0') for e in s]
     sheet_name = "-".join(s)
@@ -46,14 +41,18 @@ def read_corner_CSV(filepath):
                 continue
             point = (corner_data["cx"], corner_data["cy"])
             
-
-            # print(img_name, sheet_name, point)
-
             if not img_name in sheet_corners:
                 sheet_corners[img_name] = []
             sheet_corners[img_name].append(point)
+        
+    # sort corners to be: top-left, top-right, bottom-right, bottom-left
+    for sheet_name, points in sheet_corners.items():
+        sorted_by_y = sorted(points, key=itemgetter(1))
+        top = sorted(sorted_by_y[0:2], key=itemgetter(0))
+        bot = sorted(sorted_by_y[-2:], key=itemgetter(0), reverse=True)
+        sorted_points = top + bot
+        sheet_corners[sheet_name] = sorted_points
     
-    sheet_corners = { s:p for (s,p) in sheet_corners.items() if len(p) == 4}
     return sheet_corners
 
 def match_corner(image, template):
@@ -112,52 +111,27 @@ def root_mean_squared_error(points_a, points_b):
             yy[1,:])
     print("distances",distances)
     sq_distances = np.square(distances)
-    print("squared distances",sq_distances)
 
     # distances = np.hypot(*(xx - yy))
     sum_errors = np.sum(sq_distances)
     
     return np.sqrt(sum_errors/4)
 
-def warp_images(filenames,inputpath,images_path):
-    for img_name in filenames:
-        print("warping", img_name)
-        sheet_name = match_sheet_name(img_name)
-
-        img_path = inputpath + "/" + img_name
-        im = Image.open(img_path)
-        width, height = im.size
-
-        georef_path = images_path + "georef_sheet_%s_warp.tif" % sheet_name
-        infile = "%s/georef_sheet_%s.%s" % (images_path, sheet_name, config.output_file_ending)
-        
-        if not os.path.isfile(infile):
-            # could't find georeferenced map image, skipping
-            continue
-
-        command = 'gdalwarp -order 1 -t_srs EPSG:4326 -ts %d %d -overwrite "%s" "%s"' % (width, height, infile, georef_path)
-        print("exec: %s" % command)
-
-        # Set relevant paths for subprocess to avoid proj_db errors
-        # paths are different for various setups. read those in from environment before setting them.
-        if "win" in sys.platform:
-            gdalpath = ";".join(list(filter(lambda x: "gdal" in x or "GDAL" in x, os.environ["PATH"].split(";"))))
-            subenv = {
-                "PROJ_LIB": os.environ["PROJ_LIB"],
-                "PATH": gdalpath
-                }
-        else: # unix, etc... WARNING: only tested with ubuntu 18
-            subenv = {
-                "PATH": "/usr/bin"
-                }
-        proc = subprocess.run(command, shell=True, env=subenv)
-        if proc.returncode != 0:
-            raise OSError("gdalwarp returned with error code %s. See error message above" % proc.returncode)
-
 def get_truth_bbox(sheets, sheet_name):
     transform_sheet_to_out = pyproj.Transformer.from_proj(config.proj_sheets, config.proj_out, skip_equivalent=True, always_xy=True)
 
     truth_bbox = find_poly_for_name(sheets, sheet_name)
+    
+    if len(truth_bbox) != 5:
+        raise ValueError("bbox should have 4 points, has %d: %s" % (len(truth_bbox), truth_bbox))
+
+    truth_bbox = [transform_sheet_to_out.transform(x, y) for (x,y) in truth_bbox]
+    return truth_bbox
+
+def get_truth_bbox_dict(sheets_dict, sheet_name):
+    transform_sheet_to_out = pyproj.Transformer.from_proj(config.proj_sheets, config.proj_out, skip_equivalent=True, always_xy=True)
+
+    truth_bbox = sheets_dict[sheet_name]
     
     if len(truth_bbox) != 5:
         raise ValueError("bbox should have 4 points, has %d: %s" % (len(truth_bbox), truth_bbox))
@@ -267,6 +241,9 @@ def eval_list(img_list, sheet_corners, inputpath, sheetsfile, images_path, plot=
     error_results = []
     rmse_results = []
     sheet_names = []
+    times = []
+
+    truth_bboxes = get_poly_dict(sheetsfile)
 
     for img_name in img_list:
         t0 = time.time()
@@ -285,27 +262,25 @@ def eval_list(img_list, sheet_corners, inputpath, sheetsfile, images_path, plot=
         # find corner coordinates of registered image (geo-coordinates)
         corner_coords = cascadeCorners(img_path, georef_path, sheet_corners[img_name], plot=plot, downscale_factor=6)
 
-        truth_bbox = get_truth_bbox(sheetsfile, sheet_name)
+        truth_bbox = get_truth_bbox_dict(truth_bboxes, sheet_name)
         mae = mean_absolute_error(corner_coords[0:4], truth_bbox[0:4])
         rmse = root_mean_squared_error(corner_coords[0:4], truth_bbox[0:4])
-        # if mae > 2000:
-        #     print("mean absolute error: %f m" % mae)
-        #     print("root mean squared error: %f m" % rmse)
-        #     # maybe a corner wasn't properly detected, try again with full resolution ;)
-        #     corner_coords = cascadeCorners(img_path, georef_path, sheet_corners[img_name], plot=plot, downscale_factor=1)
-        #     truth_bbox = get_truth_bbox(sheetsfile, sheet_name)
-        #     mae = mean_absolute_error(corner_coords[0:4], truth_bbox[0:4])
-        #     rmse = root_mean_squared_error(corner_coords[0:4], truth_bbox[0:4])
+        
         print("mean absolute error: %f m" % mae)
         print("root mean squared error: %f m" % rmse)
+        
         error_results.append(mae)
         rmse_results.append(rmse)
         sheet_names.append(sheet_name)
 
-        print("time for image:", time.time() - t0, "s")
+        time_taken = time.time() - t0
+        times.append(time_taken)
+        print("time for image:", time_taken, "s")
 
         if plot:
             plt.show()
+
+    print("average time per image: %f" % (sum(times)/len(times)))
 
     return sheet_names, error_results, rmse_results
 

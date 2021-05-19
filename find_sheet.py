@@ -129,6 +129,23 @@ def find_poly_for_name(sheetfile, name):
 
                 return feature["geometry"]["coordinates"][0]
 
+def get_poly_dict(sheetfile):
+    return_dict = {}
+
+    with open(sheetfile) as file:
+        json_data = json.load(file)
+
+        for feature in json_data["features"]:
+            if feature["properties"]["blatt_polen"]:
+                name =  feature["properties"]["blatt_polen"]
+            if feature["properties"]["blatt_ostmark"]:
+                name =  feature["properties"]["blatt_ostmark"]
+            if feature["properties"]["blatt_100"]:
+                name =  feature["properties"]["blatt_100"]
+                
+            return_dict[name] = feature["geometry"]["coordinates"][0]
+    return return_dict
+
 def get_dict(sheetfile, only_100=False):
     return_dict = {}
 
