@@ -1,4 +1,4 @@
-path_output = "E:/experiments/fullslub/" # end with slash /
+path_output = "E:/experiments/registration_eval/"#E:/experiments/fullslub/" # end with slash /
 # path_osm = "./data/osm_old/" # end with slash /
 # path_osm = "E:/experiments/osm_drain_reproj/" # end with slash /
 path_osm = "E:/experiments/osm_drain/" # end with slash /

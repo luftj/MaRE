@@ -13,7 +13,8 @@ from matplotlib import pyplot as plt
 import numpy as np
 from skimage.io import imread
 from skimage.feature import match_template, peak_local_max
-from skimage.transform import resize
+from skimage.transform import downscale_local_mean
+from skimage import filters
 
 from find_sheet import find_poly_for_name, get_poly_dict
 import config
@@ -141,6 +142,24 @@ def get_truth_bbox_dict(sheets_dict, sheet_name):
 
 def findCorners(img, georef_img, ref_corners, plot=False, template_size = 20):
     corner_points = []
+    # g_w = georef_img.shape[1]//2
+    # g_h = georef_img.shape[0]//2
+    # quarter_images = [  ((  0,  0), georef_img[0:g_h,0:g_w]), # top left
+    #                     ((g_w,  0), georef_img[0:g_h,g_w: ]), # top right
+    #                     ((g_w,g_h), georef_img[g_h: ,g_w: ]), # bot right
+    #                     ((  0,g_h), georef_img[g_h: ,0:g_w])] # bot left
+    # pre quart: average time per image: 10.690692
+    # post quart: average time per image: 10.442163
+    # plt.subplot(2,2,1)
+    # plt.imshow(quarter_images[0])
+    # plt.subplot(2,2,2)
+    # plt.imshow(quarter_images[1])
+    # plt.subplot(2,2,3)
+    # plt.imshow(quarter_images[2])
+    # plt.subplot(2,2,4)
+    # plt.imshow(quarter_images[3])
+    # plt.show()
+    # exit()
     for idx,point in enumerate(ref_corners):
         x_min = max(0,point[1]-template_size)
         x_max = min(img.shape[0],point[1]+template_size)
@@ -148,6 +167,9 @@ def findCorners(img, georef_img, ref_corners, plot=False, template_size = 20):
         y_max = min(img.shape[1],point[0]+template_size)
         template = img[x_min:x_max, y_min:y_max]
         match = match_corner(georef_img, template)
+        # offset, quart = quarter_images[idx]
+        # match = match_corner(quart, template)
+        # match = (match[0] + offset[0], match[1] + offset[1])
         corner_points.append(match)
 
         if plot:
@@ -178,15 +200,18 @@ def cascadeCorners(img_path, georef_path, truth_corners, plot, downscale_factor)
     georef_img = imread(georef_path, as_gray=True)
 
     # downscale images
-    small_width = img.shape[1]//downscale_factor
-    img_small = resize(img, (int(small_width/img.shape[1]*img.shape[0]), small_width), anti_aliasing=True)
-    georef_img_small = resize(georef_img, (int(small_width/georef_img.shape[1]*georef_img.shape[0]),small_width), anti_aliasing=True)
+    img_small = downscale_local_mean(img, (downscale_factor, downscale_factor))
+    georef_img_small = downscale_local_mean(georef_img, (downscale_factor, downscale_factor))
+    # blurring adds 0.8s (6.7->7.5) per image on average, but helps with correct corner identification (even though 3,3 gaussian is a bit much...)
+    img_small = filters.gaussian(img_small, sigma=(3, 3), truncate=1.0)
+    georef_img_small = filters.gaussian(georef_img_small, sigma=(3, 3), truncate=1.0)
+    
     # rescale truth corners to small resolution
-    scaled_corners = [ (x * img_small.shape[1]//img.shape[1], y  * img_small.shape[0]//img.shape[0]) for (x,y) in truth_corners]
+    scaled_corners = [ (x // downscale_factor, y // downscale_factor) for (x,y) in truth_corners]
     # find  corners in small image
     corner_points = findCorners(img_small, georef_img_small, scaled_corners, template_size=20, plot=plot)
     # rescale found coordinates to original resolution
-    corner_points = [ (x * georef_img.shape[1]//georef_img_small.shape[1], y  * georef_img.shape[0]//georef_img_small.shape[0]) for (x,y) in corner_points]
+    corner_points = [ (x * downscale_factor, y  * downscale_factor) for (x,y) in corner_points]
     corner_coords = []
     for idx,corner in enumerate(corner_points):
         roi_size = 100
@@ -292,6 +317,7 @@ if __name__ == "__main__":
     parser.add_argument("--single", help="provide sheet number to test only a single sheet", default=None)
     args = parser.parse_args()
     # python eval_georef.py /e/data/deutsches_reich/wiki/highres/382.csv data/blattschnitt_dr100_merged_digi.geojson
+    # py -3.7 -m cProfile -s "cumulative" eval_georef.py /e/data/deutsches_reich/wiki/highres/annotations_wiki.csv data/blattschnitt_dr100_merged.geojson > profile2.txt
     
     inputpath = os.path.dirname(args.input)
 
