@@ -1,5 +1,6 @@
 
 import sys
+import os
 import cv2
 import argparse
 import logging
@@ -14,73 +15,48 @@ from retrieval import retrieve_best_match, retrieve_best_match_index
 
 import config
 
-def resize_by_width(shape, new_width):
+def scale_proportional(shape, new_width):
     width = new_width
     f = width / shape[1]
     height = int(f * shape[0])
     return (width, height)
 
-def restrict__bboxes(sheets_path, target, num):
-    # for debugging: don't check against all possible sheet locations, but only a subset
-    bboxdict = find_sheet.get_dict(sheets_path)
-    idx = [k for (k,v) in bboxdict.items()].index(target)
-    #idx = find_sheet.get_index_of_sheet(sheets_path, target)
-    if idx is None:
-        raise ValueError("ground truth name %s not found" % target)
-    logging.debug("restricted bbox %s by %d around idx %s" %(target, num, idx))
-    start = max(0, idx-(num//2))
-    end = idx+(num//2)+1
-    if end-start < num + 1:
-        # make sure we have a minimum of num alternatives
-        # todo: if at the end of the dict, this might still be less than num
-        end = start + num +1
-    restricted_bboxes = dict(list(bboxdict.items())[start:end])
-    return restricted_bboxes
+def process_sheet(img_path, sheets_path, plot=False, img=True, ground_truth_name=None, restrict=None, resize=None, crop=False):
+    logging.info("Processing file %s with gt: %s" % (img_path,ground_truth_name))
+    print("Processing file %s with gt: %s" % (img_path,ground_truth_name))
 
-def process_sheet(img_path, sheets_path, plot=False, img=True, number=None, restrict=None, resize=None, rsize=None, crop=False):
-    logging.info("Processing file %s with gt: %s" % (img_path,number))
-    print("Processing file %s with gt: %s" % (img_path,number))
-
-    if number and restrict:
-        bboxdict = restrict__bboxes(sheets_path, number, restrict)
-    else:
-        bboxdict = find_sheet.get_dict(sheets_path)
-
+    # load map image # opencv imread does not allow unicode file names!
     map_img = cv2.imdecode(fromfile(img_path, dtype=uint8), cv2.IMREAD_UNCHANGED)
-    # map_img = cv2.imread(img_path) # load map image # WARNING: imread does not allow unicode file names!
 
-    if resize:
-        target_size = resize_by_width(map_img.shape, resize)
+    # resize input image. Can save some processing time during segmentation. 
+    # During processing, we are only working on images with size config.process_image_width anyway 
+    if resize: 
+        target_size = scale_proportional(map_img.shape, resize)
         map_img = cv2.resize(map_img, target_size, cv2.INTER_AREA if target_size[0] < map_img.shape[1] else cv2.INTER_CUBIC) # area interpolation for downisizing, cubic upscaling
 
     water_mask = segmentation.extract_blue(map_img) # extract rivers
 
-    # image size for intermediate processing
-    processing_size = resize_by_width(map_img.shape, rsize if rsize else 500)
+    # image size for intermediate processing. We don't need full resolution for all the crazy stuff.
+    processing_size = scale_proportional(map_img.shape, config.process_image_width)
     
-    # find the best bbox for this query image
-    # closest_image, closest_bbox, dist, score_list, transform_model = retrieve_best_match(water_mask, bboxdict, processing_size)
+    # retrieval step: find the best bbox prediction for this query image
     closest_image, closest_bbox, dist, score_list, transform_model = retrieve_best_match_index(water_mask, processing_size, sheets_path, restrict_number=restrict, truth=number)
     
     # find sheet name for prediction
-    # score_list = [(*s[:-1], find_sheet.find_name_for_bbox(sheets_file, bboxes[s[-1]])) for s in score_list]
-    # score_list = [(*s[:-1], find_sheet.find_name_for_bbox(sheets_file, bboxes[s[-1]])) for s in score_list]
     sheet_name = score_list[0][-1] if len(score_list) > 0 else "unknown"
-    # sheet_name = find_sheet.find_name_for_bbox(sheets_file, closest_bbox)
     logging.info("best sheet: %s with score %d" % (sheet_name, dist))
 
-    if number:
+    if ground_truth_name:
         try:
-            truth_pos = [s[-1] for s in score_list].index(number) # todo: score_list (without index) is actually just indices, convert to sheet names
+            truth_pos = [s[-1] for s in score_list].index(ground_truth_name) # todo: score_list (without index) is actually just indices, convert to sheet names
         except:
             truth_pos = -1
         logging.info("ground truth at position: %d" % (truth_pos))
 
-    # eval_entry = ["pred:%s gt:%s dist %d gt ar pos %d" % (sheet_name,number,dist,truth_pos),"registration: fail","correct: no"]
-    eval_entry = ["gt: %s pred: %s dist %f"%(number,sheet_name,dist),"gt at pos %d"%truth_pos,"registration: success","correct %r"%(str(number)==str(sheet_name))]
+    eval_entry = ["gt: %s pred: %s dist %f"%(ground_truth_name,sheet_name,dist),"gt at pos %d"%truth_pos,"registration: success","correct %r"%(str(ground_truth_name)==str(sheet_name))]
     logging.info("result: %s" % eval_entry)
 
-    if number and img and number != sheet_name:
+    if ground_truth_name and img and ground_truth_name != sheet_name:
         logging.info("incorrect prediction, skipping registration.")
         return
 
@@ -107,7 +83,7 @@ def process_sheet(img_path, sheets_path, plot=False, img=True, number=None, rest
         
         plt.show()
 
-    if img:
+    if img: # perform registration to warp map images
         # cv2.imwrite(config.path_output + "refimg_%s_%s.png" % (sheet_name, "-".join(map(str,closest_bbox))), closest_image)
 
         # align map image
@@ -123,12 +99,12 @@ def process_sheet(img_path, sheets_path, plot=False, img=True, number=None, rest
             
         except cv2.error as e:
             logging.warning("%s - could not register %s with prediction %s!" % (e, img_path, sheet_name))
-            eval_entry = ["pred:%s gt:%s dist %d gt ar pos %d" % (sheet_name,number,dist,truth_pos),"registration: fail","correct: no"]
+            eval_entry = ["pred:%s gt:%s dist %d gt ar pos %d" % (sheet_name,ground_truth_name,dist,truth_pos),"registration: fail","correct: no"]
             logging.info("result: %s" % eval_entry)
             return 
         
         if plot:
-            plt.imshow(map_img_aligned)
+            plt.imshow(map_img_aligned) # show the warped map
             plt.title("aligned map")
             plt.show()
 
@@ -136,19 +112,20 @@ def process_sheet(img_path, sheets_path, plot=False, img=True, number=None, rest
         aligned_map_path = config.path_output + "aligned_%s_%s" % (sheet_name, "-".join(map(str,closest_bbox)))
         if crop:
             aligned_map_path += "_cropped"
+        
         if config.jpg_compression:
             aligned_map_path += ".jpg"
             cv2.imwrite(aligned_map_path, map_img_aligned, [cv2.IMWRITE_JPEG_QUALITY, config.jpg_compression])
         else:
+            # save uncompresed as raw bitmap
             aligned_map_path += ".bmp"
             cv2.imwrite(aligned_map_path, map_img_aligned)
         logging.info("saved aligned image file to: %s" % aligned_map_path)
 
         # georeference aligned query image with bounding box
         registration.make_worldfile(aligned_map_path, closest_bbox, border)
-    
 
-def process_list(list_path, sheets_path, plot=False, img=True, restrict=None, resize=None, rsize=None, crop=False):
+def process_list(list_path, sheets_path, plot=False, img=True, restrict=None, resize=None, crop=False):
     import os
     list_dir = os.path.dirname(list_path) + "/"
     with open(list_path, encoding="utf-8") as list_file:
@@ -160,7 +137,7 @@ def process_list(list_path, sheets_path, plot=False, img=True, restrict=None, re
             img_path, ground_truth = line.split(",")
             if not os.path.isabs(img_path[0]):
                 img_path = os.path.join(list_dir,img_path)
-            process_sheet(img_path, sheets_path, plot=plot, img=img, number=str(ground_truth), resize=resize, rsize=rsize, crop=crop, restrict=restrict)
+            process_sheet(img_path, sheets_path, plot=plot, img=img, ground_truth_name=str(ground_truth), resize=resize, crop=crop, restrict=restrict)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -176,12 +153,10 @@ if __name__ == "__main__":
     parser.add_argument("-ll", help="set this to get additional debug logging", action="store_true")
 
     parser.add_argument("--isize", help="resize input image to target width", default=None, type=int)
-    parser.add_argument("--rsize", help="resize registration image to target width", default=None, type=int)    
     parser.add_argument("-r", help="restrict search space around ground truth", default=None, type=int)
     args = parser.parse_args()
     
     # create necessary directories
-    import os
     os.makedirs(config.path_logs, exist_ok=True)
     os.makedirs(config.path_osm, exist_ok=True)
     os.makedirs(config.path_output, exist_ok=True)
@@ -198,6 +173,6 @@ if __name__ == "__main__":
     sheets_file = args.sheets
     
     if args.input[-4:] == ".txt":
-        process_list(args.input, sheets_file, plot=args.plot, img=(not args.noimg), resize=args.isize, rsize=args.rsize, crop=args.crop, restrict=args.r)
+        process_list(args.input, sheets_file, plot=args.plot, img=(not args.noimg), resize=args.isize, crop=args.crop, restrict=args.r)
     else:
-        process_sheet(args.input, sheets_file, plot=args.plot, img=(not args.noimg), resize=args.isize, rsize=args.rsize, crop=args.crop, number=args.gt, restrict=args.r)
+        process_sheet(args.input, sheets_file, plot=args.plot, img=(not args.noimg), resize=args.isize, crop=args.crop, ground_truth_name=args.gt, restrict=args.r)

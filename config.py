@@ -34,6 +34,7 @@ osm_query = """[out:json];
                 # way ({{bbox}}) [waterway=riverbank];
 force_osm_download = False
 
+process_image_width = 500 # image size to do all the processing in (retrieval and registration)
 
 index_img_width_query = 500
 # todo: resize interpolation method
