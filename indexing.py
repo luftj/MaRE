@@ -266,7 +266,7 @@ def build_index(sheets_path, restrict_class=None, restrict_range=None, store_des
 
         # reduce image size for performance with fixed aspect ratio
         processing_size = resize_by_width(reference_river_image.shape, config.index_img_width_train)
-        reference_image_small = cv2.resize(reference_river_image, processing_size, cv2.INTER_AREA)
+        reference_image_small = cv2.resize(reference_river_image, processing_size, config.resizing_index_building)
         if config.index_border_train:
             reference_image_small = cv2.copyMakeBorder(reference_image_small, 
                                         config.index_border_train, config.index_border_train, config.index_border_train, config.index_border_train, 
@@ -304,7 +304,7 @@ def build_index(sheets_path, restrict_class=None, restrict_range=None, store_des
         for sheet, descs in index_dict.items():
             joblib.dump(descs, config.reference_descriptors_folder+"/%s.clf" % sheet)
         for sheet, kps in keypoint_dict.items():
-            joblib.dump(kps,  config.reference_keypoints_folder+"/%s.clf" % sheet)
+            joblib.dump(kps, config.reference_keypoints_folder+"/%s.clf" % sheet)
 
 bf = None
 
@@ -457,7 +457,7 @@ def search_in_index(img_path, class_label_truth):
     water_mask = segmentation.extract_blue(map_img) # extract rivers
     # image size for intermediate processing
     processing_size = resize_by_width(map_img.shape, config.index_img_width_query)
-    water_mask_small = cv2.resize(water_mask, processing_size, interpolation=cv2.INTER_AREA)
+    water_mask_small = cv2.resize(water_mask, processing_size, interpolation=config.resizing_index_query)
     # extract features from query sheet
     kps, descriptors = extract_features(water_mask_small, first_n=config.index_n_descriptors_query)
     # set up features as test set    

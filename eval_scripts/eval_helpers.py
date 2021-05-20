@@ -94,7 +94,7 @@ def retrieval_results(outpath):
 
     scores = [x[1] for x in prediction_results.values()]
     num_incorrect = scores.count(-1)
-    print("prediction scores (index rank, ransac score)",prediction_results)
+    print("prediction scores (index rank, ransac score, maha, #kp)",prediction_results)
     avg_score = sum(scores)/len(prediction_results)
     return {"score":avg_score, "wrong": num_incorrect, "results": prediction_results}
 

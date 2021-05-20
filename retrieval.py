@@ -306,16 +306,13 @@ def retrieve_best_match(query_image, bboxdict, processing_size):
 
 def retrieve_best_match_index(query_image, processing_size, sheets_path, restrict_number=100, truth=None, preload_reference=False):
     width, height = processing_size
-    closest_image = None
     closest_bbox = None
     best_dist = -1
-
+    score_list = []
     start_time = time.time()
 
-    score_list = []
-
     # reduce image size for performance with fixed aspect ratio
-    query_image_small = cv2.resize(query_image, (width,height), interpolation=cv2.INTER_AREA)
+    query_image_small = cv2.resize(query_image, (width,height), interpolation=config.resizing_index_query)
 
     # extract features from query sheet
     keypoints, descriptors_query = indexing.extract_features(query_image_small, first_n=config.index_n_descriptors_query)
@@ -326,9 +323,8 @@ def retrieve_best_match_index(query_image, processing_size, sheets_path, restric
         reference_descriptors = joblib.load(config.reference_descriptors_path)
         reference_keypoints = joblib.load(config.reference_keypoints_path)
 
-    
-    # todo: if restrict number < 0, just return ground truth. this would speed up testing registration only
-    # BUT: this doesn't provide a transform model
+    # if restrict number is 0, just return ground truth immediately, without spatial verification.
+    # this speeds up testing registration only
     if restrict_number == 0 and truth:
         bbox = find_sheet.find_bbox_for_name(sheets_path, truth)
         bboxes = [bbox]
@@ -336,13 +332,10 @@ def retrieve_best_match_index(query_image, processing_size, sheets_path, restric
     else:
         # classify sheet with index
         print("Retrieving from index...")
-        # prediction_class, prediction, match_dict = indexing.predict(descriptors, reference_descriptors)
         prediction = indexing.predict_annoy(descriptors_query)
         prediction = prediction[:restrict_number]
         score_cap = 1#0.4
-        # sheet_predictions = [x[0] for x in prediction]
         sheet_predictions, codebook_response = zip(*prediction)
-        # sheet_predictions = [x[0] for x in prediction if x[1] < score_cap]
 
         truth_index = sheet_predictions.index(truth) if truth in sheet_predictions else -1
         logging.info("Truth at position %d in index." % truth_index)
@@ -361,23 +354,11 @@ def retrieve_best_match_index(query_image, processing_size, sheets_path, restric
     
     print("Verifying predictions...")
     progress = progressbar.ProgressBar(maxval=len(bboxes))
-    for idx,bbox in progress(enumerate(bboxes)):
+    for idx, bbox in progress(enumerate(bboxes)):
         sheet_name = sheet_predictions[idx]
         # if dict(prediction)[sheet_name] > score_cap:
         #     break
         time_now = time.time()
-
-        # by redetecting
-        # rivers_json = osm.get_from_osm(bbox)
-        # reference_river_image = osm.paint_features(rivers_json, bbox)
-
-        # #--- index matching
-        # # reduce image size for performance with fixed aspect ratio
-        # reference_image_small = cv2.resize(reference_river_image, (width, height))
-        # reference_image_small = cv2.copyMakeBorder(reference_image_small, 
-        #                                 config.index_border_train, config.index_border_train, config.index_border_train, config.index_border_train, 
-        #                                 cv2.BORDER_CONSTANT, None, 0)
-        # keypoints_q, keypoints_r = feature_matching_kaze(query_image_small, reference_image_small)
         
         # with precomputed descriptors
         if preload_reference:
@@ -388,16 +369,7 @@ def retrieve_best_match_index(query_image, processing_size, sheets_path, restric
             kp_reference = joblib.load(config.reference_keypoints_folder+"/%s.clf" % sheet_name)
         
         # Match descriptors.
-        norms = {
-            "inf": cv2.NORM_INF,
-            "l1" : cv2.NORM_L1,
-            "l2" : cv2.NORM_L2,
-            "l2s" : cv2.NORM_L2SQR,
-            "hamming": cv2.NORM_HAMMING,
-            "rel": cv2.NORM_RELATIVE,
-            "minmax":cv2.NORM_MINMAX
-        }
-        bf = cv2.BFMatcher(norms[config.matching_norm], crossCheck=config.matching_crosscheck)
+        bf = cv2.BFMatcher(config.matching_norm, crossCheck=config.matching_crosscheck)
         matches = bf.match(descriptors_query, descriptors_reference)#reference_descriptors[sheet_name])
         keypoints_q = [keypoints[x.queryIdx].pt for x in matches]
         keypoints_r = [kp_reference[x.trainIdx] for x in matches]
@@ -405,30 +377,15 @@ def retrieve_best_match_index(query_image, processing_size, sheets_path, restric
         keypoints_q = np.array(keypoints_q)
         keypoints_r = np.array(keypoints_r)
         
-        # by querying annoy
-        # # matches = match_dict[sheet_name]
-        # from annoy import AnnoyIndex
-        # from annoytest import get_kp_for_id
-        # u = AnnoyIndex(64, indexing.annoydist)
-        # u.load('index.ann') # super fast, will just mmap the file
-        # keypoints_r = []
-        # for desc in descriptors_query:
-        #     nn = u.get_nns_by_vector(desc, 1)[0]
-        #     keypoints_r.append(get_kp_for_id(reference_descriptors,reference_keypoints,nn))
-        # keypoints_q = [x.pt for x in keypoints]
-        # keypoints_q = np.array(keypoints_q)
-        # keypoints_r = np.array(keypoints_r)
-        # print(keypoints_q)
-        # print(keypoints_r)
-        # print(len(keypoints_q),len(keypoints_r))
         num_inliers, transform_model = estimate_transform(keypoints_q, keypoints_r, None, None)
 
         score_list.append((num_inliers, sheet_name))
         if closest_bbox is None or num_inliers > best_dist:
-            # closest_image = 1#reference_river_image
+            # this is the best match so far, keep for later
             closest_bbox = bbox
             best_dist = num_inliers
             best_sheet = sheet_name
+            best_transform = transform_model
 
         maha = mahalanobis_distance([x[0] for x in score_list])
         logging.info("target %d/%d Sheet %s, Score %d Best %d, maha: %f, bbox: %s, time: %f" % (idx+1, len(bboxes), sheet_name, num_inliers, best_dist, maha, bbox, time.time()-time_now))
@@ -451,6 +408,8 @@ def retrieve_best_match_index(query_image, processing_size, sheets_path, restric
     logging.info("avg time spent for retrieval: %f" % ((end_time - start_time)/len(bboxes)))
     score_list.sort(key=itemgetter(0), reverse=True)
     print("predicted sheet: %s" % best_sheet)
+
+    # create a reference map image for the predicted location
     rivers_json = osm.get_from_osm(closest_bbox)
-    closest_image = osm.paint_features(rivers_json, bbox)
-    return closest_image, closest_bbox, best_dist, score_list, transform_model
+    closest_image = osm.paint_features(rivers_json, closest_bbox)
+    return closest_image, closest_bbox, best_dist, score_list, best_transform

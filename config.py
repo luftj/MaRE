@@ -36,8 +36,18 @@ force_osm_download = False
 
 process_image_width = 500 # image size to do all the processing in (retrieval and registration)
 
+# opencv default resizing is linear.
+# area looks good for downscaling, cubic looks good or upscaling
+from cv2 import INTER_AREA, INTER_LINEAR, INTER_CUBIC
+resizing_index_building = INTER_AREA
+resizing_input = INTER_AREA
+# resizing_template_query = INTER_LINEAR
+# resizing_template_reference = INTER_AREA
+resizing_index_query = INTER_AREA
+resizing_register_query = INTER_AREA
+resizing_register_reference = INTER_CUBIC
+
 index_img_width_query = 500
-# todo: resize interpolation method
 index_n_descriptors_query = 500
 index_k_nearest_neighbours = 50
 index_voting_scheme = "antiprop"
@@ -45,7 +55,6 @@ index_lowes_test_ratio = None # 0.8
 
 # the following indexing parameters require rebuilding the index
 index_img_width_train = 500
-# todo: resize interpolation method
 index_border_train = 30
 index_annoydist = "euclidean"
 index_n_descriptors_train = 300
@@ -78,7 +87,8 @@ ransac_stop_probability = 0.99
 ransac_random_state = 1337 # only for profiling and validation. default: None
 
 codebook_response_threshold = 2 # maybe even 1.8 # todo: allow setting to None to disable
-matching_norm = "l2"
+from cv2 import NORM_INF, NORM_L1, NORM_L2, NORM_L2SQR, NORM_HAMMING, NORM_RELATIVE, NORM_MINMAX
+matching_norm = NORM_L2
 matching_crosscheck = True
 
 warp_mode_retrieval = "similarity"

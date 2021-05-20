@@ -32,7 +32,7 @@ def process_sheet(img_path, sheets_path, plot=False, img=True, ground_truth_name
     # During processing, we are only working on images with size config.process_image_width anyway 
     if resize: 
         target_size = scale_proportional(map_img.shape, resize)
-        map_img = cv2.resize(map_img, target_size, cv2.INTER_AREA if target_size[0] < map_img.shape[1] else cv2.INTER_CUBIC) # area interpolation for downisizing, cubic upscaling
+        map_img = cv2.resize(map_img, target_size, config.resizing_input)
 
     water_mask = segmentation.extract_blue(map_img) # extract rivers
 
@@ -40,7 +40,7 @@ def process_sheet(img_path, sheets_path, plot=False, img=True, ground_truth_name
     processing_size = scale_proportional(map_img.shape, config.process_image_width)
     
     # retrieval step: find the best bbox prediction for this query image
-    closest_image, closest_bbox, dist, score_list, transform_model = retrieve_best_match_index(water_mask, processing_size, sheets_path, restrict_number=restrict, truth=number)
+    closest_image, closest_bbox, dist, score_list, transform_model = retrieve_best_match_index(water_mask, processing_size, sheets_path, restrict_number=restrict, truth=ground_truth_name)
     
     # find sheet name for prediction
     sheet_name = score_list[0][-1] if len(score_list) > 0 else "unknown"

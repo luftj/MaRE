@@ -7,10 +7,6 @@ from main import process_list
 from matplotlib import pyplot as plt
 from operator import itemgetter
 
-# list_file = "E:/data/deutsches_reich/SBB/cut/list_small.txt"
-# annotations_file = "E:/data/deutsches_reich/SBB/cut/annotations.csv"
-# sheets_file = "data/blattschnitt_dr100_regular.geojson"
-
 def plot_error_bars(errors, outpath):
     # overview error bars
     median_error = list(errors.values())[len(errors)//2]
@@ -118,7 +114,7 @@ if __name__ == "__main__":
     parser.add_argument("output", help="path to output profiling files")
     parser.add_argument("--editions", help="path to editions list", default=None)
     parser.add_argument("--coast", help="path to coast list", default=None)
-    parser.add_argument("--restrict", help="n most similar images to use in spatial verification", default=0)
+    parser.add_argument("--restrict", help="n most similar images to use in spatial verification", default=0, type=int)
     args = parser.parse_args()
     # example use:
     # py -3.7 -m eval_scripts.eval_register /e/data/deutsches_reich/wiki/highres/list_regular.txt data/blattschnitt_dr100_regular.geojson /e/data/deutsches_reich/wiki/highres/annotations_wiki.csv /e/experiments/registration_eval/
@@ -129,20 +125,19 @@ if __name__ == "__main__":
     init()
 
     # run exp
-    # process_list(args.list, args.sheets, plot=False, img=True, restrict=0)
+    process_list(args.list, args.sheets, plot=False, img=True, restrict=args.restrict)
 
     # get error
-    # res = get_georef_error(args.list, args.sheets, args.annotations, args.output)
-    res = get_georef_error_snub(args.list, args.sheets, args.annotations, args.output)
+    res = get_georef_error(args.list, args.sheets, args.annotations, args.output)
+    # res = get_georef_error_snub(args.list, args.sheets, args.annotations, args.output)
     mean_error = res["mean error"] # get average precision
     errors = res["errors"]
     errors = dict(sorted(errors.items(),key=itemgetter(1)))
-    print(errors)
 
-    # get eval_logs for cross-checking w/ RANSAC score etc
+    # get retrieval results from eval_logs for cross-checking w/ RANSAC score etc
     retrieval_res = retrieval_results(args.output)["results"]
-    retrieval_results_sorted = [ retrieval_res[s] for s in errors.keys()]
-
+    retrieval_results_sorted = [ retrieval_res[s] for s in errors.keys()] # only look at maps with successful georeferencing
+    
     # precision vs ransac score -> estimate uncertainty
     ransac = [x[1] for x in retrieval_results_sorted]
     plt.scatter(ransac,errors.values())
@@ -167,18 +162,20 @@ if __name__ == "__main__":
     if args.restrict > 1:
         # precision vs index rank -> estimate uncertainty
         ranks = [x[0] for x in retrieval_results_sorted]
-        # todo
-
+        plt.scatter(ranks, errors.values(), label="Index rank")
         # precision vs Mahalonobis -> estimate uncertainty
         maha = [x[2] for x in retrieval_results_sorted]
-        plt.scatter(maha,errors.values())
-        plt.xlabel("Mahalonobis score")
+        plt.scatter(maha, errors.values(), label="Mahalonobis")
+
+        plt.xlabel("Retrieval scores")
         plt.ylabel("error [m]")
+        plt.legend()
         plt.grid(True)
         plt.show()
+
         # compare precision of correct/incorrect predictions
         # todo
-    exit()
+    
     # ECC score vs ECC iterations vs precision
 
     # make some fancy plots...

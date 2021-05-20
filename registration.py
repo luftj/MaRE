@@ -133,15 +133,14 @@ def align_map_image(map_image, query_image, reference_image, target_size=(500,50
     logging.info("registration image resolution: %d,%d" % target_size)
 
     # register query and retrieved reference image for fine alignment
-    query_image_small = cv2.resize(query_image, target_size, cv2.INTER_AREA)
+    query_image_small = cv2.resize(query_image, target_size, config.resizing_register_query)
     
     # we need some padding to make sure, we keep most of the map margins
     border_size = config.template_window_size
     reference_image = cv2.resize(reference_image, 
                                     (target_size[0] - border_size*2,
                                      target_size[1] - border_size*2),
-                                    cv2.INTER_CUBIC)
-                                    #cv2.INTER_AREA)
+                                    config.resizing_register_reference)
     reference_image_border = cv2.copyMakeBorder(reference_image, 
                                                 border_size, border_size, border_size, border_size, 
                                                 cv2.BORDER_CONSTANT, None, 0)
@@ -155,7 +154,7 @@ def align_map_image(map_image, query_image, reference_image, target_size=(500,50
     else:
         raise NotImplementedError("registration warp mode not supported:", config.warp_mode_registration)
 
-    if transform_prior:
+    if not transform_prior is None:
         # when we pad the reference image (to keep map margins), the transform 
         # prior from RANSAC doesn't fit anymore. Adjust it with some algebra
         border_transform = np.eye(3,3,dtype=np.float32)
