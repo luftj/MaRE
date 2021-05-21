@@ -370,7 +370,7 @@ def retrieve_best_match_index(query_image, processing_size, sheets_path, restric
         
         # Match descriptors.
         bf = cv2.BFMatcher(config.matching_norm, crossCheck=config.matching_crosscheck)
-        matches = bf.match(descriptors_query, descriptors_reference)#reference_descriptors[sheet_name])
+        matches = bf.match(np.asarray(descriptors_query), np.asarray(descriptors_reference)) # when providing tuples, opencv fails without warning, i.e. returns []
         keypoints_q = [keypoints[x.queryIdx].pt for x in matches]
         keypoints_r = [kp_reference[x.trainIdx] for x in matches]
         keypoints_r = [[x-config.index_border_train,y-config.index_border_train] for [x,y] in keypoints_r] # remove border from ref images, as they will not be there for registration
