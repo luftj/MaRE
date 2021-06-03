@@ -1,5 +1,7 @@
 import json
 
+from config import sheet_name_field
+
 def make_test_bboxes(ref_bbox):
     bbox = ref_bbox
     bbox_size = (bbox[2]-bbox[0],bbox[3]-bbox[1])
@@ -51,6 +53,8 @@ def get_ordered_bboxes_from_json(filepath, sheet_names):
                 sheet_name = feature["properties"]["blatt_ostmark"]
             if "blatt_100" in feature["properties"] and feature["properties"]["blatt_100"]:
                 sheet_name = feature["properties"]["blatt_100"]
+            if sheet_name_field in feature["properties"] and feature["properties"][sheet_name_field]:
+                sheet_name = feature["properties"][sheet_name_field]
             else:
                 raise ValueError("bad format for sheets file")
 
@@ -165,6 +169,8 @@ def get_dict(sheetfile, only_100=False):
                 name =  feature["properties"]["blatt_ostmark"]
             if "blatt_100" in feature["properties"] and feature["properties"]["blatt_100"]:
                 name =  feature["properties"]["blatt_100"]
+            if sheet_name_field in feature["properties"] and feature["properties"][sheet_name_field]:
+                name =  feature["properties"][sheet_name_field]
             else:
                 raise ValueError("bad format for sheets file")
                 

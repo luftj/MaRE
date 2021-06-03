@@ -15,6 +15,7 @@ transform_sheet_to_osm = Transformer.from_proj(proj_sheets, proj_osm, skip_equiv
 transform_sheet_to_map = Transformer.from_proj(proj_sheets, proj_map, skip_equivalent=True, always_xy=True)
 
 def get_from_osm(bbox=[16.3,54.25,16.834,54.5], url = osm_url):
+    os.makedirs(path_osm, exist_ok=True)
     data_path = path_osm + "rivers_%s.geojson" % "_".join(map(str,bbox))
 
     if proj_sheets != proj_osm: # reproject sheet bounding box to OSM coordinates
@@ -22,8 +23,8 @@ def get_from_osm(bbox=[16.3,54.25,16.834,54.5], url = osm_url):
         maxxy = transform_sheet_to_osm.transform(bbox[2], bbox[3]) # reproject upper right bbox corner
         bbox = minxy+maxxy
 
+    # prepare polygon files of ocean cover
     ocean_file_path = "%s/water_poly_%s.geojson" % (path_osm, "-".join(map(str,bbox)))
-    print(ocean_file_path)
     if draw_ocean_polygon and not os.path.isfile( ocean_file_path ):
         clip_ocean_poly(bbox)
     
@@ -173,7 +174,6 @@ if __name__ == "__main__":
     import os
     os.makedirs("logs/", exist_ok=True)
     path_osm = "./test_osm/"
-    os.makedirs(path_osm, exist_ok=True)
 
     logging.basicConfig(filename='logs/osmkdr500.log', level=logging.DEBUG) # gimme all your loggin'!
     progress = progressbar.ProgressBar()
