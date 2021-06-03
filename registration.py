@@ -77,6 +77,8 @@ def georeference_gcp(inputfile, outputfile, bbox, gcps):
 
 def make_worldfile(inputfile, bbox, border):
     """ create a worldfile for a warped map image given bounding box GCPS
+    bbox as [left_x, bottom_y, right_x, top_y]
+    border as [min_col, min_row, max_col, max_row]
     """
     minxy = transform_sheet_to_out.transform(bbox[0], bbox[1]) # reproject lower left bbox corner
     maxxy = transform_sheet_to_out.transform(bbox[2], bbox[3]) # reproject upper right bbox corner

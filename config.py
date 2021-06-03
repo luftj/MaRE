@@ -1,20 +1,19 @@
-path_output = "E:/experiments/registration_eval/"#E:/experiments/fullslub/" # end with slash /
+path_output = "E:/experiments/kdr500/"#E:/experiments/fullslub/" # end with slash /
 # path_osm = "./data/osm_old/" # end with slash /
 # path_osm = "E:/experiments/osm_drain_reproj/" # end with slash /
-path_osm = "E:/experiments/osm_drain/" # end with slash /
-path_logs = "E:/experiments/fullslub/"#"./logs/" # end with slash /
+path_osm = "E:/experiments/osm_kdr500/" # end with slash /
+path_logs = "E:/experiments/kdr500/"#"./logs/" # end with slash /
 
-proj_map = "+proj=longlat +ellps=bessel +towgs84=598.1,73.7,418.2,0.202,0.045,-2.455,6.7 +no_defs" # Potsdam datum
-proj_sheets = proj_map
-proj_osm = "+proj=longlat +datum=WGS84 +ellps=WGS84 +no_defs" # EPSG:4326#
+# KDR500 uses Bonne projection
+# proj_map = "+proj=bonne +lon_0=0 +lat_1=60 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs"
+# proj_sheets = proj_map
+proj_osm = "+proj=longlat +datum=WGS84 +ellps=WGS84 +no_defs" # EPSG:4326
 proj_out = proj_osm
+proj_sheets = proj_osm
+proj_map = proj_osm
 # proj_osm = proj_map
 
-osm_url = "https://nc.hcu-hamburg.de/api/interpreter"
-#"http://overpass-api.de/api/interpreter"
-#"https://overpass.openstreetmap.ru/api/interpreter"
-#"https://overpass.osm.ch/api/interpreter"
-#"http://overpass-api.de/api/interpreter"
+osm_url = "https://nc.h cu-hamburg.de/api/interpreter"
 osm_query = """[out:json];
                 (
                 nwr ({{bbox}}) [water=lake]; 
@@ -25,14 +24,14 @@ osm_query = """[out:json];
                 way ({{bbox}}) [water=river];
                 way ({{bbox}}) [waterway=stream] [name];
                 way ({{bbox}}) [natural=coastline];
-                way ({{bbox}}) [waterway=ditch];
-                way ({{bbox}}) [waterway=drain];
+                way ({{bbox}}) [waterway=riverbank];
                 );
                 out body;
                 >;
                 out skel qt;"""
-                # way ({{bbox}}) [waterway=riverbank];
 force_osm_download = False
+download_timeout = (5,600) # connect timeout, read timeout
+draw_ocean_polygon = True
 
 process_image_width = 500 # image size to do all the processing in (retrieval and registration)
 
@@ -63,12 +62,12 @@ detector = kp_detector = "kaze_upright"
 index_descriptor_length = 64 # depends on detector!
 index_num_trees = 10
 
-reference_sheets_path = "index/sheets.clf"
-reference_index_path = "index/index.ann"
-reference_descriptors_path = "index/index.clf"
-reference_descriptors_folder = "index/descriptors"
-reference_keypoints_path = "index/keypoints.clf"
-reference_keypoints_folder = "index/keypoints"
+reference_sheets_path = "E:/experiments/kdr500/index/sheets.clf"
+reference_index_path = "E:/experiments/kdr500/index/index.ann"
+reference_descriptors_path = "E:/experiments/kdr500/index/index.clf"
+reference_descriptors_folder = "E:/experiments/kdr500/index/descriptors"
+reference_keypoints_path = "E:/experiments/kdr500/index/keypoints.clf"
+reference_keypoints_folder = "E:/experiments/kdr500/index/keypoints"
 
 template_window_size = 30
 
@@ -77,7 +76,9 @@ segmentation_blurkernel = (19,19)
 segmentation_colourspace = "lab" # can be ["lab","hsv"]
 # HSV segmentation_lowerbound = (120,  0,  90)
 # HSV segmentation_upperbound = (255, 255, 255)
+# lab 
 segmentation_lowerbound = (0,0,10)
+# lab 
 segmentation_upperbound = (255, 90, 100)#(255,70,80) #(255, 90, 80) # (255, 90, 70)
 segmentation_openingkernel = (0,0)# (11,11)
 segmentation_closingkernel = (11,11)

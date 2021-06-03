@@ -394,7 +394,10 @@ def retrieve_best_match_index(query_image, processing_size, sheets_path, restric
         
         # early termination when correct sheet was already likely detected by unverified index rank
         if config.codebook_response_threshold and idx < len(bboxes)-1:
-            test_ratio = codebook_response[idx]/codebook_response[idx+1]
+            if codebook_response[idx+1] > 0:
+                test_ratio = codebook_response[idx]/codebook_response[idx+1]
+            else:
+                test_ratio = 0
             # logging.info("test ratio between this and next index: %0.2f" % test_ratio)
             # print("test ratio between this and next index: %0.2f" % test_ratio)
             if test_ratio > config.codebook_response_threshold:

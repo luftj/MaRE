@@ -8,7 +8,7 @@ import logging
 from osmtogeojson import osmtogeojson
 from pyproj import Transformer
 
-from config import path_osm, proj_map, proj_osm, proj_sheets, osm_query, force_osm_download, osm_url
+from config import path_osm, proj_map, proj_osm, proj_sheets, osm_query, force_osm_download, osm_url, draw_ocean_polygon, download_timeout
 
 transform_osm_to_map = Transformer.from_proj(proj_osm, proj_map, skip_equivalent=True, always_xy=True)
 transform_sheet_to_osm = Transformer.from_proj(proj_sheets, proj_osm, skip_equivalent=True, always_xy=True)
@@ -21,6 +21,12 @@ def get_from_osm(bbox=[16.3,54.25,16.834,54.5], url = osm_url):
         minxy = transform_sheet_to_osm.transform(bbox[0], bbox[1]) # reproject lower left bbox corner
         maxxy = transform_sheet_to_osm.transform(bbox[2], bbox[3]) # reproject upper right bbox corner
         bbox = minxy+maxxy
+
+    ocean_file_path = "%s/water_poly_%s.geojson" % (path_osm, "-".join(map(str,bbox)))
+    print(ocean_file_path)
+    if draw_ocean_polygon and not os.path.isfile( ocean_file_path ):
+        clip_ocean_poly(bbox)
+    
     # don't query if we already have the data on disk
     if not force_osm_download and os.path.isfile( data_path ):
         logging.debug("fetching osm data from disk: %s" % data_path)
@@ -34,7 +40,7 @@ def get_from_osm(bbox=[16.3,54.25,16.834,54.5], url = osm_url):
 
     while True:
         try:
-            result = requests.get(url, params={'data': query})
+            result = requests.get(url, params={'data': query}, timeout=download_timeout)
             result = result.json()
             break
         except Exception as e:
@@ -92,11 +98,31 @@ def coord_to_point_array(points, bbox, img_size, castint=True):
         points = points.astype(int)
     return points
 
+def clip_ocean_poly(bbox):
+    water_polys_file = "E:/data/water_polygons/simplified_water_wgs84.geojson"
+    coords = " ".join(map(str,bbox))
+    cropped_output_file = "%s/water_poly_%s.geojson" % (path_osm, coords.replace(" ","-"))
+    print("clipping ocean...")
+    command = "ogr2ogr -clipsrc %s %s %s" % (coords, cropped_output_file, water_polys_file)
+    print(command)
+    os.system(command)
+
+def paint_ocean_poly(bbox):
+    coords = " ".join(map(str,bbox))
+    cropped_output_file = "%s/water_poly_%s.geojson" % (path_osm, coords.replace(" ","-"))
+    with open(cropped_output_file) as fr:
+        data = json.load(fr)
+    return data["features"]
+
 def paint_features(json_data, bbox=[16.3333,54.25,16.8333333,54.5], img_size=(1000,850)):
     if proj_sheets != proj_map: # reproject sheet bounding box to map coordinates
         minxy = transform_sheet_to_map.transform(bbox[0], bbox[1]) # reproject lower left bbox corner
         maxxy = transform_sheet_to_map.transform(bbox[2], bbox[3]) # reproject upper right bbox corner
         bbox = minxy+maxxy
+
+    if draw_ocean_polygon:
+        ocean_features = paint_ocean_poly(bbox)
+        json_data["features"] += ocean_features
 
     image = np.zeros(shape=img_size[::-1], dtype=np.uint8)
     for feature in json_data["features"]:
@@ -106,7 +132,7 @@ def paint_features(json_data, bbox=[16.3333,54.25,16.8333333,54.5], img_size=(10
                 if "waterway" in feature["properties"] and feature["properties"]["waterway"] == "river":
                     thickness = 2  
                 elif "natural" in feature["properties"] and feature["properties"]["natural"] == "coastline":
-                    thickness = 5
+                    thickness = 0 if draw_ocean_polygon else 5
                 else:
                     thickness = 1 # todo: move these to config
                 points = np.array(points)
@@ -116,6 +142,13 @@ def paint_features(json_data, bbox=[16.3333,54.25,16.8333333,54.5], img_size=(10
                 points = np.array(points)
                 # cv2.fillConvexPoly(image, points, 255)
                 cv2.fillPoly(image, [points], 255)
+
+                # draw holes
+                for hole in feature["geometry"]["coordinates"][1:]:
+                    points = [ coord_to_point(p,bbox,img_size) for p in hole]
+                    points = np.array(points)
+                    cv2.fillPoly(image, [points], 0)
+                
             elif feature["geometry"]["type"] == "MultiPolygon":
                 for poly in feature["geometry"]["coordinates"][0]:
                     points = [ coord_to_point(p,bbox,img_size) for p in poly ]
@@ -142,14 +175,21 @@ if __name__ == "__main__":
     path_osm = "./test_osm/"
     os.makedirs(path_osm, exist_ok=True)
 
-    logging.basicConfig(filename='logs/osm.log', level=logging.DEBUG) # gimme all your loggin'!
+    logging.basicConfig(filename='logs/osmkdr500.log', level=logging.DEBUG) # gimme all your loggin'!
     progress = progressbar.ProgressBar()
-    sheets_file = "data/blattschnitt_dr100_regular.geojson"
+    # sheets_file = "data/blattschnitt_dr100_regular.geojson"
+    sheets_file = "E:/data/dr500/blattschnitt_kdr500_wgs84.geojson"
     bboxes = find_sheet.get_bboxes_from_json(sheets_file)
-    bboxes = bboxes[:5]
+    bboxes = bboxes[:10]
     if len(sys.argv) == 1:
         for bbox in progress(bboxes):
             gj = get_from_osm(bbox)
     img = paint_features(gj,bbox)
-    from config import jpg_compression
-    cv2.imwrite("outref.jpg", img, [cv2.IMWRITE_JPEG_QUALITY, jpg_compression])
+    # cv2.imshow("output",img)
+    # cv2.waitKey(-1)
+    outpath = "test_osm/%s.png" % bbox
+    cv2.imwrite(outpath, img)
+    # georef this to allow easy check
+    from registration import make_worldfile
+    make_worldfile(outpath, bbox,[0,img.shape[0],img.shape[1],0])
+

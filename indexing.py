@@ -213,6 +213,10 @@ def extract_features(image, first_n=None):
         kps = kp_detector.detect(image)
         kps, dsc = detector.compute(image, kps)
     
+    if len(kps) == 0:
+        logging.error("no keypoints found!")
+        return [],[]
+        
     if first_n:
         kd = zip(kps,dsc)
         kd = sorted(kd, key=lambda x: x[0].response, reverse=True)[:first_n]
@@ -251,7 +255,9 @@ def build_index(sheets_path, restrict_class=None, restrict_range=None, store_des
     if restrict_class and restrict_range:
         bboxes = restrict_bboxes(sheets_path, restrict_class, restrict_range)
     else:
-        bboxes = find_sheet.get_bboxes_from_json(sheets_path)
+        bboxes_dict = find_sheet.get_dict(sheets_path)
+
+    bboxes = list(bboxes_dict.values())
 
     keypoint_dict = {}
     t = AnnoyIndex(config.index_descriptor_length, config.index_annoydist)
@@ -272,7 +278,8 @@ def build_index(sheets_path, restrict_class=None, restrict_range=None, store_des
                                         config.index_border_train, config.index_border_train, config.index_border_train, config.index_border_train, 
                                         cv2.BORDER_CONSTANT, None, 0)
         # get class label
-        class_label = find_sheet.find_name_for_bbox(sheets_path, bbox)
+        # class_label = find_sheet.find_name_for_bbox(sheets_path, bbox)
+        class_label = list(bboxes_dict.keys())[bboxes.index(bbox)]
         if not class_label:
             print("error in class name. skipping bbox", bbox)
             continue
@@ -545,7 +552,8 @@ if __name__ == "__main__":
     # reproject_all_osm()
     # exit()
 
-    # todo make logdir
+    # make logdir
+    os.makedirs(config.path_logs, exist_ok=True)
     logging.basicConfig(filename=config.path_logs+'/indexing.log', level=logging.INFO) # gimme all your loggin'!
 
     if args.output:
