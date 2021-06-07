@@ -1,19 +1,19 @@
-path_output = "E:/experiments/kdr500/"#E:/experiments/fullslub/" # end with slash /
+path_output = "E:/experiments/tk25_poln/"#E:/experiments/fullslub/" # end with slash /
 # path_osm = "./data/osm_old/" # end with slash /
 # path_osm = "E:/experiments/osm_drain_reproj/" # end with slash /
-path_osm = "E:/experiments/osm_kdr500/" # end with slash /
-path_logs = "E:/experiments/kdr500/"#"./logs/" # end with slash /
+path_osm = "E:/experiments/osm_tk25_poln/" # end with slash /
+path_logs = "E:/experiments/tk25_poln/"#"./logs/" # end with slash /
 
-# KDR500 uses Bonne projection
-# proj_map = "+proj=bonne +lon_0=0 +lat_1=60 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs"
-# proj_sheets = proj_map
+# TK25 uses UTM32N
+proj_map = "EPSG:4326"
+proj_sheets = proj_map
 proj_osm = "+proj=longlat +datum=WGS84 +ellps=WGS84 +no_defs" # EPSG:4326
 proj_out = proj_osm
-proj_sheets = proj_osm
-proj_map = proj_osm
+# proj_sheets = proj_osm
+# proj_map = proj_osm
 # proj_osm = proj_map
 
-osm_url = "https://nc.h cu-hamburg.de/api/interpreter"
+osm_url = "https://nc.hcu-hamburg.de/api/interpreter"
 osm_query = """[out:json];
                 (
                 nwr ({{bbox}}) [water=lake]; 
@@ -21,9 +21,10 @@ osm_query = """[out:json];
                 way ({{bbox}}) [type=waterway] [name]; 
                 way ({{bbox}}) [waterway=river] [name];
                 way ({{bbox}}) [waterway=canal] [name];
+                way ({{bbox}}) [waterway=ditch] [name];
+                way ({{bbox}}) [waterway=drain] [name];
                 way ({{bbox}}) [water=river];
                 way ({{bbox}}) [waterway=stream] [name];
-                way ({{bbox}}) [natural=coastline];
                 way ({{bbox}}) [waterway=riverbank];
                 );
                 out body;
@@ -31,7 +32,9 @@ osm_query = """[out:json];
                 out skel qt;"""
 force_osm_download = False
 download_timeout = (5,600) # connect timeout, read timeout
-draw_ocean_polygon = True
+draw_ocean_polygon = False
+
+sheet_name_field = "num"
 
 process_image_width = 500 # image size to do all the processing in (retrieval and registration)
 
@@ -62,24 +65,24 @@ detector = kp_detector = "kaze_upright"
 index_descriptor_length = 64 # depends on detector!
 index_num_trees = 10
 
-reference_sheets_path = "E:/experiments/kdr500/index/sheets.clf"
-reference_index_path = "E:/experiments/kdr500/index/index.ann"
-reference_descriptors_path = "E:/experiments/kdr500/index/index.clf"
-reference_descriptors_folder = "E:/experiments/kdr500/index/descriptors"
-reference_keypoints_path = "E:/experiments/kdr500/index/keypoints.clf"
-reference_keypoints_folder = "E:/experiments/kdr500/index/keypoints"
+reference_sheets_path = "E:/experiments/tk25_poln/index/sheets.clf"
+reference_index_path = "E:/experiments/tk25_poln/index/index.ann"
+reference_descriptors_path = "E:/experiments/tk25_poln/index/index.clf"
+reference_descriptors_folder = "E:/experiments/tk25_poln/index/descriptors"
+reference_keypoints_path = "E:/experiments/tk25_poln/index/keypoints.clf"
+reference_keypoints_folder = "E:/experiments/tk25_poln/index/keypoints"
 
 template_window_size = 30
 
 segmentation_colourbalance_percent = 5
 segmentation_blurkernel = (19,19)
-segmentation_colourspace = "lab" # can be ["lab","hsv"]
-# HSV segmentation_lowerbound = (120,  0,  90)
-# HSV segmentation_upperbound = (255, 255, 255)
-# lab 
-segmentation_lowerbound = (0,0,10)
-# lab 
-segmentation_upperbound = (255, 90, 100)#(255,70,80) #(255, 90, 80) # (255, 90, 70)
+segmentation_colourspace = "hsv" # can be ["lab","hsv"]
+# HSV 
+segmentation_lowerbound = (120,  0,  90)
+# HSV 
+segmentation_upperbound = (255, 255, 255)
+# lab segmentation_lowerbound = (0,0,10)
+# lab segmentation_upperbound = (255, 90, 100)#(255,70,80) #(255, 90, 80) # (255, 90, 70)
 segmentation_openingkernel = (0,0)# (11,11)
 segmentation_closingkernel = (11,11)
 
@@ -87,7 +90,7 @@ ransac_max_trials = 1000
 ransac_stop_probability = 0.99
 ransac_random_state = 1337 # only for profiling and validation. default: None
 
-codebook_response_threshold = 2 # maybe even 1.8 # todo: allow setting to None to disable
+codebook_response_threshold = None # maybe even 1.8 # set to None to disable
 from cv2 import NORM_INF, NORM_L1, NORM_L2, NORM_L2SQR, NORM_HAMMING, NORM_RELATIVE, NORM_MINMAX
 matching_norm = NORM_L2
 matching_crosscheck = True
@@ -108,6 +111,8 @@ registration_ecc_eps = 1e-4 #threshold of the increment in the correlation coeff
 
 # save georeferencing time:
 gdal_output_options = '-a_srs "' + proj_out + '" -a_nodata 0 -of GTiff --config GDAL_CACHEMAX 15000'# -co NUM_THREADS=ALL_CPUS'# -co NUM_THREADS=ALL_CPUS'
+
+# to do: is this parameter still in use? 
 output_file_ending = "tiff"#"jp2" # without dot . # for georeferenced map
 
 # for aligned (not georeferenced) map image
