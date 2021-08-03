@@ -21,7 +21,7 @@ def scale_proportional(shape, new_width):
     height = int(f * shape[0])
     return (width, height)
 
-def process_sheet(img_path, sheets_path, plot=False, img=True, ground_truth_name=None, restrict=None, resize=None, crop=False):
+def process_sheet(img_path, sheets_path, plot=False, img=True, ground_truth_name=None, restrict=None, resize=None, crop=False, debug=False):
     logging.info("Processing file %s with gt: %s" % (img_path,ground_truth_name))
     print("Processing file %s with gt: %s" % (img_path,ground_truth_name))
 
@@ -35,6 +35,10 @@ def process_sheet(img_path, sheets_path, plot=False, img=True, ground_truth_name
         map_img = cv2.resize(map_img, target_size, config.resizing_input)
 
     water_mask = segmentation.extract_blue(map_img) # extract rivers
+    
+    if debug:
+        os.makedirs(config.path_output + "/debug", exist_ok=True)
+        cv2.imwrite(config.path_output + "/debug/maskimg_%s.png" % (ground_truth_name), water_mask)
 
     # image size for intermediate processing. We don't need full resolution for all the crazy stuff.
     processing_size = scale_proportional(map_img.shape, config.process_image_width)
@@ -84,7 +88,8 @@ def process_sheet(img_path, sheets_path, plot=False, img=True, ground_truth_name
         plt.show()
 
     if img: # perform registration to warp map images
-        # cv2.imwrite(config.path_output + "refimg_%s_%s.png" % (sheet_name, "-".join(map(str,closest_bbox))), closest_image)
+        if debug:
+            cv2.imwrite(config.path_output + "/debug/refimg_%s_%s.png" % (sheet_name, "-".join(map(str,closest_bbox))), closest_image)
 
         # align map image
         try:
@@ -125,7 +130,7 @@ def process_sheet(img_path, sheets_path, plot=False, img=True, ground_truth_name
         # georeference aligned query image with bounding box
         registration.make_worldfile(aligned_map_path, closest_bbox, border)
 
-def process_list(list_path, sheets_path, plot=False, img=True, restrict=None, resize=None, crop=False):
+def process_list(list_path, sheets_path, plot=False, img=True, restrict=None, resize=None, crop=False, debug=False):
     import os
     list_dir = os.path.dirname(list_path) + "/"
     with open(list_path, encoding="utf-8") as list_file:
@@ -137,7 +142,7 @@ def process_list(list_path, sheets_path, plot=False, img=True, restrict=None, re
             img_path, ground_truth = line.split(",")
             if not os.path.isabs(img_path[0]):
                 img_path = os.path.join(list_dir,img_path)
-            process_sheet(img_path, sheets_path, plot=plot, img=img, ground_truth_name=str(ground_truth), resize=resize, crop=crop, restrict=restrict)
+            process_sheet(img_path, sheets_path, plot=plot, img=img, ground_truth_name=str(ground_truth), resize=resize, crop=crop, restrict=restrict, debug=debug)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -151,6 +156,7 @@ if __name__ == "__main__":
     parser.add_argument("--plot", help="set this to true to show debugging plots", action="store_true")
     parser.add_argument("-v", help="set this to true to print log info to stdout", action="store_true")
     parser.add_argument("-ll", help="set this to get additional debug logging", action="store_true")
+    parser.add_argument("--debug", help="set this to store debug images", action="store_true")
 
     parser.add_argument("--isize", help="resize input image to target width", default=None, type=int)
     parser.add_argument("-r", help="restrict search space around ground truth", default=None, type=int)
@@ -173,6 +179,6 @@ if __name__ == "__main__":
     sheets_file = args.sheets
     
     if args.input[-4:] == ".txt":
-        process_list(args.input, sheets_file, plot=args.plot, img=(not args.noimg), resize=args.isize, crop=args.crop, restrict=args.r)
+        process_list(args.input, sheets_file, plot=args.plot, img=(not args.noimg), resize=args.isize, crop=args.crop, restrict=args.r, debug=args.debug)
     else:
-        process_sheet(args.input, sheets_file, plot=args.plot, img=(not args.noimg), resize=args.isize, crop=args.crop, ground_truth_name=args.gt, restrict=args.r)
+        process_sheet(args.input, sheets_file, plot=args.plot, img=(not args.noimg), resize=args.isize, crop=args.crop, ground_truth_name=args.gt, restrict=args.r, debug=args.debug)

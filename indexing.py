@@ -574,6 +574,11 @@ if __name__ == "__main__":
         print("evaluating index...")
         lps = search_list(args.list)
 
+        positions = []
         with open("index_result.csv","w") as fp:
             for l,p in lps:
                 fp.write("%s : %d\n"%(l,p))
+                positions.append(p)
+
+        print("mean index position:", sum(positions)/len(positions))
+        print("median index position:", sorted(positions)[len(positions)//2])

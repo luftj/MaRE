@@ -1,19 +1,21 @@
-path_output = "E:/experiments/tk25_poln/"#E:/experiments/fullslub/" # end with slash /
+path_output = "E:/experiments/usgs100_rcut/"#E:/experiments/fullslub/" # end with slash /
 # path_osm = "./data/osm_old/" # end with slash /
 # path_osm = "E:/experiments/osm_drain_reproj/" # end with slash /
-path_osm = "E:/experiments/osm_tk25_poln/" # end with slash /
-path_logs = "E:/experiments/tk25_poln/"#"./logs/" # end with slash /
+path_osm = "E:/experiments/osm_usgs100/" # end with slash /
+path_logs = path_output + "logs/"#"E:/experiments/usgs250_small/"#"./logs/" # end with slash /
 
 # TK25 uses UTM32N
-proj_map = "EPSG:4326"
+proj_map = "EPSG:4269"
 proj_sheets = proj_map
-proj_osm = "+proj=longlat +datum=WGS84 +ellps=WGS84 +no_defs" # EPSG:4326
+proj_osm = "EPSG:4326"
 proj_out = proj_osm
 # proj_sheets = proj_osm
 # proj_map = proj_osm
 # proj_osm = proj_map
 
-osm_url = "https://nc.hcu-hamburg.de/api/interpreter"
+#osm_url = "https://lz4.overpass-api.de/api/interpreter/"#
+#osm_url =  "http://overpass-api.de/api/interpreter/"#
+osm_url = "https://nc.hcu-hamburg.de/overpass_us/api/interpreter"
 osm_query = """[out:json];
                 (
                 nwr ({{bbox}}) [water=lake]; 
@@ -21,8 +23,6 @@ osm_query = """[out:json];
                 way ({{bbox}}) [type=waterway] [name]; 
                 way ({{bbox}}) [waterway=river] [name];
                 way ({{bbox}}) [waterway=canal] [name];
-                way ({{bbox}}) [waterway=ditch] [name];
-                way ({{bbox}}) [waterway=drain] [name];
                 way ({{bbox}}) [water=river];
                 way ({{bbox}}) [waterway=stream] [name];
                 way ({{bbox}}) [waterway=riverbank];
@@ -32,9 +32,9 @@ osm_query = """[out:json];
                 out skel qt;"""
 force_osm_download = False
 download_timeout = (5,600) # connect timeout, read timeout
-draw_ocean_polygon = False
+draw_ocean_polygon = True
 
-sheet_name_field = "num"
+sheet_name_field = "blatt_100"
 
 process_image_width = 500 # image size to do all the processing in (retrieval and registration)
 
@@ -65,26 +65,36 @@ detector = kp_detector = "kaze_upright"
 index_descriptor_length = 64 # depends on detector!
 index_num_trees = 10
 
-reference_sheets_path = "E:/experiments/tk25_poln/index/sheets.clf"
-reference_index_path = "E:/experiments/tk25_poln/index/index.ann"
-reference_descriptors_path = "E:/experiments/tk25_poln/index/index.clf"
-reference_descriptors_folder = "E:/experiments/tk25_poln/index/descriptors"
-reference_keypoints_path = "E:/experiments/tk25_poln/index/keypoints.clf"
-reference_keypoints_folder = "E:/experiments/tk25_poln/index/keypoints"
+reference_sheets_path = "E:/experiments/usgs100"+"/index/sheets.clf"
+reference_index_path = "E:/experiments/usgs100"+"/index/index.ann"
+reference_descriptors_path = "E:/experiments/usgs100"+"/index/index.clf"
+reference_descriptors_folder = "E:/experiments/usgs100"+"/index/descriptors"
+reference_keypoints_path = "E:/experiments/usgs100"+"/index/keypoints.clf"
+reference_keypoints_folder = "E:/experiments/usgs100"+"/index/keypoints"
 
 template_window_size = 30
 
 segmentation_colourbalance_percent = 5
 segmentation_blurkernel = (19,19)
-segmentation_colourspace = "hsv" # can be ["lab","hsv"]
-# HSV 
-segmentation_lowerbound = (120,  0,  90)
-# HSV 
-segmentation_upperbound = (255, 255, 255)
-# lab segmentation_lowerbound = (0,0,10)
-# lab segmentation_upperbound = (255, 90, 100)#(255,70,80) #(255, 90, 80) # (255, 90, 70)
+segmentation_colourspace = "lab" # can be ["lab","hsv"]
+# HSV segmentation_lowerbound = (120,  0,  90)
+# HSV segmentation_upperbound = (255, 255, 255)
+segmentation_lowerbound = (0,0,10)
+segmentation_upperbound = (255, 90, 100)#(255,70,80) #(255, 90, 80) # (255, 90, 70)
 segmentation_openingkernel = (0,0)# (11,11)
 segmentation_closingkernel = (11,11)
+
+# segmentation_colourbalance_percent = 3
+# segmentation_blurkernel = (7,7)
+# segmentation_colourspace = "hsv" # can be ["lab","hsv"]
+# # HSV 
+# segmentation_lowerbound = (120,  30,  90) # (120,  0,  90)
+# # HSV 
+# segmentation_upperbound = (255, 255, 255)
+# # lab segmentation_lowerbound = (0,0,10)
+# # lab segmentation_upperbound = (255, 90, 100)#(255,70,80) #(255, 90, 80) # (255, 90, 70)
+# segmentation_openingkernel = (0,0)# (11,11)
+# segmentation_closingkernel = (11,11)
 
 ransac_max_trials = 1000
 ransac_stop_probability = 0.99

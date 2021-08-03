@@ -10,11 +10,11 @@ def dump_csv(experiments, resultpath):
     print("writing to file...")
     with open("%s.csv" % resultpath, "w", encoding="utf-8") as eval_fp:
         # header
-        eval_fp.write("ground truth; prediction; ground truth position; georef success; avg time per sheet; times; scores; number of detected keypoints; template scores; registration time; command; percent segmented; mahalanobis; Lowe's test ratio; index rank\n")
+        eval_fp.write("ground truth; prediction; ground truth position; georef success; avg time per sheet; times; scores; number of detected keypoints; template scores; registration time; command; percent segmented; mahalanobis; Lowe's test ratio; index rank; file\n")
 
         for exp in experiments.values():
             try:
-                eval_fp.write("%s; %s; %d; %s; %.2f; %s; %s; %d; %s; %.2f; %s; %s; %.2f; %.2f; %d\n" % (exp["ground_truth"],
+                eval_fp.write("%s; %s; %d; %s; %.2f; %s; %s; %d; %s; %.2f; %s; %s; %.2f; %.2f; %d; %s\n" % (exp["ground_truth"],
                                                                 exp["prediction"],
                                                                 exp["gt_pos"],
                                                                 exp["georef_success"],
@@ -28,7 +28,8 @@ def dump_csv(experiments, resultpath):
                                                                 exp.get("percent_segmented",-1).replace(".",","),
                                                                 exp.get("mahalanobis",-1),
                                                                 exp.get("lowes_ratio",-1),
-                                                                exp.get("index_rank",-2)))
+                                                                exp.get("index_rank",-2),
+                                                                exp.get("filename","")))
             except KeyError as e:
                 print(e)
                 print("skipping exp for %s" % exp.get("ground_truth",None))
@@ -141,10 +142,13 @@ def eval_logs(logpath, resultpath="eval_result"):
                             experiment_data["mahalanobis"] = mahalanobis_distance(experiment_data["scores"])
                             experiment_data["lowes_ratio"] = lowes_ratio(experiment_data["scores"])
 
-                        if "ground_truth" in experiment_data:
-
-                            experiments[experiment_data["ground_truth"]] = experiment_data
-                            print("end for gt", experiment_data["ground_truth"])
+                        # if "ground_truth" in experiment_data:
+                        #     experiments[experiment_data["ground_truth"]] = experiment_data
+                        #     print("end for gt", experiment_data["ground_truth"])
+                        
+                        if "filename" in experiment_data:
+                            experiments[experiment_data["filename"]] = experiment_data
+                            print("end for file", experiment_data["filename"])
 
                     # start new entry
                     experiment_data = {}
@@ -160,10 +164,15 @@ def eval_logs(logpath, resultpath="eval_result"):
                 # get ground truth
                 # get result
                 elif "result:" in line:
-                    pred = re.search(r"(?<=pred:)\s*[^,'\s]*", line)[0]
+                    pred = re.search(r"(?<=pred:)[\sa-zA-Z]*(?= gt:| dist|')", line)[0]
                     experiment_data["prediction"] = pred.strip()
-                    gt = re.search(r"(?<=gt:)\s*[^,'\s]*", line)[0]
+                    print(experiment_data["prediction"])
+                    gt = re.search(r"(?<=gt:)[\sa-zA-Z]*(?= pred:| dist|')", line)[0]
                     experiment_data["ground_truth"] = gt.strip()
+
+                elif "Processing file" in line:
+                    filename = re.search(r"(?<=file ).*(?= with)", line)[0]
+                    experiment_data["filename"] = filename
 
                 elif "template matching score" in line:
                     sum_template_score += float(line.split(":")[-1])
@@ -222,9 +231,13 @@ def eval_logs(logpath, resultpath="eval_result"):
                 experiment_data["mahalanobis"] = mahalanobis_distance(experiment_data["scores"])
                 experiment_data["lowes_ratio"] = lowes_ratio(experiment_data["scores"])
 
-            if "ground_truth" in experiment_data:
-                experiments[experiment_data["ground_truth"]] = experiment_data
-                print("end for gt", experiment_data["ground_truth"])
+            # if "ground_truth" in experiment_data:
+            #     experiments[experiment_data["ground_truth"]] = experiment_data
+            #     print("end for gt", experiment_data["ground_truth"])
+            
+            if "filename" in experiment_data:
+                experiments[experiment_data["filename"]] = experiment_data
+                print("end for file", experiment_data["filename"])
 
     resultpath = resultpath.split(".")[0]
     dump_csv(experiments, resultpath)

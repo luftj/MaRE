@@ -43,7 +43,7 @@ def get_bboxes_from_json(filepath):
 def get_ordered_bboxes_from_json(filepath, sheet_names):
     bboxes = {}
 
-    with open(filepath) as file:
+    with open(filepath, encoding="utf8") as file:
         json_data = json.load(file)
 
         for feature in json_data["features"]:
@@ -155,12 +155,12 @@ def get_poly_dict(sheetfile):
 def get_dict(sheetfile, only_100=False):
     return_dict = {}
 
-    with open(sheetfile) as file:
+    with open(sheetfile, encoding="utf8") as file:
         json_data = json.load(file)
 
         for feature in json_data["features"]:
 
-            if only_100 and not "blatt_100" in feature["properties"]:
+            if only_100 and (not "blatt_100" in feature["properties"] or not feature["properties"]["blatt_100"]):
                 continue
 
             if "blatt_polen" in feature["properties"] and feature["properties"]["blatt_polen"]:
@@ -172,6 +172,7 @@ def get_dict(sheetfile, only_100=False):
             if sheet_name_field in feature["properties"] and feature["properties"][sheet_name_field]:
                 name =  feature["properties"][sheet_name_field]
             else:
+                print(sheet_name_field,feature["properties"])
                 raise ValueError("bad format for sheets file")
                 
             minx = min([p[0] for p in feature["geometry"]["coordinates"][0]])

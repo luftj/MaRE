@@ -32,8 +32,7 @@ def plot_lab_3d(img_cie, rgb_img):
     ax.set_zlabel("L")
     plt.show()
 
-def plot_lab_2d(rgb_img):
-    img_cie = cv2.cvtColor(rgb_img, cv2.COLOR_BGR2LAB)
+def plot_lab_2d(rgb_img, img_cie):
     n_points = 10000
     pp = np.reshape(img_cie,(img_cie.shape[0]*img_cie.shape[1],3))
     rgbpp = list(np.reshape(rgb_img,(rgb_img.shape[0]*rgb_img.shape[1],3)))
@@ -53,11 +52,10 @@ def plot_lab_2d(rgb_img):
     plt.ylabel("a")
     plt.show()
 
-def plot_hsv_2d(rgb_img):
-    img_hsv = cv2.cvtColor(rgb_img, cv2.COLOR_BGR2HSV)
+def plot_hsv_2d(bgr_img, img_hsv):
     n_points = 100000
     pp = np.reshape(img_hsv,(img_hsv.shape[0]*img_hsv.shape[1],3))
-    rgbpp = list(np.reshape(rgb_img,(rgb_img.shape[0]*rgb_img.shape[1],3)))
+    rgbpp = list(np.reshape(bgr_img,(bgr_img.shape[0]*bgr_img.shape[1],3)))
     pp = list(pp)
     points_i = random.sample(range(len(pp)),n_points)
     points = [pp[i] for i in points_i]#random.sample(pp, n_points)
@@ -65,7 +63,7 @@ def plot_hsv_2d(rgb_img):
     x = [int(p[0]) for p in points if p[1]>30] # h
     z = [int(p[1]) for p in points if p[1]>30] # s
     y = [int(p[2]) for p in points if p[1]>30] # v
-    c = [rgbpp[i]/256 for i in points_i if pp[i][1]>30]
+    c = [rgbpp[i][::-1]/256 for i in points_i if pp[i][1]>30] # original colours of each sampled point converted to float RGB
     # print(c[0:3])
     
     plt.scatter(x,y, c=c)
@@ -84,6 +82,9 @@ def extract_blue(img, plot=False):
     if config.segmentation_colourspace == "lab":
         img_converted = cv2.cvtColor(img, cv2.COLOR_BGR2Lab)
     elif config.segmentation_colourspace == "hsv":
+        if img.shape[-1] == 4:
+            print("has alpha!", img.shape)
+            exit()
         img_converted = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
     else:
         raise NotImplementedError("colour space %s not implemented!" % config.segmentation_colourspace)
@@ -107,24 +108,32 @@ def extract_blue(img, plot=False):
     if plot:
         # print(img[:,:,2].shape)
         # # rgb_img = np.stack([img[:,:,2],img[:,:,1],img[:,:,0]],axis=-1)
-        # rgb_img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        # plt.subplot(2,2,1)
-        # plt.imshow(rgb_img)
-        # plt.title('Original Image'), plt.xticks([]), plt.yticks([])
-        # plt.subplot(2,2,2)
-        # plt.imshow(img_converted)
-        # plt.title('LAB Image'), plt.xticks([]), plt.yticks([])
-        # plt.subplot(2,2,3)
-        # plt.imshow(img_thresh)
-        # plt.title('thresh Image'), plt.xticks([]), plt.yticks([])
-        # plt.subplot(2,2,4)
-        # plt.hist((b.ravel(),a.ravel(),l.ravel()), 256, color=["b","r","k"], label=["b","a","L"])
-        # plt.title('Histogram')#, plt.xticks([]), plt.yticks([])
-        # plt.legend()
-        # plt.show()
+        rgb_img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        plt.subplot(2,2,1)
+        plt.imshow(rgb_img)
+        plt.title('Original Image'), plt.xticks([]), plt.yticks([])
+        plt.subplot(2,2,2)
+        plt.imshow(img_converted)
+        plt.title('cvt Image'), plt.xticks([]), plt.yticks([])
+        plt.subplot(2,2,3)
+        plt.imshow(img_thresh)
+        plt.title('thresh Image'), plt.xticks([]), plt.yticks([])
+        plt.subplot(2,2,4)
+        a,b,c = cv2.split(img_converted)
+        if config.segmentation_colourspace == "lab":
+            plt.hist((c.ravel(),b.ravel(),a.ravel()), 256, color=["b","r","k"], label=["b","a","L"])
+        elif config.segmentation_colourspace == "hsv":
+            plt.hist((c.ravel(),b.ravel(),a.ravel()), 256, color=["b","r","k"], label=["V","S","H"])
+        plt.title('Histogram')#, plt.xticks([]), plt.yticks([])
+        plt.legend()
+        plt.show()
 
-        plot_hsv_2d(img)
-        # plot_lab_2d(img)
+        if config.segmentation_colourspace == "lab":
+            plot_lab_2d(img, img_converted)
+        elif config.segmentation_colourspace == "hsv":
+            plot_hsv_2d(img, img_converted)
+        else:
+            print("colour space plot not implemented")
 
     ksize = config.segmentation_openingkernel
     if ksize[0] > 1: # only open when a sensible kernel is set
@@ -145,23 +154,36 @@ def load_and_run(map_path):
 
 if __name__ == "__main__":
     import argparse
-    from matplotlib import pyplot as plt
 
     parser = argparse.ArgumentParser()
     parser.add_argument("input", help="input file path string")
+    parser.add_argument("--plot", help="show segmented image", action="store_true")
+    parser.add_argument("--save", help="save segmented image", action="store_true")
     args = parser.parse_args()
     
     # segmented_image = load_and_run(args.input)
     
     map_img = cv2.imread(args.input) # load map image
-    map_img_rgb = cv2.cvtColor(map_img, cv2.COLOR_BGR2RGB)
-    segmented_image,map_img_hsv = extract_blue(map_img, plot=False)
-    ax1 = plt.subplot(1, 3, 1)
-    ax1.imshow(map_img_rgb)
-    ax2 = plt.subplot(1, 3, 2, sharex=ax1, sharey=ax1)
-    ax2.imshow(map_img_hsv)
-    ax3 = plt.subplot(1, 3, 3, sharex=ax1, sharey=ax1)
-    plt.gray()
-    ax3.imshow(segmented_image)
-    plt.title("segmented map image")
-    plt.show()
+    segmented_image = extract_blue(map_img, plot=False)
+
+    if args.plot:
+        from matplotlib import pyplot as plt
+        ax1 = plt.subplot(1, 2, 1)
+        map_img_rgb = cv2.cvtColor(map_img, cv2.COLOR_BGR2RGB)
+        ax1.imshow(map_img_rgb)
+        ax2 = plt.subplot(1, 2, 2, sharex=ax1, sharey=ax1)
+        plt.gray()
+        ax2.imshow(segmented_image)
+        # segmented_image,map_img_hsv = extract_blue(map_img, plot=False)
+        # ax1 = plt.subplot(1, 3, 1)
+        # ax1.imshow(map_img_rgb)
+        # ax2 = plt.subplot(1, 3, 2, sharex=ax1, sharey=ax1)
+        # ax2.imshow(map_img_hsv)
+        # ax3 = plt.subplot(1, 3, 3, sharex=ax1, sharey=ax1)
+        # plt.gray()
+        # ax3.imshow(segmented_image)
+        plt.title("segmented map image")
+        plt.show()
+    if args.save:
+        import os
+        cv2.imwrite(os.path.splitext(args.input)[0]+"_mask.tif", segmented_image)

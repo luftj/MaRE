@@ -104,7 +104,7 @@ def clip_ocean_poly(bbox):
     coords = " ".join(map(str,bbox))
     cropped_output_file = "%s/water_poly_%s.geojson" % (path_osm, coords.replace(" ","-"))
     print("clipping ocean...")
-    command = "ogr2ogr -clipsrc %s %s %s" % (coords, cropped_output_file, water_polys_file)
+    command = "ogr2ogr -spat %s -clipsrc %s %s %s" % (coords, coords, cropped_output_file, water_polys_file)
     print(command)
     os.system(command)
 
@@ -116,14 +116,20 @@ def paint_ocean_poly(bbox):
     return data["features"]
 
 def paint_features(json_data, bbox=[16.3333,54.25,16.8333333,54.5], img_size=(1000,850)):
+    if draw_ocean_polygon:
+        if proj_sheets != proj_osm: # reproject sheet bounding box to OSM coordinates
+            minxy = transform_sheet_to_osm.transform(bbox[0], bbox[1]) # reproject lower left bbox corner
+            maxxy = transform_sheet_to_osm.transform(bbox[2], bbox[3]) # reproject upper right bbox corner
+            osm_bbox = minxy+maxxy
+        else:
+            osm_bbox = bbox
+        ocean_features = paint_ocean_poly(osm_bbox)
+        json_data["features"] += ocean_features
+
     if proj_sheets != proj_map: # reproject sheet bounding box to map coordinates
         minxy = transform_sheet_to_map.transform(bbox[0], bbox[1]) # reproject lower left bbox corner
         maxxy = transform_sheet_to_map.transform(bbox[2], bbox[3]) # reproject upper right bbox corner
         bbox = minxy+maxxy
-
-    if draw_ocean_polygon:
-        ocean_features = paint_ocean_poly(bbox)
-        json_data["features"] += ocean_features
 
     image = np.zeros(shape=img_size[::-1], dtype=np.uint8)
     for feature in json_data["features"]:
@@ -177,10 +183,13 @@ if __name__ == "__main__":
 
     logging.basicConfig(filename='logs/osmkdr500.log', level=logging.DEBUG) # gimme all your loggin'!
     progress = progressbar.ProgressBar()
-    # sheets_file = "data/blattschnitt_dr100_regular.geojson"
-    sheets_file = "E:/data/dr500/blattschnitt_kdr500_wgs84.geojson"
-    bboxes = find_sheet.get_bboxes_from_json(sheets_file)
-    bboxes = bboxes[:10]
+    sheets_file = "data/blattschnitt_dr100_regular.geojson"
+    sheets_file = "E:/data/deutsches_reich/Blattschnitt/blattschnitt_dr100_merged.geojson"
+    # sheets_file = "E:/data/dr500/blattschnitt_kdr500_wgs84.geojson"
+    # bboxes = find_sheet.get_bboxes_from_json(sheets_file)
+    bbox_dict = find_sheet.get_dict(sheets_file, True)
+    bboxes = [bbox_dict["143"]]
+    # bboxes = bboxes[:10]
     if len(sys.argv) == 1:
         for bbox in progress(bboxes):
             gj = get_from_osm(bbox)
