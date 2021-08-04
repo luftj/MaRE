@@ -25,7 +25,7 @@ def dump_csv(experiments, resultpath):
                                                                 exp.get("template_scores","[]"),
                                                                 exp.get("register_time",-1), # might not have been registered
                                                                 exp["command"],
-                                                                exp.get("percent_segmented",-1).replace(".",","),
+                                                                str(exp.get("percent_segmented",-1)).replace(".",","),
                                                                 exp.get("mahalanobis",-1),
                                                                 exp.get("lowes_ratio",-1),
                                                                 exp.get("index_rank",-2),
@@ -164,10 +164,11 @@ def eval_logs(logpath, resultpath="eval_result"):
                 # get ground truth
                 # get result
                 elif "result:" in line:
-                    pred = re.search(r"(?<=pred:)[\sa-zA-Z]*(?= gt:| dist|')", line)[0]
+                    print(line)
+                    pred = re.search(r"(?<=pred:)[\sa-zA-Z0-9\-]*(?= gt:| dist|')", line)[0]
                     experiment_data["prediction"] = pred.strip()
                     print(experiment_data["prediction"])
-                    gt = re.search(r"(?<=gt:)[\sa-zA-Z]*(?= pred:| dist|')", line)[0]
+                    gt = re.search(r"(?<=gt:)[\sa-zA-Z0-9\-]*(?= pred:| dist|')", line)[0]
                     experiment_data["ground_truth"] = gt.strip()
 
                 elif "Processing file" in line:

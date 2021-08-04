@@ -34,7 +34,13 @@ def process_sheet(img_path, sheets_path, plot=False, img=True, ground_truth_name
         target_size = scale_proportional(map_img.shape, resize)
         map_img = cv2.resize(map_img, target_size, config.resizing_input)
 
-    water_mask = segmentation.extract_blue(map_img) # extract rivers
+    if len(map_img.shape)>2:
+        # seegment query sheet
+        water_mask = segmentation.extract_blue(map_img) # extract rivers
+    else:
+        # grayscale image - already segmented
+        water_mask = map_img
+    # water_mask = segmentation.extract_blue(map_img) # extract rivers
     
     if debug:
         os.makedirs(config.path_output + "/debug", exist_ok=True)

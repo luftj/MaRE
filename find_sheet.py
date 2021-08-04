@@ -53,10 +53,10 @@ def get_ordered_bboxes_from_json(filepath, sheet_names):
                 sheet_name = feature["properties"]["blatt_ostmark"]
             if "blatt_100" in feature["properties"] and feature["properties"]["blatt_100"]:
                 sheet_name = feature["properties"]["blatt_100"]
-            if sheet_name_field in feature["properties"] and feature["properties"][sheet_name_field]:
-                sheet_name = feature["properties"][sheet_name_field]
-            else:
-                raise ValueError("bad format for sheets file")
+            # if sheet_name_field in feature["properties"] and feature["properties"][sheet_name_field]:
+            #     sheet_name = feature["properties"][sheet_name_field]
+            # else:
+            #     raise ValueError("bad format for sheets file")
 
             if not sheet_name in sheet_names:
                 continue
@@ -169,11 +169,11 @@ def get_dict(sheetfile, only_100=False):
                 name =  feature["properties"]["blatt_ostmark"]
             if "blatt_100" in feature["properties"] and feature["properties"]["blatt_100"]:
                 name =  feature["properties"]["blatt_100"]
-            if sheet_name_field in feature["properties"] and feature["properties"][sheet_name_field]:
-                name =  feature["properties"][sheet_name_field]
-            else:
-                print(sheet_name_field,feature["properties"])
-                raise ValueError("bad format for sheets file")
+            # if sheet_name_field in feature["properties"] and feature["properties"][sheet_name_field]:
+            #     name =  feature["properties"][sheet_name_field]
+            # else:
+            #     print(sheet_name_field,feature["properties"])
+            #     raise ValueError("bad format for sheets file")
                 
             minx = min([p[0] for p in feature["geometry"]["coordinates"][0]])
             maxx = max([p[0] for p in feature["geometry"]["coordinates"][0]])

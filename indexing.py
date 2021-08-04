@@ -460,8 +460,12 @@ def search_in_index(img_path, class_label_truth):
     """
     # load query sheet
     map_img = cv2.imdecode(np.fromfile(img_path, dtype=np.uint8), cv2.IMREAD_UNCHANGED)
-    # seegment query sheet
-    water_mask = segmentation.extract_blue(map_img) # extract rivers
+    if len(map_img.shape)>2:
+        # seegment query sheet
+        water_mask = segmentation.extract_blue(map_img) # extract rivers
+    else:
+        # grayscale image - already segmented
+        water_mask = map_img
     # image size for intermediate processing
     processing_size = resize_by_width(map_img.shape, config.index_img_width_query)
     water_mask_small = cv2.resize(water_mask, processing_size, interpolation=config.resizing_index_query)

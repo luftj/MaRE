@@ -1,39 +1,41 @@
-path_output = "E:/experiments/usgs100_rcut/"#E:/experiments/fullslub/" # end with slash /
-# path_osm = "./data/osm_old/" # end with slash /
-# path_osm = "E:/experiments/osm_drain_reproj/" # end with slash /
-path_osm = "E:/experiments/osm_usgs100/" # end with slash /
-path_logs = path_output + "logs/"#"E:/experiments/usgs250_small/"#"./logs/" # end with slash /
-
-# TK25 uses UTM32N
-proj_map = "EPSG:4269"
+base_path = "E:/experiments/sbb_osm_baseline/"
+path_output = base_path # end with slash /
+path_osm = base_path+"/osm/" # end with slash /
+path_logs = base_path # end with slash /
+base_path_index = "E:/experiments/kdr_index_regular/"
+proj_map = "+proj=longlat +ellps=bessel +towgs84=598.1,73.7,418.2,0.202,0.045,-2.455,6.7 +no_defs" # Potsdam datum
 proj_sheets = proj_map
-proj_osm = "EPSG:4326"
+proj_osm = "+proj=longlat +datum=WGS84 +ellps=WGS84 +no_defs" # EPSG:4326#
 proj_out = proj_osm
-# proj_sheets = proj_osm
-# proj_map = proj_osm
 # proj_osm = proj_map
 
-#osm_url = "https://lz4.overpass-api.de/api/interpreter/"#
-#osm_url =  "http://overpass-api.de/api/interpreter/"#
-osm_url = "https://nc.hcu-hamburg.de/overpass_us/api/interpreter"
+osm_url = "https://nc.hcu-hamburg.de/api/interpreter"
+#"http://overpass-api.de/api/interpreter"
+#"https://overpass.openstreetmap.ru/api/interpreter"
+#"https://overpass.osm.ch/api/interpreter"
+#"http://overpass-api.de/api/interpreter"
 osm_query = """[out:json];
                 (
                 nwr ({{bbox}}) [water=lake]; 
+                nwr ({{bbox}}) [water=reservoir]; 
                 way ({{bbox}}) [natural=water] [name]; 
                 way ({{bbox}}) [type=waterway] [name]; 
                 way ({{bbox}}) [waterway=river] [name];
                 way ({{bbox}}) [waterway=canal] [name];
                 way ({{bbox}}) [water=river];
                 way ({{bbox}}) [waterway=stream] [name];
+                way ({{bbox}}) [natural=coastline];
+                way ({{bbox}}) [waterway=ditch];
+                way ({{bbox}}) [waterway=drain];
                 way ({{bbox}}) [waterway=riverbank];
                 );
                 out body;
                 >;
                 out skel qt;"""
+                # way ({{bbox}}) [waterway=riverbank];
 force_osm_download = False
 download_timeout = (5,600) # connect timeout, read timeout
-draw_ocean_polygon = True
-
+draw_ocean_polygon = False
 sheet_name_field = "blatt_100"
 
 process_image_width = 500 # image size to do all the processing in (retrieval and registration)
@@ -65,12 +67,12 @@ detector = kp_detector = "kaze_upright"
 index_descriptor_length = 64 # depends on detector!
 index_num_trees = 10
 
-reference_sheets_path = "E:/experiments/usgs100"+"/index/sheets.clf"
-reference_index_path = "E:/experiments/usgs100"+"/index/index.ann"
-reference_descriptors_path = "E:/experiments/usgs100"+"/index/index.clf"
-reference_descriptors_folder = "E:/experiments/usgs100"+"/index/descriptors"
-reference_keypoints_path = "E:/experiments/usgs100"+"/index/keypoints.clf"
-reference_keypoints_folder = "E:/experiments/usgs100"+"/index/keypoints"
+reference_sheets_path = base_path+"index/sheets.clf"
+reference_index_path = base_path+"index/index.ann"
+reference_descriptors_path = base_path+"index/index.clf"
+reference_descriptors_folder = base_path+"index/descriptors"
+reference_keypoints_path = base_path+"index/keypoints.clf"
+reference_keypoints_folder = base_path+"index/keypoints"
 
 template_window_size = 30
 
@@ -84,23 +86,11 @@ segmentation_upperbound = (255, 90, 100)#(255,70,80) #(255, 90, 80) # (255, 90, 
 segmentation_openingkernel = (0,0)# (11,11)
 segmentation_closingkernel = (11,11)
 
-# segmentation_colourbalance_percent = 3
-# segmentation_blurkernel = (7,7)
-# segmentation_colourspace = "hsv" # can be ["lab","hsv"]
-# # HSV 
-# segmentation_lowerbound = (120,  30,  90) # (120,  0,  90)
-# # HSV 
-# segmentation_upperbound = (255, 255, 255)
-# # lab segmentation_lowerbound = (0,0,10)
-# # lab segmentation_upperbound = (255, 90, 100)#(255,70,80) #(255, 90, 80) # (255, 90, 70)
-# segmentation_openingkernel = (0,0)# (11,11)
-# segmentation_closingkernel = (11,11)
-
 ransac_max_trials = 1000
 ransac_stop_probability = 0.99
 ransac_random_state = 1337 # only for profiling and validation. default: None
 
-codebook_response_threshold = None # maybe even 1.8 # set to None to disable
+codebook_response_threshold = 2 # maybe even 1.8 # todo: allow setting to None to disable
 from cv2 import NORM_INF, NORM_L1, NORM_L2, NORM_L2SQR, NORM_HAMMING, NORM_RELATIVE, NORM_MINMAX
 matching_norm = NORM_L2
 matching_crosscheck = True
@@ -121,8 +111,6 @@ registration_ecc_eps = 1e-4 #threshold of the increment in the correlation coeff
 
 # save georeferencing time:
 gdal_output_options = '-a_srs "' + proj_out + '" -a_nodata 0 -of GTiff --config GDAL_CACHEMAX 15000'# -co NUM_THREADS=ALL_CPUS'# -co NUM_THREADS=ALL_CPUS'
-
-# to do: is this parameter still in use? 
 output_file_ending = "tiff"#"jp2" # without dot . # for georeferenced map
 
 # for aligned (not georeferenced) map image
