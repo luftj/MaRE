@@ -1,41 +1,38 @@
-base_path = "E:/experiments/sbb_osm_baseline/"
-path_output = base_path # end with slash /
-path_osm = base_path+"/osm/" # end with slash /
-path_logs = base_path # end with slash /
-base_path_index = "E:/experiments/kdr_index_regular/"
-proj_map = "+proj=longlat +ellps=bessel +towgs84=598.1,73.7,418.2,0.202,0.045,-2.455,6.7 +no_defs" # Potsdam datum
-proj_sheets = proj_map
-proj_osm = "+proj=longlat +datum=WGS84 +ellps=WGS84 +no_defs" # EPSG:4326#
+base_path="E:/experiments/icc_kdr500coarse/"
+path_output = base_path+""#E:/experiments/fullslub/" # end with slash /
+path_osm = base_path+"osm/" # end with slash /
+path_logs = base_path+"logs/" # end with slash /
+base_index_path = base_path+"index/"
+
+# KDR500 uses Bonne projection
+# proj_map = "+proj=bonne +lon_0=0 +lat_1=60 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs"
+# proj_sheets = proj_map
+proj_osm = "+proj=longlat +datum=WGS84 +ellps=WGS84 +no_defs" # EPSG:4326
 proj_out = proj_osm
+proj_sheets = proj_osm
+proj_map = proj_osm
 # proj_osm = proj_map
 
 osm_url = "https://nc.hcu-hamburg.de/api/interpreter"
-#"http://overpass-api.de/api/interpreter"
-#"https://overpass.openstreetmap.ru/api/interpreter"
-#"https://overpass.osm.ch/api/interpreter"
-#"http://overpass-api.de/api/interpreter"
 osm_query = """[out:json];
                 (
                 nwr ({{bbox}}) [water=lake]; 
-                nwr ({{bbox}}) [water=reservoir]; 
                 way ({{bbox}}) [natural=water] [name]; 
                 way ({{bbox}}) [type=waterway] [name]; 
                 way ({{bbox}}) [waterway=river] [name];
                 way ({{bbox}}) [waterway=canal] [name];
-                way ({{bbox}}) [water=river];
-                way ({{bbox}}) [waterway=stream] [name];
                 way ({{bbox}}) [natural=coastline];
-                way ({{bbox}}) [waterway=ditch];
-                way ({{bbox}}) [waterway=drain];
                 way ({{bbox}}) [waterway=riverbank];
                 );
                 out body;
                 >;
                 out skel qt;"""
-                # way ({{bbox}}) [waterway=riverbank];
+                # way ({{bbox}}) [water=river] [name];
+                # way ({{bbox}}) [waterway=stream] [name];
 force_osm_download = False
 download_timeout = (5,600) # connect timeout, read timeout
-draw_ocean_polygon = False
+draw_ocean_polygon = True
+fill_polys = True
 sheet_name_field = "blatt_100"
 
 process_image_width = 500 # image size to do all the processing in (retrieval and registration)
@@ -67,30 +64,33 @@ detector = kp_detector = "kaze_upright"
 index_descriptor_length = 64 # depends on detector!
 index_num_trees = 10
 
-reference_sheets_path = base_path+"index/sheets.clf"
-reference_index_path = base_path+"index/index.ann"
-reference_descriptors_path = base_path+"index/index.clf"
-reference_descriptors_folder = base_path+"index/descriptors"
-reference_keypoints_path = base_path+"index/keypoints.clf"
-reference_keypoints_folder = base_path+"index/keypoints"
+reference_sheets_path = base_index_path+"/sheets.clf"
+reference_index_path = base_index_path+"index.ann"
+reference_descriptors_path = base_index_path+"index.clf"
+reference_descriptors_folder = base_index_path+"descriptors"
+reference_keypoints_path = base_index_path+"keypoints.clf"
+reference_keypoints_folder = base_index_path+"keypoints"
 
-template_window_size = 30
+template_window_size = 30 # todo: is this param still in use?
 
-segmentation_colourbalance_percent = 5
-segmentation_blurkernel = (19,19)
-segmentation_colourspace = "lab" # can be ["lab","hsv"]
-# HSV segmentation_lowerbound = (120,  0,  90)
-# HSV segmentation_upperbound = (255, 255, 255)
-segmentation_lowerbound = (0,0,10)
-segmentation_upperbound = (255, 90, 100)#(255,70,80) #(255, 90, 80) # (255, 90, 70)
-segmentation_openingkernel = (0,0)# (11,11)
+#segmentation_colourbalance_percent = 5
+segmentation_colourbalance_percent = 0
+segmentation_blurkernel = (0,0)#(19,19)
+segmentation_colourspace = "hsv" # can be ["lab","hsv"]
+# HSV 
+segmentation_lowerbound = (60,  15,  50)
+# HSV 
+segmentation_upperbound = (110, 200, 255)
+# lab segmentation_lowerbound = (0,0,10)
+# lab segmentation_upperbound = (255, 90, 100)#(255,70,80) #(255, 90, 80) # (255, 90, 70)
+segmentation_openingkernel = (11,11)# (11,11)
 segmentation_closingkernel = (11,11)
 
 ransac_max_trials = 1000
 ransac_stop_probability = 0.99
 ransac_random_state = 1337 # only for profiling and validation. default: None
 
-codebook_response_threshold = 2 # maybe even 1.8 # todo: allow setting to None to disable
+codebook_response_threshold = None # set to None to disable
 from cv2 import NORM_INF, NORM_L1, NORM_L2, NORM_L2SQR, NORM_HAMMING, NORM_RELATIVE, NORM_MINMAX
 matching_norm = NORM_L2
 matching_crosscheck = True

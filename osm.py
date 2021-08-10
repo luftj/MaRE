@@ -8,7 +8,7 @@ import logging
 from osmtogeojson import osmtogeojson
 from pyproj import Transformer
 
-from config import path_osm, proj_map, proj_osm, proj_sheets, osm_query, force_osm_download, osm_url, draw_ocean_polygon, download_timeout
+from config import path_osm, proj_map, proj_osm, proj_sheets, osm_query, force_osm_download, osm_url, draw_ocean_polygon, download_timeout, fill_polys
 
 transform_osm_to_map = Transformer.from_proj(proj_osm, proj_map, skip_equivalent=True, always_xy=True)
 transform_sheet_to_osm = Transformer.from_proj(proj_sheets, proj_osm, skip_equivalent=True, always_xy=True)
@@ -148,20 +148,36 @@ def paint_features(json_data, bbox=[16.3333,54.25,16.8333333,54.5], img_size=(10
                 points = [ coord_to_point(p,bbox,img_size) for p in feature["geometry"]["coordinates"][0] ]
                 points = np.array(points)
                 # cv2.fillConvexPoly(image, points, 255)
-                cv2.fillPoly(image, [points], 255)
+                if "natural" in feature["properties"] and feature["properties"]["natural"] == "coastline":
+                    # coastline polys are islands
+                    if draw_ocean_polygon:
+                        cv2.fillPoly(image, [points], 0) # black islands on top of the white ocean
+                    else:
+                        cv2.polylines(image, [points], True, 255, thickness=3) # islands as outlines
+                else: # any other polys (lakes, etc...)
+                    if fill_polys:
+                        cv2.fillPoly(image, [points], 255)
+                    else:
+                        cv2.polylines(image,[points],True,255,thickness=3)
 
                 # draw holes
                 for hole in feature["geometry"]["coordinates"][1:]:
                     points = [ coord_to_point(p,bbox,img_size) for p in hole]
                     points = np.array(points)
-                    cv2.fillPoly(image, [points], 0)
+                    if fill_polys:
+                        cv2.fillPoly(image, [points], 0)
+                    else: # e.g. islands in lakes
+                        cv2.polylines(image,[points],True,255,thickness=3)
                 
             elif feature["geometry"]["type"] == "MultiPolygon":
                 for poly in feature["geometry"]["coordinates"][0]:
                     points = [ coord_to_point(p,bbox,img_size) for p in poly ]
                     points = np.array(points)
                     # cv2.fillConvexPoly(image, points, 255)
-                    cv2.fillPoly(image, [points], 255)
+                    if fill_polys:
+                        cv2.fillPoly(image, [points], 255)
+                    else:
+                        cv2.polylines(image,[points],True,255,thickness=3)
             else:
                 raise NotImplementedError("drawing feature type not implemented %s!" % feature["geometry"]["type"])
         except Exception as e:
