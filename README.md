@@ -3,9 +3,9 @@
 Extract water bodies from topographic maps and match them to OSM data for georeferencing.
 ---
 
-This branch ([paper_supplement](https://github.com/luftj/MaRE/tree/paper_supplement)) contains the supplemental code to the paper XXX published at XXX. It is a cleaned up version of [this](https://github.com/luftj/MaRE/releases/tag/cbgr-paper-revision) release. In the meantime a lot of advances have been made on master [repo](https://github.com/luftj/MaRE/tree/master), this branch will be left stale.
+This branch ([paper_supplement](https://github.com/luftj/MaRE/tree/paper_supplement)) contains the supplemental code to the paper "Automatic Content-Based Georeferencing of Historical Topographic Maps" published in Transactions in GIS (volume/issue tbd). It is a cleaned up version of [this](https://github.com/luftj/MaRE/releases/tag/cbgr-paper-revision) release. In the meantime a lot of advances have been made on master [repo](https://github.com/luftj/MaRE/tree/master), this branch will be left stale.
 
-We hope providing this repo helps other researchers to reproduce our method. If you want to expand on our method, please look at the current state on the master branch first. We are working on documenting the code better only on master. If you have any further questions, don't hesitate do contact us here via github or email.
+We hope providing this repo helps other researchers to reproduce our method. If you want to expand on our method, please look at the current state on the master branch first. We are working on documenting the code better only on master. If you have any further questions, don't hesitate to contact us here via github or email.
 
 ## Installation
 
