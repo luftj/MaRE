@@ -1,3 +1,4 @@
+from json.decoder import JSONDecodeError
 import joblib
 from time import time
 import random
@@ -267,7 +268,11 @@ def build_index(sheets_path, restrict_class=None, restrict_range=None, store_des
     index_dict = {}
     progress = progressbar.ProgressBar(maxval=len(bboxes))
     for bbox in progress(bboxes):
-        rivers_json = osm.get_from_osm(bbox)
+        try:
+            rivers_json = osm.get_from_osm(bbox)
+        except JSONDecodeError:
+            print("error in OSM data for bbox %s, skipping sheet" % bbox)
+            continue
         reference_river_image = osm.paint_features(rivers_json, bbox)
 
         # reduce image size for performance with fixed aspect ratio
@@ -458,9 +463,23 @@ def search_in_index(img_path, class_label_truth):
     """
     Predict the identity of a single map located at img_path.
     """
+    # usgs name fixes:
+    class_label_truth = class_label_truth.replace("Mts","Mountains")
+    class_label_truth = class_label_truth.replace("Mtns","Mountains")
+    # class_label_truth = class_label_truth.replace(" Of "," of ")
+    class_label_truth = class_label_truth.replace("St ","Saint ")
+    class_label_truth = class_label_truth.replace(" Du "," du ")
+
     # load query sheet
-    map_img = cv2.imdecode(np.fromfile(img_path, dtype=np.uint8), cv2.IMREAD_UNCHANGED)
+    try:
+        map_img = cv2.imdecode(np.fromfile(img_path, dtype=np.uint8), cv2.IMREAD_UNCHANGED)
+    except FileNotFoundError:
+        print("couldn't find input file at %s" % img_path)
+        return -1
+    # map_img = map_img[:,:,0] # hack for unet input
+    # map_img = cv2.erode(map_img,(9,9)) # hack for unet input
     if len(map_img.shape)>2:
+        print("segmenting")
         # seegment query sheet
         water_mask = segmentation.extract_blue(map_img) # extract rivers
     else:

@@ -85,7 +85,7 @@ if __name__ == "__main__":
     # sheets_file = "E:/data/deutsches_reich/Blattschnitt/blattschnitt_dr100_merged.geojson"
     # sheets_file = "E:/data/dr500/blattschnitt_kdr500_wgs84.geojson"
     # bboxes = find_sheet.get_bboxes_from_json(sheets_file)
-    bbox_dict = find_sheet.get_dict(args.sheets, True)
+    bbox_dict = find_sheet.get_dict(args.sheets, False)
     import os
     os.makedirs(args.output, exist_ok=True)
 
@@ -93,9 +93,13 @@ if __name__ == "__main__":
     with open(args.list, encoding="utf-8") as fr:
         for line in fr:
             _, sheet = line.strip().split(",")
+            sheet = sheet.replace("Mts","Mountains")
+            sheet = sheet.replace("Mtns","Mountains")
+            sheet = sheet.replace(" Of "," of ")
+            sheet = sheet.replace("St ","Saint ")
             sheets.append(sheet)
 
-    bboxes = [bbox_dict[x] for x in sheets]
+    bboxes = [bbox_dict[x] for x in sheets if x in bbox_dict]
     for idx, bbox in enumerate(progress(bboxes)):
         gj = osm.get_from_osm(bbox)
         img = osm.paint_features(gj,bbox)
@@ -123,4 +127,5 @@ if __name__ == "__main__":
 
     with open(args.output+"/list.txt","w") as fw:
         for s in sheets:
-            fw.write("%s.png,%s\n" % (s,s) )
+            if s in bbox_dict:
+                fw.write("%s.png,%s\n" % (s,s) )

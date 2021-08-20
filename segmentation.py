@@ -168,10 +168,13 @@ if __name__ == "__main__":
 
     if args.plot:
         from matplotlib import pyplot as plt
-        ax1 = plt.subplot(1, 2, 1)
+        ax1 = plt.subplot(1, 3, 1)
         map_img_rgb = cv2.cvtColor(map_img, cv2.COLOR_BGR2RGB)
         ax1.imshow(map_img_rgb)
-        ax2 = plt.subplot(1, 2, 2, sharex=ax1, sharey=ax1)
+        ax3 = plt.subplot(1, 3, 2, sharex=ax1, sharey=ax1)
+        map_img_hsv = cv2.cvtColor(map_img, cv2.COLOR_BGR2HSV)
+        ax3.imshow(map_img_hsv)
+        ax2 = plt.subplot(1, 3, 3, sharex=ax1, sharey=ax1)
         plt.gray()
         ax2.imshow(segmented_image)
         # segmented_image,map_img_hsv = extract_blue(map_img, plot=False)
@@ -186,4 +189,4 @@ if __name__ == "__main__":
         plt.show()
     if args.save:
         import os
-        cv2.imwrite(os.path.splitext(args.input)[0]+"_mask.tif", segmented_image)
+        cv2.imwrite(os.path.splitext(args.input)[0]+"_mask.png", segmented_image)

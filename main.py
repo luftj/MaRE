@@ -8,10 +8,9 @@ from datetime import datetime
 from matplotlib import pyplot as plt
 from numpy import fromfile, uint8
 
-import find_sheet
 import segmentation
 import registration
-from retrieval import retrieve_best_match, retrieve_best_match_index
+from retrieval import retrieve_best_match_index
 
 import config
 
@@ -34,14 +33,26 @@ def process_sheet(img_path, sheets_path, plot=False, img=True, ground_truth_name
         target_size = scale_proportional(map_img.shape, resize)
         map_img = cv2.resize(map_img, target_size, config.resizing_input)
 
+    # usgs name fixes:
+    ground_truth_name = ground_truth_name.replace("Mts","Mountains")
+    ground_truth_name = ground_truth_name.replace("Mtns","Mountains")
+    # ground_truth_name = ground_truth_name.replace(" Of "," of ")
+    ground_truth_name = ground_truth_name.replace("St ","Saint ")
+    # ground_truth_name = ground_truth_name.replace(" Du "," du ")
+    # map_img = map_img[:,:,0] # hack for unet input
+    # map_img = cv2.erode(map_img,(9,9)) # hack for unet input
     if len(map_img.shape)>2:
         # seegment query sheet
+        print("segmenting")
         water_mask = segmentation.extract_blue(map_img) # extract rivers
     else:
+        print("not segmenting")
         # grayscale image - already segmented
         water_mask = map_img
     # water_mask = segmentation.extract_blue(map_img) # extract rivers
-    
+    # cv2.imshow("img",water_mask)
+    # cv2.waitKey(-1)
+    # exit()
     if debug:
         os.makedirs(config.path_output + "/debug", exist_ok=True)
         cv2.imwrite(config.path_output + "/debug/maskimg_%s.png" % (ground_truth_name), water_mask)
@@ -50,7 +61,7 @@ def process_sheet(img_path, sheets_path, plot=False, img=True, ground_truth_name
     processing_size = scale_proportional(map_img.shape, config.process_image_width)
     
     # retrieval step: find the best bbox prediction for this query image
-    closest_image, closest_bbox, dist, score_list, transform_model = retrieve_best_match_index(water_mask, processing_size, sheets_path, restrict_number=restrict, truth=ground_truth_name)
+    closest_bbox, dist, score_list, transform_model = retrieve_best_match_index(water_mask, processing_size, sheets_path, restrict_number=restrict, truth=ground_truth_name)
     
     # find sheet name for prediction
     sheet_name = score_list[0][-1] if len(score_list) > 0 else "unknown"
@@ -72,8 +83,12 @@ def process_sheet(img_path, sheets_path, plot=False, img=True, ground_truth_name
 
     if plot:
         plt.subplot(2, 3, 1)
-        map_img_rgb = cv2.cvtColor(map_img, cv2.COLOR_BGR2RGB)
-        plt.imshow(cv2.resize(map_img_rgb, (500,500)))
+        if len(map_img.shape)>2:
+            map_img_rgb = cv2.cvtColor(map_img, cv2.COLOR_BGR2RGB)
+            plt.imshow(cv2.resize(map_img_rgb, (500,500)))
+        else:
+            plt.gray()
+            plt.imshow(cv2.resize(map_img, (500,500)))
         plt.title("map image")
             
         plt.subplot(2, 3, 2)
@@ -83,6 +98,9 @@ def process_sheet(img_path, sheets_path, plot=False, img=True, ground_truth_name
 
         plt.subplot(2, 3, 3)
         plt.gray()
+        import osm
+        rivers_json = osm.get_from_osm(closest_bbox)
+        closest_image = osm.paint_features(rivers_json, closest_bbox)
         plt.imshow(cv2.resize(closest_image, (500,500)))
         plt.title("closest reference rivers from OSM")
 

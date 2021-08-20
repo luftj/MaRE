@@ -1,4 +1,5 @@
 import json
+from json.decoder import JSONDecodeError
 import os
 import cv2
 import numpy as np
@@ -28,12 +29,15 @@ def get_from_osm(bbox=[16.3,54.25,16.834,54.5], url = osm_url):
     if draw_ocean_polygon and not os.path.isfile( ocean_file_path ):
         clip_ocean_poly(bbox)
     
-    # don't query if we already have the data on disk
-    if not force_osm_download and os.path.isfile( data_path ):
-        logging.debug("fetching osm data from disk: %s" % data_path)
-        with open(data_path, encoding="utf-8") as file:
-            json_data = json.load(file)
-            return json_data
+    try:
+        # don't query if we already have the data on disk
+        if not force_osm_download and os.path.isfile( data_path ):
+            logging.debug("fetching osm data from disk: %s" % data_path)
+            with open(data_path, encoding="utf-8") as file:
+                json_data = json.load(file)
+                return json_data
+    except JSONDecodeError:
+        print("error in OSM data on disk, trying redownlaoding...")
 
     sorted_bbox = ",".join(map(str,[bbox[1], bbox[0], bbox[3], bbox[2]]))
     query = osm_query.replace("{{bbox}}","%s" % sorted_bbox)
@@ -204,7 +208,7 @@ if __name__ == "__main__":
     # sheets_file = "E:/data/dr500/blattschnitt_kdr500_wgs84.geojson"
     # bboxes = find_sheet.get_bboxes_from_json(sheets_file)
     bbox_dict = find_sheet.get_dict(sheets_file, True)
-    bboxes = [bbox_dict["143"]]
+    bboxes = [bbox_dict["258"]]
     # bboxes = bboxes[:10]
     if len(sys.argv) == 1:
         for bbox in progress(bboxes):
@@ -214,6 +218,7 @@ if __name__ == "__main__":
     # cv2.waitKey(-1)
     outpath = "test_osm/%s.png" % bbox
     cv2.imwrite(outpath, img)
+    print("saved to %s" % outpath)
     # georef this to allow easy check
     from registration import make_worldfile
     make_worldfile(outpath, bbox,[0,img.shape[0],img.shape[1],0])

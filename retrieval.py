@@ -413,6 +413,4 @@ def retrieve_best_match_index(query_image, processing_size, sheets_path, restric
     print("predicted sheet: %s" % best_sheet)
 
     # create a reference map image for the predicted location
-    rivers_json = osm.get_from_osm(closest_bbox)
-    closest_image = osm.paint_features(rivers_json, closest_bbox)
-    return closest_image, closest_bbox, best_dist, score_list, best_transform
+    return closest_bbox, best_dist, score_list, best_transform
