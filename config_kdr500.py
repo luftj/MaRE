@@ -16,7 +16,7 @@ proj_map = proj_osm
 osm_url = "https://nc.hcu-hamburg.de/api/interpreter"
 osm_query = """[out:json];
                 (
-                nwr ({{bbox}}) [water=lake]; 
+                nwr ({{bbox}}) [water=lake] [name]; 
                 way ({{bbox}}) [natural=water] [name]; 
                 way ({{bbox}}) [type=waterway] [name]; 
                 way ({{bbox}}) [waterway=river] [name];
@@ -50,7 +50,7 @@ resizing_register_reference = INTER_CUBIC
 
 index_img_width_query = 1000
 index_n_descriptors_query = 500
-index_k_nearest_neighbours = 50
+index_k_nearest_neighbours = 30
 index_voting_scheme = "antiprop"
 index_lowes_test_ratio = None # 0.8
 

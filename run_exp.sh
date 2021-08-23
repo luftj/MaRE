@@ -15,11 +15,11 @@ series="dr500idxw1000_manual"
 
 #exit
 
-# py -3.7 indexing.py \
-#     --list $input \
-#     $sheets
+py -3.7 indexing.py \
+    --list $input \
+    $sheets
 
-# mv index_result.csv icc_eval/index_result_$series"_actual.csv"
+mv index_result.csv icc_eval/index_result_$series"_actual.csv"
 
 # exit
 py -3.7 main.py \

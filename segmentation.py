@@ -163,7 +163,7 @@ if __name__ == "__main__":
     
     # segmented_image = load_and_run(args.input)
     
-    map_img = cv2.imread(args.input) # load map image
+    map_img = cv2.imread(args.input) # load map image # todo: allow utf8 filenames
     segmented_image = extract_blue(map_img, plot=False)
 
     if args.plot:
