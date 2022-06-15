@@ -315,6 +315,7 @@ if __name__ == "__main__":
     parser.add_argument("sheets", help="sheets json file path string", default="data/blattschnitt_dr100.geojson")
     parser.add_argument("--plot", help="set this to true to show debugging plots", action="store_true")
     parser.add_argument("--single", help="provide sheet number to test only a single sheet", default=None)
+    parser.add_argument("--figures", help="store result figures here", type=str, default=None)
     args = parser.parse_args()
     # python eval_georef.py /e/data/deutsches_reich/wiki/highres/382.csv data/blattschnitt_dr100_merged_digi.geojson
     # py -3.7 -m cProfile -s "cumulative" eval_georef.py /e/data/deutsches_reich/wiki/highres/annotations_wiki.csv data/blattschnitt_dr100_merged.geojson > profile2.txt
@@ -365,4 +366,7 @@ if __name__ == "__main__":
     plt.axhline(total_mean_rmse, xmax=0, c="g", label="mean")
     plt.axhline(median_error_rmse, xmax=0, c="r", label="median")
     plt.legend()
-    plt.show()
+    if args.figures:
+        plt.savefig(args.figuredir + "/georef_error.png")
+    else:
+        plt.show()

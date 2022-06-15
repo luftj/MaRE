@@ -72,8 +72,7 @@ def lowes_ratio(scores):
     max_noise = max(values)
     return max_noise/maxval
 
-
-def plot_score_dist(x):
+def plot_score_dist(x, outfile=None):
     import matplotlib.pyplot as plt
     import numpy as np
 
@@ -98,8 +97,11 @@ def plot_score_dist(x):
     plt.hist(x,max(x)+2, label="obs", align="mid")
     plt.xticks(range(min(x)-1,max(x)+1))
     plt.legend()
-    plt.show()
-    exit()
+    if outfile:
+        plt.savefig(outfile)
+    else:
+        plt.show()
+    # exit()
 
 def eval_logs(logpath, resultpath="eval_result"):
     # plot_score_dist([6, 9, 14, 9, 12, 8, 7, 11, 7, 9, 10, 8, 10, 9, 7, 10, 9, 9, 7, 8, 9])
@@ -165,10 +167,10 @@ def eval_logs(logpath, resultpath="eval_result"):
                 # get result
                 elif "result:" in line:
                     print(line)
-                    pred = re.search(r"(?<=pred:)[\sa-zA-Z0-9\-]*(?= gt:| dist|')", line)[0]
+                    pred = re.search(r"(?<=pred:)\s*[a-zA-Z0-9\-]*(?= gt:| dist|')", line)[0]
                     experiment_data["prediction"] = pred.strip()
                     print(experiment_data["prediction"])
-                    gt = re.search(r"(?<=gt:)[\sa-zA-Z0-9\-]*(?= pred:| dist|')", line)[0]
+                    gt = re.search(r"(?<=gt:)\s*[a-zA-Z0-9\-]*(?= pred:| dist|')", line)[0]
                     experiment_data["ground_truth"] = gt.strip()
 
                 elif "Processing file" in line:

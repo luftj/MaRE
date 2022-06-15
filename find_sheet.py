@@ -56,7 +56,7 @@ def get_ordered_bboxes_from_json(filepath, sheet_names):
             elif sheet_name_field in feature["properties"] and feature["properties"][sheet_name_field]:
                 sheet_name = feature["properties"][sheet_name_field]
             else:
-                raise ValueError("bad format for sheets file")
+                raise ValueError("bad format for sheets file", feature)
 
             if not sheet_name in sheet_names:
                 continue
