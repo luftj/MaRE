@@ -138,7 +138,7 @@ def paint_features(json_data, bbox=[16.3333,54.25,16.8333333,54.5], img_size=[10
     # non-quadratic sheets (e.g. 10-18 in KDR100)
     height = (bbox[2]-bbox[0])
     width = (bbox[3]-bbox[1])
-    if 2*height > width:
+    if 2*width != height:
         img_size[1] = int(img_size[1] * (width*2)/(height))
     
     image = np.zeros(shape=img_size[::-1], dtype=np.uint8)
