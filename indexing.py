@@ -265,6 +265,16 @@ def build_index(sheets_path, restrict_class=None, restrict_range=None, store_des
     t.on_disk_build(config.reference_index_path)
     idx_id = 0
     
+    # print("downlaoding OSM...")
+    # progress = progressbar.ProgressBar(maxval=len(bboxes))
+    # for bbox in progress(bboxes):
+    #     try:
+    #         osm.get_from_osm(bbox)
+    #     except JSONDecodeError:
+    #         print("error in OSM data for bbox %s, skipping sheet" % bbox)
+    #         continue
+
+    print("populating index...")
     index_dict = {}
     progress = progressbar.ProgressBar(maxval=len(bboxes))
     for bbox in progress(bboxes):
@@ -296,6 +306,10 @@ def build_index(sheets_path, restrict_class=None, restrict_range=None, store_des
             print(type(e),e)
             print("error in descriptors. skipping sheet", class_label)
             continue
+        except cv2.error as e:
+            print(e)
+            print(class_label,bbox)
+            exit()
         if descriptors is None or len(descriptors)==0 or descriptors[0] is None:
             print("no descriptors in bbox ",bbox)
             print("error in descriptors. skipping sheet", class_label)
@@ -309,8 +323,10 @@ def build_index(sheets_path, restrict_class=None, restrict_range=None, store_des
             idx_id += 1
         sheet_names[class_label] = len(descriptors)
 
+    print("compiling tree...")
     t.build(config.index_num_trees, n_jobs=-1) # compile index and save to disk
     # save other data to disk to disk
+    print("saving to disk...")
     joblib.dump(sheet_names, config.reference_sheets_path)
     if store_desckp:
         for sheet, descs in index_dict.items():
