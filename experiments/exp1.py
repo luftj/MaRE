@@ -69,6 +69,7 @@ try:
     #         scores.append(score)
     # plot_score_dist(scores)
 
+    import summary_retrieval_logs # to do: do proper call with dir param
 
 finally:
     # reset config

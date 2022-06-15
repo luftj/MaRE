@@ -37,6 +37,7 @@ results = list(filter(lambda x: x["sheet"] not in no_reg_solution, results))
 print(f"filtered {prefilter_len-len(results)} no registration solution")
 
 # summary
+print(f"{len(results)} sheets analysed")
 error_results = [float(v["mae m"]) for v in results]
 total_mean_mae = sum(error_results)/len(error_results)
 print("total mean error: %f m" % total_mean_mae)
@@ -51,6 +52,10 @@ print("median MAE: %f m" % median_error_mae)
 
 print("best sheets:",results_sorted[0:5])
 print("worst sheets:",results_sorted[-5:])
+
+print("sheets < 200m:",len([x for x in error_sorted if x < 200]))
+print("sheets > 500m:",len([x for x in error_sorted if x > 500]))
+print("sheets > mean:",len([x for x in error_sorted if x > total_mean_mae]))
 
 # # filter absurd outliers
 # high_errors = []
