@@ -119,7 +119,7 @@ def paint_ocean_poly(bbox):
         data = json.load(fr)
     return data["features"]
 
-def paint_features(json_data, bbox=[16.3333,54.25,16.8333333,54.5], img_size=(1000,850)):
+def paint_features(json_data, bbox=[16.3333,54.25,16.8333333,54.5], img_size=[1000,850]):
     if draw_ocean_polygon:
         if proj_sheets != proj_osm: # reproject sheet bounding box to OSM coordinates
             minxy = transform_sheet_to_osm.transform(bbox[0], bbox[1]) # reproject lower left bbox corner
@@ -135,6 +135,12 @@ def paint_features(json_data, bbox=[16.3333,54.25,16.8333333,54.5], img_size=(10
         maxxy = transform_sheet_to_map.transform(bbox[2], bbox[3]) # reproject upper right bbox corner
         bbox = minxy+maxxy
 
+    # non-quadratic sheets (e.g. 10-18 in KDR100)
+    height = (bbox[2]-bbox[0])
+    width = (bbox[3]-bbox[1])
+    if 2*height > width:
+        img_size[1] = int(img_size[1] * (width*2)/(height))
+    
     image = np.zeros(shape=img_size[::-1], dtype=np.uint8)
     for feature in json_data["features"]:
         try:
