@@ -348,7 +348,7 @@ def retrieve_best_match_index(query_image, processing_size, sheets_path, restric
         if truth and (truth_index < 0 or truth_index > restrict_number):
             logging.info("verification pointless, skipping sheet")
             print("verification pointless, skipping sheet")
-            return None, None, -1, [], None
+            return None, -1, [], None
 
         bboxes = find_sheet.get_ordered_bboxes_from_json(sheets_path, sheet_predictions)
     

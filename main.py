@@ -6,7 +6,8 @@ import argparse
 import logging
 from datetime import datetime
 from matplotlib import pyplot as plt
-from numpy import fromfile, uint8
+# from numpy import fromfile, uint8
+import numpy as np
 
 import segmentation
 import registration
@@ -25,7 +26,7 @@ def process_sheet(img_path, sheets_path, plot=False, img=True, ground_truth_name
     print("Processing file %s with gt: %s" % (img_path,ground_truth_name))
 
     # load map image # opencv imread does not allow unicode file names!
-    map_img = cv2.imdecode(fromfile(img_path, dtype=uint8), cv2.IMREAD_UNCHANGED)
+    map_img = cv2.imdecode(np.fromfile(img_path, dtype=np.uint8), cv2.IMREAD_UNCHANGED)
 
     # resize input image. Can save some processing time during segmentation. 
     # During processing, we are only working on images with size config.process_image_width anyway 
@@ -98,9 +99,13 @@ def process_sheet(img_path, sheets_path, plot=False, img=True, ground_truth_name
 
         plt.subplot(2, 3, 3)
         plt.gray()
+
+    if plot or img:
         import osm
         rivers_json = osm.get_from_osm(closest_bbox)
         closest_image = osm.paint_features(rivers_json, closest_bbox)
+
+    if plot:
         plt.imshow(cv2.resize(closest_image, (500,500)))
         plt.title("closest reference rivers from OSM")
 
@@ -120,15 +125,15 @@ def process_sheet(img_path, sheets_path, plot=False, img=True, ground_truth_name
             if config.registration_mode == "ransac": # RANSAC only
                 map_img_aligned, border = registration.align_map_image_model(map_img, water_mask, closest_image, transform_model, processing_size, crop)
             elif config.registration_mode == "ecc": # ECC only
-                map_img_aligned, border = registration.align_map_image(map_img, water_mask, closest_image, processing_size, crop)
+                map_img_aligned, border, transform = registration.align_map_image(map_img, water_mask, closest_image, processing_size, crop)
             elif config.registration_mode == "both": # ECC with RANSAC prior
-                map_img_aligned, border = registration.align_map_image(map_img, water_mask, closest_image, processing_size, crop, transform_model)
+                map_img_aligned, border, transform = registration.align_map_image(map_img, water_mask, closest_image, processing_size, crop, transform_model)
             else:
                 raise NotImplementedError("registration mode %s not implemented" % config.registration_mode)
             
         except cv2.error as e:
             logging.warning("%s - could not register %s with prediction %s!" % (e, img_path, sheet_name))
-            eval_entry = ["pred:%s gt:%s dist %d gt ar pos %d" % (sheet_name,ground_truth_name,dist,truth_pos),"registration: fail","correct: no"]
+            eval_entry = ["gt: %s pred: %s dist %d gt ar pos %d" % (sheet_name,ground_truth_name,dist,truth_pos),"registration: fail","correct: no"]
             logging.info("result: %s" % eval_entry)
             return 
         
@@ -150,6 +155,9 @@ def process_sheet(img_path, sheets_path, plot=False, img=True, ground_truth_name
             aligned_map_path += ".bmp"
             cv2.imwrite(aligned_map_path, map_img_aligned)
         logging.info("saved aligned image file to: %s" % aligned_map_path)
+        if config.save_transform:
+            np.save(config.path_output+"transform_"+sheet_name,transform)
+            np.save(config.path_output+"border_"+sheet_name,border)
 
         # georeference aligned query image with bounding box
         registration.make_worldfile(aligned_map_path, closest_bbox, border)

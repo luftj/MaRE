@@ -198,7 +198,7 @@ def align_map_image(map_image, query_image, reference_image, target_size=(500,50
         border = (0, map_img_aligned.shape[0], map_img_aligned.shape[1], 0)
     else:
         border = (border_x, map_image.shape[0]-border_y, map_image.shape[1]-border_x, border_y)
-    return map_img_aligned, border
+    return map_img_aligned, border, warp_matrix
 
 def align_map_image_model(map_image, query_image, reference_image, warp_matrix, target_size=(500,500), crop=False):
     time_start = time()
