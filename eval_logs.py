@@ -10,11 +10,12 @@ def dump_csv(experiments, resultpath):
     print("writing to file...")
     with open("%s.csv" % resultpath, "w", encoding="utf-8") as eval_fp:
         # header
-        eval_fp.write("ground truth; prediction; ground truth position; georef success; avg time per sheet; times; scores; number of detected keypoints; template scores; registration time; command; percent segmented; mahalanobis; Lowe's test ratio; index rank; file\n")
+        eval_fp.write("ground truth; prediction; ground truth position; georef success; avg time per sheet; times; scores; number of detected keypoints; template scores; registration time; command; percent segmented; mahalanobis; Lowe's test ratio; index rank; file; ecc score\n")
 
         for exp in experiments.values():
             try:
-                eval_fp.write("%s; %s; %d; %s; %.2f; %s; %s; %d; %s; %.2f; %s; %s; %.2f; %.2f; %d; %s\n" % (exp["ground_truth"],
+                eval_fp.write("%s; %s; %d; %s; %.2f; %s; %s; %d; %s; %.2f; %s; %s; %.2f; %.2f; %d; %s; %.4f\n" % (
+                                                                exp["ground_truth"],
                                                                 exp["prediction"],
                                                                 exp["gt_pos"],
                                                                 exp["georef_success"],
@@ -29,7 +30,8 @@ def dump_csv(experiments, resultpath):
                                                                 exp.get("mahalanobis",-1),
                                                                 exp.get("lowes_ratio",-1),
                                                                 exp.get("index_rank",-2),
-                                                                exp.get("filename","")))
+                                                                exp.get("filename",""),
+                                                                exp.get("ecc_score",-1)))
             except KeyError as e:
                 print(e)
                 print("skipping exp for %s" % exp.get("ground_truth",None))
@@ -210,6 +212,11 @@ def eval_logs(logpath, resultpath="eval_result"):
                 # get georef success
                 elif "saved georeferenced file" in line:
                     experiment_data["georef_success"] = True
+
+                # get georef ECC score
+                elif "found registration with score: " in line:
+                    score = line.split(": ")[-1].strip()
+                    experiment_data["ecc_score"] = score
 
                 # get georef time
                 elif "s for registration" in line:
