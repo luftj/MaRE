@@ -6,7 +6,7 @@ import cv2
 import numpy as np
 import os
 
-def noisy(noise_typ,image):
+def noisy(noise_typ, image, noise_amount=0.5):
     """Parameters
     ----------
     image : ndarray
@@ -32,18 +32,19 @@ def noisy(noise_typ,image):
     elif noise_typ == "s&p":
         row,col = image.shape
         s_vs_p = 0.1
-        amount = 0.554
+        # amount = 0.554
+        amount = noise_amount
         out = np.copy(image)
         # Salt mode
         num_salt = np.ceil(amount * image.size * s_vs_p)
-        coords = [np.random.randint(0, i - 1, int(num_salt))
-                for i in image.shape]
+        coords = tuple(np.random.randint(0, i - 1, int(num_salt))
+                for i in image.shape)
         out[coords] = 255
 
         # Pepper mode
         num_pepper = np.ceil(amount* image.size * (1. - s_vs_p))
-        coords = [np.random.randint(0, i - 1, int(num_pepper))
-                for i in image.shape]
+        coords = tuple(np.random.randint(0, i - 1, int(num_pepper))
+                for i in image.shape)
         out[coords] = 0
         return out
     elif noise_typ == "poisson":
@@ -75,8 +76,10 @@ if __name__ == "__main__":
     parser.add_argument("sheets", help="sheets json file path string")
     parser.add_argument("list", help="path to image list")
     parser.add_argument("output", help="output dir")
+    parser.add_argument("--margin", help="simulated map margin around images. Default 100", type=int, default=100)
     parser.add_argument("--wld", help="make worldfiles too", action="store_true", default=False)
-    parser.add_argument("--circles", help="degrade with circles", type=int, default=0)
+    parser.add_argument("--circles", help="degrade with random circles. Value = number of circles", type=int, default=0)
+    parser.add_argument("--saltpepper", help="degrade with saltpepper noise. Value in [0,1]", type=float, default=0)
     args = parser.parse_args()
 
     # logging.basicConfig(filename='logs/osmkdr500.log', level=logging.DEBUG) # gimme all your loggin'!
@@ -105,11 +108,13 @@ if __name__ == "__main__":
         img = osm.paint_features(gj,bbox)
 
         # make margin
-        margin_px = 100
+        margin_px = args.margin #100
         img = cv2.copyMakeBorder(img, margin_px, margin_px, margin_px, margin_px, cv2.BORDER_CONSTANT, value=0)
 
-        # todo: make noise
-        # img = noisy("s&p", img)
+        # make some noise
+        if args.saltpepper > 0:
+            img = noisy("s&p", img, noise_amount=args.saltpepper)
+        
         if args.circles > 0:
             img = degrade_circles(img, args.circles)
 

@@ -272,7 +272,7 @@ def retrieve_best_match(query_image, bboxdict, processing_size):
         idx = list(bboxdict.keys()).index(sheet_name)
         time_now = time.time()
         rivers_json = osm.get_from_osm(bbox)
-        reference_river_image = osm.paint_features(rivers_json, bbox)
+        reference_river_image = osm.paint_features(rivers_json, bbox, img_size=[1000,850])
 
         # #--- kaze matching
         # # reduce image size for performance with fixed aspect ratio. approx- same size as query, to make tempalte amtching work
