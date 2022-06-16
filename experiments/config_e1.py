@@ -37,6 +37,7 @@ force_osm_download = False
 download_timeout = (5,600) # connect timeout, read timeout
 draw_ocean_polygon = False
 fill_polys = True
+osm_image_size = [1000,850]
 sheet_name_field = "blatt_100"
 save_transform=False
 

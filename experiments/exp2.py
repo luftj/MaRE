@@ -1,19 +1,23 @@
 import os, shutil
-from tkinter import E
 
 from eval_scripts.plot_index import plot_single_distribution
 
 sheets = "E:/data/deutsches_reich/blattschnitt/blattschnitt_kdr100_fixed.geojson"
 images_list = "E:/data/deutsches_reich/osm_baseline/list.txt"
-data_dir = "data/osm_baseline/"
+data_dir = "E:/data/deutsches_reich/osm_baseline/"
 out_dir = "E:/experiments/e2/"
 
 os.makedirs(out_dir, exist_ok=True)
 os.makedirs("E:/experiments/idx_kdr100/index", exist_ok=True)
 
-# check for data  # to do
-# create data  # to do
-# make_osm_baseline.py {sheets} {images_list} {data_dir}
+try:
+    # check for data
+    os.makedirs(data_dir, exist_ok=False)
+except OSError:
+    print(f"data already present")
+else:
+    cmd = f"make_osm_baseline.py {sheets} {images_list} {data_dir}"
+    os.system(cmd)
 
 # set config
 shutil.move("config.py", "config.py.old")
@@ -30,12 +34,15 @@ try:
     os.system(cmd)
 
     # run eval scripts
+    from eval_baseline_georef import calc_and_dump
+    calc_and_dump(sheets, out_dir)
 
-    # annotations = "/e/data/deutsches_reich/SBB/cut/annotations.csv"
-    # py -3.7 eval_georef.py {annotations} {sheets} # <- funktioniert nicht für baseline
-
-    # make figures  # to do
-    # georef scores
+    # make figures for georef scores
+    from experiments.summary_baseline_georef import load_results,filter_results,summary_and_fig
+    results = load_results(out_dir+"baseline_georef_scores.csv")
+    results = filter_results(results, "E:/experiments/e1/eval_result.csv")
+    with open(f"{out_dir}/registration_summary.txt","w") as outfile:
+        mean, median = summary_and_fig(results, out_dir, outfile=outfile)
 
 finally:
     # reset config
