@@ -13,7 +13,7 @@ def load_results(scores_file):
             results.append(dict(row))
     return results
 
-def filter_results(results,retrievel_result_file)
+def filter_results(results, retrievel_result_file):
     # filter incorrect retrieval prediction
     wrong_preds = []
     no_reg_solution = []
@@ -25,14 +25,14 @@ def filter_results(results,retrievel_result_file)
             if float(row[" registration time"]) < 0:
                 no_reg_solution.append(row["ground truth"])
 
-    print(wrong_preds)
+    print("wrong preds",wrong_preds)
     prefilter_len = len(results)
     results = list(filter(lambda x: x["sheet"] not in wrong_preds, results))
     print(f"filtered {prefilter_len-len(results)} incorrect predictions")
-    print(no_reg_solution)
-    prefilter_len = len(results)
-    results = list(filter(lambda x: x["sheet"] not in no_reg_solution, results))
-    print(f"filtered {prefilter_len-len(results)} no registration solution")
+    # print(no_reg_solution) # when reading exp1 eval logs this will be all sheets since there was no registration at all
+    # prefilter_len = len(results)
+    # results = list(filter(lambda x: x["sheet"] not in no_reg_solution, results))
+    # print(f"filtered {prefilter_len-len(results)} no registration solution")
     return results
 
 def summary_and_fig(results,out_dir,outfile=sys.stdout):

@@ -14,7 +14,7 @@ def dump_csv(experiments, resultpath):
 
         for exp in experiments.values():
             try:
-                eval_fp.write("%s; %s; %d; %s; %.2f; %s; %s; %d; %s; %.2f; %s; %s; %.2f; %.2f; %d; %s; %.4f\n" % (
+                eval_fp.write("%s; %s; %d; %s; %.2f; %s; %s; %d; %s; %.2f; %s; %s; %.2f; %.2f; %d; %s; %s\n" % (
                                                                 exp["ground_truth"],
                                                                 exp["prediction"],
                                                                 exp["gt_pos"],

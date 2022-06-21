@@ -1,6 +1,8 @@
 import os, shutil
 
 from eval_scripts.plot_index import plot_single_distribution
+from experiments.eval_baseline_georef import calc_and_dump
+from experiments.summary_baseline_georef import load_results,filter_results,summary_and_fig
 
 sheets = "E:/data/deutsches_reich/blattschnitt/blattschnitt_kdr100_fixed.geojson"
 images_list = "E:/data/deutsches_reich/osm_baseline/list.txt"
@@ -32,13 +34,12 @@ try:
     restrict_hypos=0
     cmd = f""" python main.py {images_list} {sheets} -r {restrict_hypos}"""# --crop"""# --noimg
     os.system(cmd)
+    shutil.move("eval_result.csv", f"{out_dir}/eval_result.csv")
 
     # run eval scripts
-    from eval_baseline_georef import calc_and_dump
     calc_and_dump(sheets, out_dir)
 
     # make figures for georef scores
-    from experiments.summary_baseline_georef import load_results,filter_results,summary_and_fig
     results = load_results(out_dir+"baseline_georef_scores.csv")
     results = filter_results(results, "E:/experiments/e1/eval_result.csv")
     with open(f"{out_dir}/registration_summary.txt","w") as outfile:

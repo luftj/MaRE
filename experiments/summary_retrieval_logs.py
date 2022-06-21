@@ -27,4 +27,4 @@ def make_summary(retrievel_result_file, outfile=sys.stdout):
     mean_index = sum(index_ranks)/len(index_ranks)
     print("mean index rank:", mean_index, file=outfile)
     print("median index rank:",sorted(index_ranks)[len(index_ranks)//2], file=outfile)
-    return percent_correct, mean_index, max_rank
+    return percent_correct
