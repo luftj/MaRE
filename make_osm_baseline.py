@@ -6,6 +6,11 @@ import cv2
 import numpy as np
 import os
 
+def calc_percent_occlusion(img, degraded_img):
+    fg_pxs_orig = np.sum(img)
+    fg_pxs_occl = np.sum(degraded_img)
+    return (fg_pxs_orig-fg_pxs_occl)/fg_pxs_orig
+
 def noisy(noise_typ, image, noise_amount=0.5):
     """Parameters
     ----------
@@ -116,7 +121,11 @@ if __name__ == "__main__":
             img = noisy("s&p", img, noise_amount=args.saltpepper)
         
         if args.circles > 0:
-            img = degrade_circles(img, args.circles)
+            degr_img = degrade_circles(img, args.circles)
+            percent_occlusion = calc_percent_occlusion(img, degr_img)
+            img = degr_img
+            with open(args.output+"/occlusion.txt","wa") as fw:
+                fw.write("%s,%s\n" % (sheets[idx],percent_occlusion) )
 
         # cv2.imshow("output",img)
         # cv2.waitKey(-1)
