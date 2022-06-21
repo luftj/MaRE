@@ -1,3 +1,4 @@
+from imp import reload
 import json
 from json.decoder import JSONDecodeError
 import os
@@ -9,7 +10,7 @@ import logging
 from osmtogeojson import osmtogeojson
 from pyproj import Transformer
 
-from config import path_osm, proj_map, proj_osm, proj_sheets, osm_query, force_osm_download, osm_url, draw_ocean_polygon, download_timeout, fill_polys, osm_image_size
+from config import path_osm, proj_map, proj_osm, proj_sheets, osm_query, force_osm_download, osm_url, draw_ocean_polygon, download_timeout, fill_polys
 
 transform_osm_to_map = Transformer.from_proj(proj_osm, proj_map, skip_equivalent=True, always_xy=True)
 transform_sheet_to_osm = Transformer.from_proj(proj_sheets, proj_osm, skip_equivalent=True, always_xy=True)
@@ -120,7 +121,9 @@ def paint_ocean_poly(bbox):
     return data["features"]
 
 def paint_features(json_data, bbox=[16.3333,54.25,16.8333333,54.5]):
-    img_size = osm_image_size # get img_size from config, so default value doesn't get overwritten
+    import config
+    reload(config) # make sure to get the value from config, not whatever has been set before
+    img_size = config.osm_image_size # osm_image_size is set by reference, will be overwritten
     if draw_ocean_polygon:
         if proj_sheets != proj_osm: # reproject sheet bounding box to OSM coordinates
             minxy = transform_sheet_to_osm.transform(bbox[0], bbox[1]) # reproject lower left bbox corner
