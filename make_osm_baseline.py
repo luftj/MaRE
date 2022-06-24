@@ -7,8 +7,8 @@ import numpy as np
 import os
 
 def calc_percent_occlusion(img, degraded_img):
-    fg_pxs_orig = np.sum(img)
-    fg_pxs_occl = np.sum(degraded_img)
+    fg_pxs_orig = np.count_nonzero(img)
+    fg_pxs_occl = np.count_nonzero(degraded_img)
     return (fg_pxs_orig-fg_pxs_occl)/fg_pxs_orig
 
 def noisy(noise_typ, image, noise_amount=0.5):
@@ -68,7 +68,7 @@ def degrade_circles(image, num_circles):
     import random
     # radii = [5,25]
     radii = [15,50]
-    out_img = img
+    out_img = np.copy(img)
     for n in range(num_circles):
         out_img = cv2.circle(out_img,
                             (random.randint(0,image.shape[0]),random.randint(0,image.shape[1])),
@@ -124,7 +124,7 @@ if __name__ == "__main__":
             degr_img = degrade_circles(img, args.circles)
             percent_occlusion = calc_percent_occlusion(img, degr_img)
             img = degr_img
-            with open(args.output+"/occlusion.txt","wa") as fw:
+            with open(args.output+"/occlusion.txt","a") as fw:
                 fw.write("%s,%s\n" % (sheets[idx],percent_occlusion) )
 
         # cv2.imshow("output",img)

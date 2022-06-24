@@ -171,8 +171,8 @@ def template_matching(query_image, reference_image_border, window_size, patch_mi
 def estimate_transform(keypoints_q, keypoints_r, query_image, reference_image_border, plot=False):
     from skimage.measure import ransac
     from skimage.transform import AffineTransform, SimilarityTransform
-    logging.info("number of used keypoints: %d", len(keypoints_q))
-    #logging.info("number of matched templates: %d", len(keypoints_r)) # all get matched
+    logging.info("number of used keypoints: %d" % len(keypoints_q))
+    #logging.info("number of matched templates: %d" % len(keypoints_r)) # all get matched
     
     if config.warp_mode_retrieval == "affine":
         warp_mode = AffineTransform

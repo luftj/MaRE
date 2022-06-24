@@ -78,7 +78,7 @@ def summary_and_fig(results,out_dir,outfile=sys.stdout):
     # plt.show()
     plt.savefig(out_dir+"baseline_georef_error.png")
 
-    return total_mean_mae, median_error_mae
+    return total_mean_mae, median_error_mae, error_results
 
 if __name__ == "__main__":
     # load csv
@@ -88,4 +88,4 @@ if __name__ == "__main__":
 
     results = load_results(scores_file)
     results = filter_results(results, retrievel_result_file)
-    mean, median = summary_and_fig(results,out_dir)
+    mean, median, dists = summary_and_fig(results,out_dir)
