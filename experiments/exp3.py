@@ -7,14 +7,14 @@ from experiments.eval_baseline_georef import calc_and_dump
 from experiments.summary_retrieval_logs import make_summary
 from experiments.summary_baseline_georef import load_results,filter_results,summary_and_fig
 
-def get_all_results(out_dir, amount):
+def get_all_results(out_dir, amount, key="mae m"):
     with open(f"{out_dir}/retrieval_summary.txt","w") as outfile:
             percent_correct = make_summary(f"{out_dir}/eval_result.csv", outfile=outfile)
 
     # georef scores
     georef_scores = load_results(out_dir+"baseline_georef_scores.csv")
     georef_scores = filter_results(georef_scores, f"{out_dir}/eval_result.csv")
-    mean_mae, median_mae, maes = summary_and_fig(georef_scores,out_dir)
+    mean_mae, median_mae, maes = summary_and_fig(georef_scores,out_dir, key=key)
 
     # index scores should come from index_result, in eval_result they are limited to restrict number
     ranks = []
@@ -36,10 +36,13 @@ def get_all_results(out_dir, amount):
         "Fehler": maes
     }
 
-def make_figure(results, out_dir, degrade_type, max_error=400):
+def make_figure(results, out_dir, degrade_type, max_error=400, x_type="percent"):
     from matplotlib import pyplot as plt
     # print(results)
-    xs = [int(x["amount"]*100) for x in results]
+    if x_type == "percent":
+        xs = [int(x["amount"]*100) for x in results]
+    elif x_type == "string":
+        xs =  [x["amount"] for x in results]
     ret_scores = [x["Erfolgsquote"]*100 for x in results]
     reg_mean_scores = [x["Mittel Genauigkeit"] for x in results]
     reg_median_scores = [x["Median Genauigkeit"] for x in results]
@@ -47,7 +50,11 @@ def make_figure(results, out_dir, degrade_type, max_error=400):
 
     plt.close()
     ax = plt.gca()
-    plt.xlabel(f"Anteil {degrade_type} [%]")
+    if x_type == "precent":
+        plt.xlabel(f"Anteil {degrade_type} [%]")
+    elif x_type == "string":
+        plt.xlabel(f"{degrade_type}")
+    ax.set_ylim(top=105)
     ax2 = ax.twinx()
     ax.plot(ret_scores,label="Erfolgsquote",c="r",marker=".")
     ax.set_ylabel('Erfolgsquote [%]',color="r")
@@ -58,12 +65,22 @@ def make_figure(results, out_dir, degrade_type, max_error=400):
     ax2.set_ylim(0,max_error)
     # ax2.set_yscale("log")
     ax2.set_yticks(range(0,max_error,100))
-    ax2.plot(reg_mean_scores,label="Mittel",marker="x")
-    ax2.plot(reg_median_scores,label="Median",marker="+")
+    ax2.plot(reg_mean_scores,label="Mittel [m]",marker="x",color="g")
+    ax2.plot(reg_median_scores,label="Median [m]",marker="+",color="tab:orange")
     ax2.set_ylabel('Fehler [m]')
     plt.legend()
+    if "Mittel Genauigkeit Pixel" in results[0]:
+        reg_mean_scores_px = [x["Mittel Genauigkeit Pixel"] for x in results]
+        ax3 = ax.twinx()
+        ax3.spines['right'].set_position(('axes', 1.1))
+        ax3.plot(reg_mean_scores_px,marker="x",label="Mittel [px]", linestyle="dashed",color="g")
+        ax3.set_ylabel('Fehler [px]')
+    if "Median Genauigkeit Pixel" in results[0]:
+        reg_median_scores_px = [x["Median Genauigkeit Pixel"] for x in results]
+        ax3.plot(reg_median_scores_px,marker="+",label="Median [px]", linestyle="dashed",color="tab:orange")
+    plt.legend()
     plt.xticks(ticks=range(len(xs)),labels=xs)
-    plt.savefig(f"{out_dir}/comparison_{degrade_type}.png")
+    plt.savefig(f"{out_dir}/comparison_{degrade_type}.png",bbox_inches='tight')
 
 if __name__ == "__main__":
     sheets = "E:/data/deutsches_reich/blattschnitt/blattschnitt_kdr100_fixed.geojson"
@@ -169,7 +186,7 @@ if __name__ == "__main__":
             results.append(get_all_results(out_dir, nv))
         
         # make comparison figure
-        make_figure(results, out_dir_base, "Rauschen")
+        make_figure(results, out_dir_base, "Rauschen", x_type="percent", max_error=300)
 
     finally:
         # reset config

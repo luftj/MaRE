@@ -1,3 +1,4 @@
+from email.mime import base
 import os,glob
 import numpy as np
 from PIL import Image
@@ -53,6 +54,7 @@ def calc_all_scores(sheetsfile, out_dir, baseline_margin = 100):
         image_path = glob.glob(os.path.join(out_dir,f"aligned_{sheet_name}_*.bmp"))[0]
         im = Image.open(image_path)
         img_width, img_height = im.size # mind the non-square sheets 10 and 72
+        baseline_margin = int(100 * img_width/1200)
         scale_mat = np.eye(3,3,dtype=np.float32)
         # get scaleing from iamge size and border+margin
         # scale_x = (img_width-2*reference_border)/(img_width-2*baseline_margin)

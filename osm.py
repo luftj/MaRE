@@ -148,31 +148,34 @@ def paint_features(json_data, bbox=[16.3333,54.25,16.8333333,54.5]):
     image = np.zeros(shape=img_size[::-1], dtype=np.uint8)
     for feature in json_data["features"]:
         try:
+            thickness = config.get_thickness(feature["properties"], feature["geometry"]["type"])
             if feature["geometry"]["type"] == "LineString":
                 points = [ coord_to_point(p,bbox,img_size) for p in feature["geometry"]["coordinates"] ]
-                if "waterway" in feature["properties"] and feature["properties"]["waterway"] == "river":
-                    thickness = 2  
-                elif "natural" in feature["properties"] and feature["properties"]["natural"] == "coastline":
-                    thickness = 0 if draw_ocean_polygon else 5
-                else:
-                    thickness = 1 # todo: move these to config
+                # if "waterway" in feature["properties"] and feature["properties"]["waterway"] == "river":
+                #     thickness = 2  
+                # elif "natural" in feature["properties"] and feature["properties"]["natural"] == "coastline":
+                #     thickness = 0 if draw_ocean_polygon else 5
+                # else:
+                #     thickness = 1 # todo: move these to config
                 points = np.array(points)
                 cv2.polylines(image,[points],False,255,thickness=thickness)
             elif feature["geometry"]["type"] == "Polygon":
+                # to do: this only really works for lakes (+ocean)
                 points = [ coord_to_point(p,bbox,img_size) for p in feature["geometry"]["coordinates"][0] ]
                 points = np.array(points)
                 # cv2.fillConvexPoly(image, points, 255)
                 if "natural" in feature["properties"] and feature["properties"]["natural"] == "coastline":
                     # coastline polys are islands
+                    # thickness = 3
                     if draw_ocean_polygon:
                         cv2.fillPoly(image, [points], 0) # black islands on top of the white ocean
                     else:
-                        cv2.polylines(image, [points], True, 255, thickness=3) # islands as outlines
+                        cv2.polylines(image, [points], True, 255, thickness=thickness) # islands as outlines
                 else: # any other polys (lakes, etc...)
                     if fill_polys:
                         cv2.fillPoly(image, [points], 255)
                     else:
-                        cv2.polylines(image,[points],True,255,thickness=3)
+                        cv2.polylines(image,[points],True,255,thickness=thickness)
 
                 # draw holes
                 for hole in feature["geometry"]["coordinates"][1:]:
@@ -195,6 +198,7 @@ def paint_features(json_data, bbox=[16.3333,54.25,16.8333333,54.5]):
             else:
                 raise NotImplementedError("drawing feature type not implemented %s!" % feature["geometry"]["type"])
         except Exception as e:
+            raise e
             logging.error(e)
             typ = feature["geometry"]["type"] if (feature is dict and "geometry" in feature and "type" in feature["geometry"]) else "no type"
             errortext = "Error parsing feature at %s with id: %s and type: %s" % (bbox, feature["properties"]["@id"], typ)

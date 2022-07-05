@@ -1,4 +1,4 @@
-base_path = "E:/experiments/e3/tmp/"
+base_path = "E:/experiments/e7/tmp/"
 path_output = base_path # end with slash /
 path_logs = base_path # end with slash /
 base_path_index = "E:/experiments/idx_kdr100/"
@@ -33,31 +33,9 @@ osm_query = """[out:json];
                 >;
                 out skel qt;"""
                 # way ({{bbox}}) [waterway=riverbank];
-
-draw_ocean_polygon = False
-line_thickness_line = {
-    "waterway=river": 2,
-    "natural=coastline": 0 if draw_ocean_polygon else 5,
-    "default": 1
-}
-line_thickness_poly = {
-    "natural=coastline": 3,
-    "default": 3
-}
-
-def get_thickness(properties, geom_type):
-    line_thickness = line_thickness_line if geom_type=="LineString" else line_thickness_poly
-    for key,thickness in line_thickness.items():
-        if key == "default": 
-            continue
-        key, value = key.split("=")
-        if key in properties and properties[key] == value:
-            return thickness
-    else:
-        return line_thickness["default"]
-
 force_osm_download = False
 download_timeout = (5,600) # connect timeout, read timeout
+draw_ocean_polygon = False
 fill_polys = True
 osm_image_size = [1000,850]
 sheet_name_field = "blatt_100"

@@ -3,7 +3,8 @@ import argparse
 import json
 import re
 import os
-import profile
+import sys
+# import profile
 import time
 import glob
 from operator import itemgetter
@@ -309,47 +310,37 @@ def eval_list(img_list, sheet_corners, inputpath, sheetsfile, images_path, plot=
 
     return sheet_names, error_results, rmse_results
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("input", help="input file path string with corner annotations")
-    parser.add_argument("sheets", help="sheets json file path string", default="data/blattschnitt_dr100.geojson")
-    parser.add_argument("--plot", help="set this to true to show debugging plots", action="store_true")
-    parser.add_argument("--single", help="provide sheet number to test only a single sheet", default=None)
-    parser.add_argument("--figures", help="store result figures here", type=str, default=None)
-    args = parser.parse_args()
-    # python eval_georef.py /e/data/deutsches_reich/wiki/highres/382.csv data/blattschnitt_dr100_merged_digi.geojson
-    # py -3.7 -m cProfile -s "cumulative" eval_georef.py /e/data/deutsches_reich/wiki/highres/annotations_wiki.csv data/blattschnitt_dr100_merged.geojson > profile2.txt
-    
-    inputpath = os.path.dirname(args.input)
+def summary_and_fig(annotations_file, sheets_file, single=False, outfile=sys.stdout, debug_plot=False):
+    inputpath = os.path.dirname(annotations_file)
 
-    sheet_corners = read_corner_CSV(args.input)
+    sheet_corners = read_corner_CSV(annotations_file)
     img_list = list(sheet_corners.keys())#[-5:-4]
 
-    if args.single:
-        img_list = [x for x in img_list if match_sheet_name(x)==args.single]
+    if single:
+        img_list = [x for x in img_list if match_sheet_name(x)==single]
 
-    sheet_names, error_results, rmse_results = eval_list(img_list, sheet_corners, inputpath, args.sheets, config.path_output, args.plot)
+    sheet_names, error_results, rmse_results = eval_list(img_list, sheet_corners, inputpath, sheets_file, config.path_output, debug_plot)
     
     total_mean_error = sum(error_results)/len(error_results)
     total_mean_rmse = sum(rmse_results)/len(rmse_results)
-    print("total mean error: %f m" % total_mean_error)
-    print("total mean RMSE: %f m" % total_mean_rmse)
+    print("total mean error: %f m" % total_mean_error, outfile=outfile)
+    print("total mean RMSE: %f m" % total_mean_rmse, outfile=outfile)
 
     results_sorted = sorted(zip(sheet_names,error_results), key=lambda tup: tup[1])
     sheet_names_sorted = [x[0] for x in results_sorted]
     error_sorted = [x[1] for x in results_sorted]
 
     median_error_mae = error_sorted[len(error_sorted)//2]
-    print("median MAE: %f m" % median_error_mae)
+    print("median MAE: %f m" % median_error_mae, outfile=outfile)
 
     results_sorted = sorted(zip(sheet_names,rmse_results), key=lambda tup: tup[1])
     sheet_names_sorted = [x[0] for x in results_sorted]
     error_sorted = [x[1] for x in results_sorted]
 
     median_error_rmse = error_sorted[len(error_sorted)//2]
-    print("median RMSE: %f m" % median_error_rmse)
+    print("median RMSE: %f m" % median_error_rmse, outfile=outfile)
 
-    if not args.single:
+    if not single:
         dump_csv(sheet_names, error_results, rmse_results)
 
     plt.subplot(2, 1, 1)
@@ -366,7 +357,20 @@ if __name__ == "__main__":
     plt.axhline(total_mean_rmse, xmax=0, c="g", label="mean")
     plt.axhline(median_error_rmse, xmax=0, c="r", label="median")
     plt.legend()
-    if args.figures:
-        plt.savefig(args.figuredir + "/georef_error.png")
+    if outfile!=sys.stdout:
+        plt.savefig(os.path.dirname(outfile) + "/georef_error.png")
     else:
         plt.show()
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("input", help="input file path string with corner annotations")
+    parser.add_argument("sheets", help="sheets json file path string", default="data/blattschnitt_dr100.geojson")
+    parser.add_argument("--plot", help="set this to true to show debugging plots", action="store_true")
+    parser.add_argument("--single", help="provide sheet number to test only a single sheet", default=None)
+    parser.add_argument("--output", help="store result figures and summary here", type=str, default=None)
+    args = parser.parse_args()
+    # python eval_georef.py /e/data/deutsches_reich/wiki/highres/382.csv data/blattschnitt_dr100_merged_digi.geojson
+    # py -3.7 -m cProfile -s "cumulative" eval_georef.py /e/data/deutsches_reich/wiki/highres/annotations_wiki.csv data/blattschnitt_dr100_merged.geojson > profile2.txt
+    
+    summary_and_fig(args.input,args.sheets, single=args.single, outfile=args.output, debug_plot=args.plot)

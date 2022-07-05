@@ -35,50 +35,51 @@ def filter_results(results, retrievel_result_file):
     # print(f"filtered {prefilter_len-len(results)} no registration solution")
     return results
 
-def summary_and_fig(results,out_dir,outfile=sys.stdout):
+def summary_and_fig(results,out_dir,outfile=sys.stdout, key="mae m"):
     # summary
     print(f"{len(results)} sheets analysed", file=outfile)
-    error_results = [float(v["mae m"]) for v in results]
-    total_mean_mae = sum(error_results)/len(error_results)
-    print("total mean error: %f m" % total_mean_mae, file=outfile)
+    error_results = [float(v[key]) for v in results]
+    mean_mae = sum(error_results)/len(error_results)
+    print(f"total mean error: {mean_mae} {key}", file=outfile)
 
     sheet_names = [k["sheet"] for k in results]
     results_sorted = sorted(zip(sheet_names,error_results), key=lambda tup: tup[1])
     sheet_names_sorted = [x[0] for x in results_sorted]
     error_sorted = [x[1] for x in results_sorted]
 
-    median_error_mae = error_sorted[len(error_sorted)//2]
-    print("median MAE: %f m" % median_error_mae, file=outfile)
+    median_mae = error_sorted[len(error_sorted)//2]
+    print(f"median MAE: {median_mae} {key}", file=outfile)
 
     print("best sheets:",results_sorted[0:5], file=outfile)
     print("worst sheets:",results_sorted[-5:], file=outfile)
 
     print("sheets < 200m:",len([x for x in error_sorted if x < 200]), file=outfile)
     print("sheets > 500m:",len([x for x in error_sorted if x > 500]), file=outfile)
-    print("sheets > mean:",len([x for x in error_sorted if x > total_mean_mae]), file=outfile)
+    print("sheets > 1000m:",len([x for x in error_sorted if x > 1000]), file=outfile)
+    print("sheets > mean:",len([x for x in error_sorted if x > mean_mae]), file=outfile)
 
     # make figure
     from matplotlib import pyplot as plt
     plt.subplot(2, 1, 1)
     plt.yscale("log")
     plt.bar(sheet_names_sorted, error_sorted)
-    plt.axhline(total_mean_mae, c="g", linestyle="--", label="mean")
-    plt.annotate("%.0f" % total_mean_mae,(0,total_mean_mae + 100))
-    plt.axhline(median_error_mae, c="r", label="median")
-    plt.annotate("%.0f" % median_error_mae,(0,median_error_mae + 100))
+    plt.axhline(mean_mae, c="g", linestyle="--", label="mean")
+    plt.annotate("%.0f" % mean_mae,(0,mean_mae + 100))
+    plt.axhline(median_mae, c="r", label="median")
+    plt.annotate("%.0f" % median_mae,(0,median_mae + 100))
     plt.legend()
     plt.title("average error per sheet [m]")
     plt.subplot(2, 1, 2)
     plt.xscale("log")
     plt.title('error distribution total [m]')
-    plt.boxplot([error_sorted], vert=False, showmeans=True, labels=["mae m"], medianprops={"color":"r"})
-    plt.axhline(total_mean_mae, xmax=0, c="g", label="mean")
-    plt.axhline(median_error_mae, xmax=0, c="r", label="median")
+    plt.boxplot([error_sorted], vert=False, showmeans=True, labels=[key], medianprops={"color":"r"})
+    plt.axhline(mean_mae, xmax=0, c="g", label="mean")
+    plt.axhline(median_mae, xmax=0, c="r", label="median")
     plt.legend()
     # plt.show()
     plt.savefig(out_dir+"baseline_georef_error.png")
 
-    return total_mean_mae, median_error_mae, error_results
+    return mean_mae, median_mae, error_results
 
 if __name__ == "__main__":
     # load csv

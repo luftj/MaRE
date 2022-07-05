@@ -187,7 +187,7 @@ def estimate_transform(keypoints_q, keypoints_r, query_image, reference_image_bo
                         residual_threshold=5, max_trials=config.ransac_max_trials, random_state=config.ransac_random_state)
 
     if inliers is None:
-        num_inliers = 0
+        return 0, None
     else:
         num_inliers = inliers.sum()
 
