@@ -14,8 +14,10 @@ def make_summary(retrievel_result_file, outfile=sys.stdout):
             results.append(dict(row))
 
     print("num sheets:", len(results), file=outfile)
+    idx_cap = [x for x in results if int(x[" ground truth position"]) == -1]
+    print("num not found in index:", len(idx_cap), file=outfile)
     print("num wrong preds:", len(wrong_preds), file=outfile)
-    percent_correct = (len(results)-len(wrong_preds))/len(results)
+    percent_correct = (len(results)-(len(wrong_preds)+len(idx_cap)))/len(results)
     print("% coorect preds:", percent_correct, file=outfile)
     idx_0 = [x for x in results if int(x[" index rank"]) == 0]
     print("num with index rank 0:", len(idx_0), file=outfile)

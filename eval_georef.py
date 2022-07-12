@@ -24,7 +24,8 @@ def match_sheet_name(img_name):
     # s = re.findall(r"(?<=_)[0-9][0-9][0-9a](?=_)",img_name)
     # s = re.findall(r"[0-9][0-9][0-9a](?=_)",img_name)
     # s = re.findall(r"(?<=[\s_])*[0-9]?[0-9][0-9a](?=[_\s])",img_name) # also matches invventory key in SBB set
-    s = re.findall(r"(?<=[\s_])[0-9]?[0-9][0-9a](?=[_\s])",img_name)
+    s = re.findall(r"(^[0-9]{3}(?=[\.]))",img_name) # SLUB z.b. "002.bmp"
+    s += re.findall(r"((?<=[\s_])[0-9]?[0-9][0-9a](?=[_\s]))",img_name) # SBB z.b. "SBB_IIIC_Kart_L 1330_Blatt 258 von 1925_koloriert.tif"
     s = [e.lstrip('0') for e in s]
     sheet_name = "-".join(s)
     return sheet_name
@@ -255,10 +256,11 @@ def cascadeCorners(img_path, georef_path, truth_corners, plot, downscale_factor)
 
     return corner_coords
 
-def dump_csv(sheets_list, mae_list, rmse_list, outpath="eval_georef_result.csv"):
+def dump_csv(sheets_list, mae_list, rmse_list, outpath="eval_georef_result.csv", append=False):
     print("writing to file...")
-    with open(outpath, "w", encoding="utf-8") as eval_fp:
-        eval_fp.write("sheet name; MAE [m]; RMSE [m]\n") # header
+    with open(outpath, "a" if append else "w", encoding="utf-8") as eval_fp:
+        if not append:
+            eval_fp.write("sheet name; MAE [m]; RMSE [m]\n") # header
 
         for sheet, mae, rmse in zip(sheets_list, mae_list, rmse_list):
             eval_fp.write("%s; %.2f; %.2f\n" % (sheet, mae, rmse))
@@ -306,42 +308,54 @@ def eval_list(img_list, sheet_corners, inputpath, sheetsfile, images_path, plot=
         if plot:
             plt.show()
 
-    print("average time per image: %f" % (sum(times)/len(times)))
+    if len(times)>0:
+        print("average time per image: %f" % (sum(times)/len(times)))
 
     return sheet_names, error_results, rmse_results
 
-def summary_and_fig(annotations_file, sheets_file, single=False, outfile=sys.stdout, debug_plot=False):
+def summary_and_fig(annotations_file, sheets_file, single=False, outfile=sys.stdout, debug_plot=False, append_to=None):
     inputpath = os.path.dirname(annotations_file)
 
     sheet_corners = read_corner_CSV(annotations_file)
     img_list = list(sheet_corners.keys())#[-5:-4]
-
+    
     if single:
         img_list = [x for x in img_list if match_sheet_name(x)==single]
+    elif append_to:
+        # part of the dataset was already evaluated, only do the missing sheets
+        done_sheets = []
+        with open(append_to, "r") as fr:
+            fr.readline() # header
+            for line in fr:
+                sheet_name, _, _ = line.split("; ")
+                done_sheets.append(sheet_name.zfill(3))
+        img_list = list(filter(lambda x: x.split(".")[0] not in done_sheets, img_list))
 
     sheet_names, error_results, rmse_results = eval_list(img_list, sheet_corners, inputpath, sheets_file, config.path_output, debug_plot)
     
+    if len(error_results) == 0:
+        return
     total_mean_error = sum(error_results)/len(error_results)
     total_mean_rmse = sum(rmse_results)/len(rmse_results)
-    print("total mean error: %f m" % total_mean_error, outfile=outfile)
-    print("total mean RMSE: %f m" % total_mean_rmse, outfile=outfile)
+    print("total mean error: %f m" % total_mean_error, file=outfile)
+    print("total mean RMSE: %f m" % total_mean_rmse, file=outfile)
 
     results_sorted = sorted(zip(sheet_names,error_results), key=lambda tup: tup[1])
     sheet_names_sorted = [x[0] for x in results_sorted]
     error_sorted = [x[1] for x in results_sorted]
 
     median_error_mae = error_sorted[len(error_sorted)//2]
-    print("median MAE: %f m" % median_error_mae, outfile=outfile)
+    print("median MAE: %f m" % median_error_mae, file=outfile)
 
     results_sorted = sorted(zip(sheet_names,rmse_results), key=lambda tup: tup[1])
     sheet_names_sorted = [x[0] for x in results_sorted]
     error_sorted = [x[1] for x in results_sorted]
 
     median_error_rmse = error_sorted[len(error_sorted)//2]
-    print("median RMSE: %f m" % median_error_rmse, outfile=outfile)
+    print("median RMSE: %f m" % median_error_rmse, file=outfile)
 
     if not single:
-        dump_csv(sheet_names, error_results, rmse_results)
+        dump_csv(sheet_names, error_results, rmse_results, outpath=(append_to if append_to else "eval_georef_result.csv"), append=append_to)
 
     plt.subplot(2, 1, 1)
     plt.bar(sheet_names_sorted, error_sorted)
@@ -357,8 +371,8 @@ def summary_and_fig(annotations_file, sheets_file, single=False, outfile=sys.std
     plt.axhline(total_mean_rmse, xmax=0, c="g", label="mean")
     plt.axhline(median_error_rmse, xmax=0, c="r", label="median")
     plt.legend()
-    if outfile!=sys.stdout:
-        plt.savefig(os.path.dirname(outfile) + "/georef_error.png")
+    if not debug_plot:
+        plt.savefig("georef_error.png")
     else:
         plt.show()
 

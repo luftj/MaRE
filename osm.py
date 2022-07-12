@@ -198,7 +198,6 @@ def paint_features(json_data, bbox=[16.3333,54.25,16.8333333,54.5]):
             else:
                 raise NotImplementedError("drawing feature type not implemented %s!" % feature["geometry"]["type"])
         except Exception as e:
-            raise e
             logging.error(e)
             typ = feature["geometry"]["type"] if (feature is dict and "geometry" in feature and "type" in feature["geometry"]) else "no type"
             errortext = "Error parsing feature at %s with id: %s and type: %s" % (bbox, feature["properties"]["@id"], typ)
