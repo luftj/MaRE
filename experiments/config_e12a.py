@@ -1,4 +1,4 @@
-base_path = "E:/experiments/e8/"
+base_path = "E:/experiments/e12a/"
 path_output = base_path # end with slash /
 path_logs = base_path # end with slash /
 base_path_index = "E:/experiments/idx_kdr100/"
@@ -101,25 +101,17 @@ reference_keypoints_folder = base_path_index+"index/keypoints"
 template_window_size = 30
 
 segmentation_steps = [
-            ("convert","lab"),
-            ("colourbalance",5),
-            ("blur",19),
-            ("threshold",[(0,0,10),(255, 90, 100)]),
+            ("colourbalance",1),
+            ("blur",9),
+            # ("convert","lab"),
+            # ("threshold",[(0,0,10),(250, 90, 100)]),
+            ("convert","hsv"),
+            ("threshold",[(80, 35, 100),(110, 170, 240)]),
             ("open",5),
             ("close",11)
             ]
 
-segmentation_colourbalance_percent = 5
-segmentation_blurkernel = (19,19)
-segmentation_colourspace = "lab" # can be ["lab","hsv"]
-# HSV segmentation_lowerbound = (120,  0,  90)
-# HSV segmentation_upperbound = (255, 255, 255)
-segmentation_lowerbound = (0,0,10)
-segmentation_upperbound = (255, 90, 100)#(255,70,80) #(255, 90, 80) # (255, 90, 70)
-segmentation_openingkernel = (0,0)# (11,11)
-segmentation_closingkernel = (11,11)
-
-ransac_max_trials = 1000
+ransac_max_trials = 3000
 ransac_stop_probability = 0.99
 ransac_random_state = 1337 # only for profiling and validation. default: None
 
@@ -128,13 +120,13 @@ from cv2 import NORM_INF, NORM_L1, NORM_L2, NORM_L2SQR, NORM_HAMMING, NORM_RELAT
 matching_norm = NORM_L2
 matching_crosscheck = True
 
-warp_mode_retrieval = "similarity"
-warp_mode_registration = "affine"
+warp_mode_retrieval = "affine" # ["similarity","affine"]
+warp_mode_registration = "affine" # ["euclidean","homography","affine"]
 
-registration_mode = "both" # possible: ["ransac","ecc","both"]
+registration_mode = "ecc" # possible: ["ransac","ecc","both"]
 
-registration_ecc_iterations = 500 # maximum number of ECC iterations
-registration_ecc_eps = 1e-4 #threshold of the increment in the correlation coefficient between two iterations
+registration_ecc_iterations = 5000 # maximum number of ECC iterations
+registration_ecc_eps = 1e-10 #threshold of the increment in the correlation coefficient between two iterations
 
 # save disk space:
 # gdal_output_options = '-a_srs "' + proj_out + '" -a_nodata 0 -of JP2OpenJPEG -co "QUALITY=5"'# -co "TILED=YES"'# -co "COMPRESS=JPEG" -co "PHOTOMETRIC=YCBCR" '

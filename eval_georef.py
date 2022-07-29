@@ -26,6 +26,7 @@ def match_sheet_name(img_name):
     # s = re.findall(r"(?<=[\s_])*[0-9]?[0-9][0-9a](?=[_\s])",img_name) # also matches invventory key in SBB set
     s = re.findall(r"(^[0-9]{3}(?=[\.]))",img_name) # SLUB z.b. "002.bmp"
     s += re.findall(r"((?<=[\s_])[0-9]?[0-9][0-9a](?=[_\s]))",img_name) # SBB z.b. "SBB_IIIC_Kart_L 1330_Blatt 258 von 1925_koloriert.tif"
+    s += re.findall(r"^[0-9]{3}(?=\_)",img_name) # DK50 z.B. "344_Guben_1937.png"
     s = [e.lstrip('0') for e in s]
     sheet_name = "-".join(s)
     return sheet_name
@@ -198,6 +199,7 @@ def findCorners(img, georef_img, ref_corners, plot=False, template_size = 20):
     return corner_points
 
 def cascadeCorners(img_path, georef_path, truth_corners, plot, downscale_factor):
+    print(img_path,georef_path)
     img = imread(img_path, as_gray=True)
     georef_img = imread(georef_path, as_gray=True)
 
@@ -265,7 +267,7 @@ def dump_csv(sheets_list, mae_list, rmse_list, outpath="eval_georef_result.csv",
         for sheet, mae, rmse in zip(sheets_list, mae_list, rmse_list):
             eval_fp.write("%s; %.2f; %.2f\n" % (sheet, mae, rmse))
 
-def eval_list(img_list, sheet_corners, inputpath, sheetsfile, images_path, plot=False):
+def eval_list(img_list, sheet_corners, inputpath, sheetsfile, images_path, plot=False, downscale_factor=6):
     error_results = []
     rmse_results = []
     sheet_names = []
@@ -281,6 +283,7 @@ def eval_list(img_list, sheet_corners, inputpath, sheetsfile, images_path, plot=
         img_path = inputpath + "/" + img_name
         georef_path = images_path + "/aligned_%s_*" % sheet_name
         georef_path_glob = glob.glob(georef_path)
+        georef_path_glob = [x for x in georef_path_glob if x[-4:] != ".wld"]
         
         if len(georef_path_glob) == 0:
             print("Couldn't find file for registered sheet %s.\nIt probably failed to get a registration solution" % sheet_name)
@@ -288,7 +291,7 @@ def eval_list(img_list, sheet_corners, inputpath, sheetsfile, images_path, plot=
         georef_path = georef_path_glob[0]
 
         # find corner coordinates of registered image (geo-coordinates)
-        corner_coords = cascadeCorners(img_path, georef_path, sheet_corners[img_name], plot=plot, downscale_factor=6)
+        corner_coords = cascadeCorners(img_path, georef_path, sheet_corners[img_name], plot=plot, downscale_factor=downscale_factor)
 
         truth_bbox = get_truth_bbox_dict(truth_bboxes, sheet_name)
         mae = mean_absolute_error(corner_coords[0:4], truth_bbox[0:4])
@@ -313,7 +316,7 @@ def eval_list(img_list, sheet_corners, inputpath, sheetsfile, images_path, plot=
 
     return sheet_names, error_results, rmse_results
 
-def summary_and_fig(annotations_file, sheets_file, single=False, outfile=sys.stdout, debug_plot=False, append_to=None):
+def summary_and_fig(annotations_file, sheets_file, single=False, outfile=sys.stdout, debug_plot=False, append_to=None, downscale_factor=6):
     inputpath = os.path.dirname(annotations_file)
 
     sheet_corners = read_corner_CSV(annotations_file)
@@ -331,7 +334,7 @@ def summary_and_fig(annotations_file, sheets_file, single=False, outfile=sys.std
                 done_sheets.append(sheet_name.zfill(3))
         img_list = list(filter(lambda x: x.split(".")[0] not in done_sheets, img_list))
 
-    sheet_names, error_results, rmse_results = eval_list(img_list, sheet_corners, inputpath, sheets_file, config.path_output, debug_plot)
+    sheet_names, error_results, rmse_results = eval_list(img_list, sheet_corners, inputpath, sheets_file, config.path_output, debug_plot, downscale_factor=downscale_factor)
     
     if len(error_results) == 0:
         return

@@ -1,4 +1,5 @@
 import os
+import sys
 import argparse
 import config
 import numpy as np
@@ -50,7 +51,7 @@ def get_georef_error_snub(input_file, sheets_file, ground_truth_annotations_file
     mean_error = sum(errors.values())/len(errors)
     return {"mean error": mean_error, "errors":errors}
 
-def compare_special_cases(errors, specialcase_label, list_path, outpath):
+def compare_special_cases(errors, specialcase_label, list_path, outpath, logfile=sys.stdout):
     cases = {}
     with open(list_path) as fr:
         for line in fr:
@@ -59,16 +60,32 @@ def compare_special_cases(errors, specialcase_label, list_path, outpath):
             cases[sheet] = edition
     possible_cases = list(set(cases.values()))
 
+    # mean
     mean_error_total = sum(errors.values())/len(errors)
+    print(f"total mean: {mean_error_total} ({len(errors)} sheets)", file=logfile)
     bars = [mean_error_total]
     for case in possible_cases:
-        errors_case = [error for sheet,error in errors.items() if cases[sheet] == case]
+        errors_case = [float(error) for sheet,error in errors.items() if cases[sheet] == case]
         mean_error_case = sum(errors_case)/len(errors_case)
+        print(f"{case} mean: {mean_error_case} ({len(errors_case)} sheets)", file=logfile)
         bars.append(mean_error_case)
     labels = ["total"]+possible_cases
-    plt.bar(labels,bars)
+    plt.bar(labels,bars,label="mean")
+
+    # median
+    median_error_total = float(sorted(errors.values())[len(errors)//2])
+    print(f"total median: {median_error_total} ({len(errors)} sheets)", file=logfile)
+    bars = [median_error_total]
+    for case in possible_cases:
+        errors_case = [float(error) for sheet,error in errors.items() if cases[sheet] == case]
+        median_error_case = sorted(errors_case)[len(errors_case)//2]
+        print(f"{case} median: {median_error_case} ({len(errors_case)} sheets)", file=logfile)
+        bars.append(median_error_case)
+    plt.bar(labels,bars,label="median")
+
     plt.title(specialcase_label)
     plt.ylabel("mean error [m]")
+    plt.legend()
     plt.savefig(outpath + "/errors_" + specialcase_label + ".png")
     plt.close()
 

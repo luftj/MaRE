@@ -475,7 +475,7 @@ def predict_annoy(descriptors):
 
     return votes # most similar prediction is in 0th position
 
-def search_in_index(img_path, class_label_truth):
+def search_in_index(img_path, class_label_truth, imgsize=None):
     """
     Predict the identity of a single map located at img_path.
     """
@@ -489,6 +489,11 @@ def search_in_index(img_path, class_label_truth):
     # load query sheet
     try:
         map_img = cv2.imdecode(np.fromfile(img_path, dtype=np.uint8), cv2.IMREAD_UNCHANGED)
+        if imgsize:
+            scale = imgsize / map_img.shape[0] # keep aspect by using width factor
+            map_img = cv2.resize(map_img, None, 
+                                fx=scale, fy=scale,
+                                interpolation=config.resizing_index_query)
     except FileNotFoundError:
         print("couldn't find input file at %s" % img_path)
         return -1

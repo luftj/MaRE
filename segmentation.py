@@ -1,3 +1,4 @@
+from tkinter.tix import Tree
 import cv2
 from simple_cb import simplest_cb, better_cb
 import random
@@ -71,6 +72,49 @@ def plot_hsv_2d(bgr_img, img_hsv):
     plt.ylabel("V")
     plt.show()
 
+def run_segmentation_step(img, step):
+    process,value = step
+
+    if process == "convert":
+        if value == "lab":
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2Lab)
+        elif value == "hsv":
+            if img.shape[-1] == 4:
+                img = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+        else:
+            raise ValueError("colour space not implemented")
+    elif process == "colourbalance":
+        img = better_cb(img, value)
+    elif process == "blur":
+        kernel = (value,value)
+        img = cv2.blur(img, kernel)  
+    elif process == "open":
+        kernel = np.ones((value,value),np.uint8)
+        img = cv2.morphologyEx(img, cv2.MORPH_OPEN, kernel)
+    elif process == "close":
+        kernel = np.ones((value,value),np.uint8)
+        img = cv2.morphologyEx(img, cv2.MORPH_CLOSE, kernel)
+    elif process == "threshold":
+        lowerBound, upperBound = value
+        img = cv2.inRange(img, lowerBound, upperBound)
+    return img
+
+def run_segmentation_chain(img, plot=False):
+    for step in config.segmentation_steps:
+        # print(step)
+        ret_img = run_segmentation_step(img,step)
+        if plot:
+            ax1 = plt.subplot(1, 2, 1)
+            plt.title(f"before")
+            ax1.imshow(img)
+            ax2 = plt.subplot(1, 2, 2, sharex=ax1, sharey=ax1)
+            ax2.imshow(ret_img)
+            plt.title(f"{step}")
+            plt.show()
+        img=ret_img
+    return img
+
 def extract_blue(img, plot=False):
     """Perform colour-based segmentation of an image.
 
@@ -79,70 +123,75 @@ def extract_blue(img, plot=False):
     
     returns: the segmented image as binary matrix
     """
-    if config.segmentation_colourspace == "lab":
-        img_converted = cv2.cvtColor(img, cv2.COLOR_BGR2Lab)
-    elif config.segmentation_colourspace == "hsv":
-        if img.shape[-1] == 4:
-            print("has alpha!", img.shape)
-            exit()
-        img_converted = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-    else:
-        raise NotImplementedError("colour space %s not implemented!" % config.segmentation_colourspace)
 
-    img_converted = better_cb(img_converted, config.segmentation_colourbalance_percent)
+    try:
+        from config import segmentation_steps
+        img_thresh = run_segmentation_chain(img,plot=plot)
+    except ImportError:
+        if config.segmentation_colourspace == "lab":
+            img_converted = cv2.cvtColor(img, cv2.COLOR_BGR2Lab)
+        elif config.segmentation_colourspace == "hsv":
+            if img.shape[-1] == 4:
+                print("has alpha!", img.shape)
+                exit()
+            img_converted = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+        else:
+            raise NotImplementedError("colour space %s not implemented!" % config.segmentation_colourspace)
 
-    # adjust kernel sizes to image resolution
-    ksize = config.segmentation_blurkernel
-    if ksize[0] > 1: # only blur with sensible kernel
-        img_converted = cv2.blur(img_converted, ksize)  
+        img_converted = better_cb(img_converted, config.segmentation_colourbalance_percent)
 
-    lowerBound = config.segmentation_lowerbound
-    upperBound = config.segmentation_upperbound
+        # adjust kernel sizes to image resolution
+        ksize = config.segmentation_blurkernel
+        if ksize[0] > 1: # only blur with sensible kernel
+            img_converted = cv2.blur(img_converted, ksize)  
 
-    img_thresh = cv2.inRange(img_converted, lowerBound, upperBound)
+        lowerBound = config.segmentation_lowerbound
+        upperBound = config.segmentation_upperbound
+
+        img_thresh = cv2.inRange(img_converted, lowerBound, upperBound)
+
+        ksize = config.segmentation_openingkernel
+        if ksize[0] > 1: # only open when a sensible kernel is set
+            opening = cv2.morphologyEx(img_thresh, cv2.MORPH_OPEN, ksize)
+            img_thresh = opening
+        
+        ksize = config.segmentation_closingkernel
+        if ksize[0] > 1: # only open when a sensible kernel is set
+            img_thresh = cv2.morphologyEx(img_thresh, cv2.MORPH_CLOSE, config.segmentation_closingkernel)
+
+        if plot:
+            # print(img[:,:,2].shape)
+            # # rgb_img = np.stack([img[:,:,2],img[:,:,1],img[:,:,0]],axis=-1)
+            rgb_img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            plt.subplot(2,2,1)
+            plt.imshow(rgb_img)
+            plt.title('Original Image'), plt.xticks([]), plt.yticks([])
+            plt.subplot(2,2,2)
+            plt.imshow(img_converted)
+            plt.title('cvt Image'), plt.xticks([]), plt.yticks([])
+            plt.subplot(2,2,3)
+            plt.imshow(img_thresh)
+            plt.title('thresh Image'), plt.xticks([]), plt.yticks([])
+            plt.subplot(2,2,4)
+            a,b,c = cv2.split(img_converted)
+            if config.segmentation_colourspace == "lab":
+                plt.hist((c.ravel(),b.ravel(),a.ravel()), 256, color=["b","r","k"], label=["b","a","L"])
+            elif config.segmentation_colourspace == "hsv":
+                plt.hist((c.ravel(),b.ravel(),a.ravel()), 256, color=["b","r","k"], label=["V","S","H"])
+            plt.title('Histogram')#, plt.xticks([]), plt.yticks([])
+            plt.legend()
+            plt.show()
+
+            if config.segmentation_colourspace == "lab":
+                plot_lab_2d(img, img_converted)
+            elif config.segmentation_colourspace == "hsv":
+                plot_hsv_2d(img, img_converted)
+            else:
+                print("colour space plot not implemented")
 
     num_blue_pixels = cv2.countNonZero(img_thresh)
     percent_blue_pixels = num_blue_pixels / (img_thresh.shape[0] * img_thresh.shape[1]) * 100
     logging.info("segmented %d pixels, %.2f percent" % (num_blue_pixels, percent_blue_pixels))
-
-    if plot:
-        # print(img[:,:,2].shape)
-        # # rgb_img = np.stack([img[:,:,2],img[:,:,1],img[:,:,0]],axis=-1)
-        rgb_img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        plt.subplot(2,2,1)
-        plt.imshow(rgb_img)
-        plt.title('Original Image'), plt.xticks([]), plt.yticks([])
-        plt.subplot(2,2,2)
-        plt.imshow(img_converted)
-        plt.title('cvt Image'), plt.xticks([]), plt.yticks([])
-        plt.subplot(2,2,3)
-        plt.imshow(img_thresh)
-        plt.title('thresh Image'), plt.xticks([]), plt.yticks([])
-        plt.subplot(2,2,4)
-        a,b,c = cv2.split(img_converted)
-        if config.segmentation_colourspace == "lab":
-            plt.hist((c.ravel(),b.ravel(),a.ravel()), 256, color=["b","r","k"], label=["b","a","L"])
-        elif config.segmentation_colourspace == "hsv":
-            plt.hist((c.ravel(),b.ravel(),a.ravel()), 256, color=["b","r","k"], label=["V","S","H"])
-        plt.title('Histogram')#, plt.xticks([]), plt.yticks([])
-        plt.legend()
-        plt.show()
-
-        if config.segmentation_colourspace == "lab":
-            plot_lab_2d(img, img_converted)
-        elif config.segmentation_colourspace == "hsv":
-            plot_hsv_2d(img, img_converted)
-        else:
-            print("colour space plot not implemented")
-
-    ksize = config.segmentation_openingkernel
-    if ksize[0] > 1: # only open when a sensible kernel is set
-        opening = cv2.morphologyEx(img_thresh, cv2.MORPH_OPEN, ksize)
-        img_thresh = opening
-    
-    ksize = config.segmentation_closingkernel
-    if ksize[0] > 1: # only open when a sensible kernel is set
-        img_thresh = cv2.morphologyEx(img_thresh, cv2.MORPH_CLOSE, config.segmentation_closingkernel)
 
     return img_thresh#, img_converted
 
@@ -153,18 +202,28 @@ def load_and_run(map_path):
     return segmented_image
 
 if __name__ == "__main__":
+    import experiments.config_e12a as config
     import argparse
 
     parser = argparse.ArgumentParser()
     parser.add_argument("input", help="input file path string")
     parser.add_argument("--plot", help="show segmented image", action="store_true")
     parser.add_argument("--save", help="save segmented image", action="store_true")
+    parser.add_argument("--isize", help="resize input image to target width", default=None, type=int)
     args = parser.parse_args()
     
     # segmented_image = load_and_run(args.input)
     
     map_img = cv2.imread(args.input) # load map image # todo: allow utf8 filenames
-    segmented_image = extract_blue(map_img, plot=False)
+
+    if args.isize:
+        scale = args.isize / map_img.shape[0] # keep aspect by using width factor
+        map_img = cv2.resize(map_img, None, 
+                            fx=scale, fy=scale,
+                            interpolation=config.resizing_index_query)
+
+    segmented_image = run_segmentation_chain(map_img,plot=args.plot)
+    # segmented_image = extract_blue(map_img, plot=args.plot)
 
     if args.plot:
         from matplotlib import pyplot as plt
@@ -172,7 +231,10 @@ if __name__ == "__main__":
         map_img_rgb = cv2.cvtColor(map_img, cv2.COLOR_BGR2RGB)
         ax1.imshow(map_img_rgb)
         ax3 = plt.subplot(1, 3, 2, sharex=ax1, sharey=ax1)
-        map_img_hsv = cv2.cvtColor(map_img, cv2.COLOR_BGR2HSV)
+        if config.segmentation_colourspace == "hsv":
+            map_img_hsv = cv2.cvtColor(map_img, cv2.COLOR_BGR2HSV)
+        elif config.segmentation_colourspace == "lab":
+            map_img_hsv = cv2.cvtColor(map_img, cv2.COLOR_BGR2LAB)
         ax3.imshow(map_img_hsv)
         ax2 = plt.subplot(1, 3, 3, sharex=ax1, sharey=ax1)
         plt.gray()
