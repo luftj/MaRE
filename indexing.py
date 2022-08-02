@@ -522,11 +522,11 @@ def search_in_index(img_path, class_label_truth, imgsize=None):
     # probabilities.sort(key=lambda x: x[1], reverse=True)
     # print(probabilities)
     try:
-        gt_index = [x[0] for x in prediction].index(class_label_truth)
+        gt_index = [str(x[0]) for x in prediction].index(class_label_truth)
         print("Prediction", prediction[0][0], "Truth at index", gt_index)
         # print("Prediction score %.3f Truth score %.3f" % (prediction[0][1], prediction[gt_index][1]))
         return gt_index
-    except:
+    except Exception as e:
         print("truth not in index")
         return -1
 

@@ -66,7 +66,7 @@ def get_all_results(out_dir):
 
 if __name__ == "__main__":
     sheets = "E:/data/deutsches_reich/blattschnitt/blattschnitt_kdr100_fixed.geojson"
-    images_list = "E:/data/deutsches_reich/SLUB/cut/raw/list_507.txt"
+    images_list = "E:/data/deutsches_reich/SLUB/cut/raw/list.txt"
     annotations = "E:/data/deutsches_reich/SLUB/cut/raw/annotations.csv"
 
     # save old config
@@ -139,7 +139,6 @@ if __name__ == "__main__":
         else:
             with open(f"{out_dir}/georef_summary.txt","w") as outfile:
                 summary_and_fig(annotations, sheets, outfile=outfile)
-            shutil.move("eval_georef_result.csv", f"{out_dir}/eval_georef_result.csv")
             shutil.move("georef_error.png", f"{out_dir}/georef_error.png")
 
         # make summary and figs

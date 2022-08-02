@@ -203,19 +203,22 @@ def cascadeCorners(img_path, georef_path, truth_corners, plot, downscale_factor)
     img = imread(img_path, as_gray=True)
     georef_img = imread(georef_path, as_gray=True)
 
-    # downscale images
-    img_small = downscale_local_mean(img, (downscale_factor, downscale_factor))
-    georef_img_small = downscale_local_mean(georef_img, (downscale_factor, downscale_factor))
-    # blurring adds 0.8s (6.7->7.5) per image on average, but helps with correct corner identification (even though 3,3 gaussian is a bit much...)
-    img_small = filters.gaussian(img_small, sigma=(3, 3), truncate=1.0)
-    georef_img_small = filters.gaussian(georef_img_small, sigma=(3, 3), truncate=1.0)
-    
-    # rescale truth corners to small resolution
-    scaled_corners = [ (x // downscale_factor, y // downscale_factor) for (x,y) in truth_corners]
-    # find  corners in small image
-    corner_points = findCorners(img_small, georef_img_small, scaled_corners, template_size=20, plot=plot)
-    # rescale found coordinates to original resolution
-    corner_points = [ (x * downscale_factor, y  * downscale_factor) for (x,y) in corner_points]
+    if downscale_factor > 1:
+        # downscale images
+        img_small = downscale_local_mean(img, (downscale_factor, downscale_factor))
+        georef_img_small = downscale_local_mean(georef_img, (downscale_factor, downscale_factor))
+        # blurring adds 0.8s (6.7->7.5) per image on average, but helps with correct corner identification (even though 3,3 gaussian is a bit much...)
+        img_small = filters.gaussian(img_small, sigma=(3, 3), truncate=1.0)
+        georef_img_small = filters.gaussian(georef_img_small, sigma=(3, 3), truncate=1.0)
+        
+        # rescale truth corners to small resolution
+        scaled_corners = [ (x // downscale_factor, y // downscale_factor) for (x,y) in truth_corners]
+        # find  corners in small image
+        corner_points = findCorners(img_small, georef_img_small, scaled_corners, template_size=20, plot=plot)
+        # rescale found coordinates to original resolution
+        corner_points = [ (x * downscale_factor, y  * downscale_factor) for (x,y) in corner_points]
+    else:
+        corner_points = findCorners(img, georef_img, truth_corners, template_size=50, plot=plot)
     corner_coords = []
     for idx,corner in enumerate(corner_points):
         roi_size = 100
@@ -267,7 +270,7 @@ def dump_csv(sheets_list, mae_list, rmse_list, outpath="eval_georef_result.csv",
         for sheet, mae, rmse in zip(sheets_list, mae_list, rmse_list):
             eval_fp.write("%s; %.2f; %.2f\n" % (sheet, mae, rmse))
 
-def eval_list(img_list, sheet_corners, inputpath, sheetsfile, images_path, plot=False, downscale_factor=6):
+def eval_list(img_list, sheet_corners, inputpath, sheetsfile, images_path, plot=False, downscale_factor=6, outfile=None):
     error_results = []
     rmse_results = []
     sheet_names = []
@@ -303,6 +306,9 @@ def eval_list(img_list, sheet_corners, inputpath, sheetsfile, images_path, plot=
         error_results.append(mae)
         rmse_results.append(rmse)
         sheet_names.append(sheet_name)
+        if outfile:
+            with open(outfile,"a") as fw:
+                fw.write("%s; %.2f; %.2f\n" % (sheet_name, mae, rmse))
 
         time_taken = time.time() - t0
         times.append(time_taken)
@@ -334,8 +340,31 @@ def summary_and_fig(annotations_file, sheets_file, single=False, outfile=sys.std
                 done_sheets.append(sheet_name.zfill(3))
         img_list = list(filter(lambda x: x.split(".")[0] not in done_sheets, img_list))
 
-    sheet_names, error_results, rmse_results = eval_list(img_list, sheet_corners, inputpath, sheets_file, config.path_output, debug_plot, downscale_factor=downscale_factor)
+    outpath=(append_to if append_to else config.path_output+"/eval_georef_result.csv")
+    with open(outpath, "a" if append_to else "w", encoding="utf-8") as eval_fp:
+        if not append_to:
+            eval_fp.write("sheet name; MAE [m]; RMSE [m]\n") # header
+    sheet_names, error_results, rmse_results = eval_list(
+                                                    img_list, 
+                                                    sheet_corners, 
+                                                    inputpath, 
+                                                    sheets_file, 
+                                                    config.path_output, 
+                                                    debug_plot, 
+                                                    downscale_factor=downscale_factor,
+                                                    outfile=outpath)
     
+    sheet_names = []
+    error_results = []
+    rmse_results = []
+    with open(outpath) as fr:
+        fr.readline()
+        for line in fr:
+            sheet, mae, rmse = line.strip().split("; ")
+            sheet_names.append(sheet)
+            error_results.append(float(mae))
+            rmse_results.append(float(rmse))
+
     if len(error_results) == 0:
         return
     total_mean_error = sum(error_results)/len(error_results)
@@ -357,8 +386,8 @@ def summary_and_fig(annotations_file, sheets_file, single=False, outfile=sys.std
     median_error_rmse = error_sorted[len(error_sorted)//2]
     print("median RMSE: %f m" % median_error_rmse, file=outfile)
 
-    if not single:
-        dump_csv(sheet_names, error_results, rmse_results, outpath=(append_to if append_to else "eval_georef_result.csv"), append=append_to)
+    # if not single:
+    #     dump_csv(sheet_names, error_results, rmse_results, outpath=(append_to if append_to else "eval_georef_result.csv"), append=append_to)
 
     plt.subplot(2, 1, 1)
     plt.bar(sheet_names_sorted, error_sorted)
@@ -390,4 +419,4 @@ if __name__ == "__main__":
     # python eval_georef.py /e/data/deutsches_reich/wiki/highres/382.csv data/blattschnitt_dr100_merged_digi.geojson
     # py -3.7 -m cProfile -s "cumulative" eval_georef.py /e/data/deutsches_reich/wiki/highres/annotations_wiki.csv data/blattschnitt_dr100_merged.geojson > profile2.txt
     
-    summary_and_fig(args.input,args.sheets, single=args.single, outfile=args.output, debug_plot=args.plot)
+    summary_and_fig(args.input,args.sheets, single=args.single, outfile=args.output, debug_plot=args.plot, downscale_factor=6)

@@ -141,13 +141,17 @@ def get_poly_dict(sheetfile):
     with open(sheetfile) as file:
         json_data = json.load(file)
 
-        for feature in json_data["features"]:
-            if feature["properties"]["blatt_polen"]:
-                name =  feature["properties"]["blatt_polen"]
-            if feature["properties"]["blatt_ostmark"]:
-                name =  feature["properties"]["blatt_ostmark"]
-            if feature["properties"]["blatt_100"]:
-                name =  feature["properties"]["blatt_100"]
+        for feature in json_data["features"]:            
+            if "blatt_100" in feature["properties"] and feature["properties"]["blatt_100"]:
+                name = feature["properties"]["blatt_100"]
+            elif "blatt_polen" in feature["properties"] and feature["properties"]["blatt_polen"]:
+                name = feature["properties"]["blatt_polen"]
+            elif "blatt_ostmark" in feature["properties"] and feature["properties"]["blatt_ostmark"]:
+                name = feature["properties"]["blatt_ostmark"]
+            elif sheet_name_field in feature["properties"] and feature["properties"][sheet_name_field]:
+                name = feature["properties"][sheet_name_field]
+            else:
+                raise ValueError("bad format for sheets file", feature)
                 
             return_dict[name] = feature["geometry"]["coordinates"][0]
     return return_dict

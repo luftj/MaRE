@@ -336,6 +336,7 @@ def retrieve_best_match_index(query_image, processing_size, sheets_path, restric
         prediction = prediction[:restrict_number]
         score_cap = 1#0.4
         sheet_predictions, codebook_response = zip(*prediction)
+        sheet_predictions = list(map(str,sheet_predictions)) # labels should always be strings
 
         truth_index = sheet_predictions.index(truth) if truth in sheet_predictions else -1
         logging.info("Truth at position %d in index." % truth_index)

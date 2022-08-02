@@ -23,3 +23,8 @@ with open(f"{out_dir}/special_cases_summary.txt","w") as fw:
     # edition
     editions_annotation = "E:/data/deutsches_reich/SLUB/cut/editions.txt"
     compare_special_cases(errors, "editions", editions_annotation, out_dir, logfile=fw)
+
+    print(file=fw)
+    # overedge
+    editions_annotation = "E:/data/deutsches_reich/SLUB/cut/shapes.txt"
+    compare_special_cases(errors, "shapes", editions_annotation, out_dir, logfile=fw)

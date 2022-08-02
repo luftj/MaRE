@@ -202,7 +202,7 @@ def load_and_run(map_path):
     return segmented_image
 
 if __name__ == "__main__":
-    import experiments.config_e12a as config
+    import experiments.config_e12b_preu as config
     import argparse
 
     parser = argparse.ArgumentParser()
@@ -223,32 +223,7 @@ if __name__ == "__main__":
                             interpolation=config.resizing_index_query)
 
     segmented_image = run_segmentation_chain(map_img,plot=args.plot)
-    # segmented_image = extract_blue(map_img, plot=args.plot)
 
-    if args.plot:
-        from matplotlib import pyplot as plt
-        ax1 = plt.subplot(1, 3, 1)
-        map_img_rgb = cv2.cvtColor(map_img, cv2.COLOR_BGR2RGB)
-        ax1.imshow(map_img_rgb)
-        ax3 = plt.subplot(1, 3, 2, sharex=ax1, sharey=ax1)
-        if config.segmentation_colourspace == "hsv":
-            map_img_hsv = cv2.cvtColor(map_img, cv2.COLOR_BGR2HSV)
-        elif config.segmentation_colourspace == "lab":
-            map_img_hsv = cv2.cvtColor(map_img, cv2.COLOR_BGR2LAB)
-        ax3.imshow(map_img_hsv)
-        ax2 = plt.subplot(1, 3, 3, sharex=ax1, sharey=ax1)
-        plt.gray()
-        ax2.imshow(segmented_image)
-        # segmented_image,map_img_hsv = extract_blue(map_img, plot=False)
-        # ax1 = plt.subplot(1, 3, 1)
-        # ax1.imshow(map_img_rgb)
-        # ax2 = plt.subplot(1, 3, 2, sharex=ax1, sharey=ax1)
-        # ax2.imshow(map_img_hsv)
-        # ax3 = plt.subplot(1, 3, 3, sharex=ax1, sharey=ax1)
-        # plt.gray()
-        # ax3.imshow(segmented_image)
-        plt.title("segmented map image")
-        plt.show()
     if args.save:
         import os
         cv2.imwrite(os.path.splitext(args.input)[0]+"_mask.png", segmented_image)

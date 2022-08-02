@@ -109,9 +109,10 @@ def clip_ocean_poly(bbox):
     coords = " ".join(map(str,bbox))
     cropped_output_file = "%s/water_poly_%s.geojson" % (path_osm, coords.replace(" ","-"))
     print("clipping ocean...")
-    command = "ogr2ogr -spat %s -clipsrc %s %s %s" % (coords, coords, cropped_output_file, water_polys_file)
-    print(command)
-    os.system(command)
+    if not os.path.isfile(cropped_output_file):
+        command = "ogr2ogr -spat %s -clipsrc %s %s %s" % (coords, coords, cropped_output_file, water_polys_file)
+        print(command)
+        os.system(command)
 
 def paint_ocean_poly(bbox):
     coords = " ".join(map(str,bbox))
@@ -122,7 +123,7 @@ def paint_ocean_poly(bbox):
 
 def paint_features(json_data, bbox=[16.3333,54.25,16.8333333,54.5]):
     import config
-    reload(config) # make sure to get the value from config, not whatever has been set before
+    reload(config) # make sure to get the img_size value from config, not whatever has been set before
     img_size = config.osm_image_size # osm_image_size is set by reference, will be overwritten
     if draw_ocean_polygon:
         if proj_sheets != proj_osm: # reproject sheet bounding box to OSM coordinates
