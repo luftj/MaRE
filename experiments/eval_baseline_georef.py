@@ -1,4 +1,3 @@
-from email.mime import base
 import os,glob
 import numpy as np
 from PIL import Image
@@ -37,7 +36,7 @@ def dump_csv(scores_file,scores):
         for sheet in scores:
             fw.write(f"{sheet};{scores[sheet]['mae px']};{scores[sheet]['mae m']}\n")
 
-def calc_all_scores(sheetsfile, out_dir, baseline_margin = 100):
+def calc_all_scores(sheetsfile, out_dir, baseline_margin = 100, debug_plot=False):
     # get ground truth corner points from sheets file
     truth_bboxes = get_poly_dict(sheetsfile)
 
@@ -57,26 +56,25 @@ def calc_all_scores(sheetsfile, out_dir, baseline_margin = 100):
         baseline_margin = int(100 * img_width/1200)
         scale_mat = np.eye(3,3,dtype=np.float32)
         # get scaleing from iamge size and border+margin
-        # scale_x = (img_width-2*reference_border)/(img_width-2*baseline_margin)
-        # scale_y = (img_height-2*reference_border)/(img_height-2*baseline_margin)
-        # scale_x = (img_width-2*border[0])/(img_width-2*baseline_margin)
-        # scale_y = (img_height-2*border[0])/(img_height-2*baseline_margin)
         scale_mat[0,0] = (img_width-border[0])/(img_width-baseline_margin)# 1.025  # x scaling factor
         scale_mat[1,1] = (img_height-border[0])/(img_height-baseline_margin)# 1.029 # y scaling factor
         transform = scale_mat @ np.linalg.inv(transform) @ np.linalg.inv(scale_mat)
 
+        # +1 px because of indexing of border
+        offset_px = 1 * img_width/1200
+        print(offset_px)
         query_corners = [
-            np.asarray([baseline_margin,
-                        baseline_margin,
+            np.asarray([baseline_margin + offset_px,
+                        baseline_margin + offset_px,
                         1]),  # upper_left
-            np.asarray([img_width - baseline_margin,
-                        baseline_margin,
+            np.asarray([img_width - baseline_margin + offset_px,
+                        baseline_margin + offset_px,
                         1]), # upper_right
-            np.asarray([img_width - baseline_margin,
-                        img_height - baseline_margin,
+            np.asarray([img_width - baseline_margin + offset_px,
+                        img_height - baseline_margin + offset_px,
                         1]), # lower_right
-            np.asarray([baseline_margin,
-                        img_height - baseline_margin,
+            np.asarray([baseline_margin + offset_px,
+                        img_height - baseline_margin + offset_px,
                         1]) # lower_left
         ]
         
@@ -94,6 +92,25 @@ def calc_all_scores(sheetsfile, out_dir, baseline_margin = 100):
         truth_bbox = get_truth_bbox_dict(truth_bboxes, sheet_name)
         mae_m = calc_mae_m(query_corners,transform,image_path,truth_bbox)
         print(sheet_name,"MAE_px",mae_px,"mae m",mae_m)
+
+        if debug_plot:
+            from matplotlib import pyplot as plt
+            plt.close()
+            plt.imshow(im)
+            for idx in range(0,4):
+                warped = transform @ query_corners[idx]
+                # print(border_corners[idx],warped,query_corners[idx])
+                delta = (border_corners[idx]-warped)
+                # print(warped[0],warped[1],
+                # delta[0],delta[1])
+                plt.arrow(
+                    warped[0],warped[1],
+                    delta[0],delta[1],
+                    color="r",
+                    length_includes_head=True
+                    )
+            plt.show()
+
         scores[sheet_name] = {
             "mae px":mae_px,
             "mae m":mae_m

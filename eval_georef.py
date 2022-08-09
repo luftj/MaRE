@@ -14,7 +14,7 @@ from matplotlib import pyplot as plt
 import numpy as np
 from skimage.io import imread
 from skimage.feature import match_template, peak_local_max
-from skimage.transform import downscale_local_mean
+from skimage.transform import downscale_local_mean, rescale
 from skimage import filters
 
 from find_sheet import find_poly_for_name, get_poly_dict
@@ -202,7 +202,10 @@ def cascadeCorners(img_path, georef_path, truth_corners, plot, downscale_factor)
     print(img_path,georef_path)
     img = imread(img_path, as_gray=True)
     georef_img = imread(georef_path, as_gray=True)
-
+    scale = georef_img.shape[1] / img.shape[1] # if image has been resized during georeferencing, templates might not match anymore
+    if scale != 1:
+        img = rescale(img, scale, anti_aliasing=False)
+        # but now the transform/annotations doesn't fit anymore... rescale truth corners
     if downscale_factor > 1:
         # downscale images
         img_small = downscale_local_mean(img, (downscale_factor, downscale_factor))
@@ -212,13 +215,14 @@ def cascadeCorners(img_path, georef_path, truth_corners, plot, downscale_factor)
         georef_img_small = filters.gaussian(georef_img_small, sigma=(3, 3), truncate=1.0)
         
         # rescale truth corners to small resolution
-        scaled_corners = [ (x // downscale_factor, y // downscale_factor) for (x,y) in truth_corners]
+        scaled_corners = [ (int(x*scale / downscale_factor), int(y*scale / downscale_factor)) for (x,y) in truth_corners]
         # find  corners in small image
         corner_points = findCorners(img_small, georef_img_small, scaled_corners, template_size=20, plot=plot)
         # rescale found coordinates to original resolution
         corner_points = [ (x * downscale_factor, y  * downscale_factor) for (x,y) in corner_points]
     else:
-        corner_points = findCorners(img, georef_img, truth_corners, template_size=50, plot=plot)
+        scaled_corners = [ (int(x*scale), int(y*scale)) for (x,y) in truth_corners]
+        corner_points = findCorners(img, georef_img, scaled_corners, template_size=50, plot=plot)
     corner_coords = []
     for idx,corner in enumerate(corner_points):
         roi_size = 100
@@ -230,6 +234,7 @@ def cascadeCorners(img_path, georef_path, truth_corners, plot, downscale_factor)
         y_max = max(0,corner[0]+roi_size)
         roi = georef_img[x_min:x_max,y_min:y_max]
         ref_corner = truth_corners[idx]
+        ref_corner = [ int(c*scale) for c in ref_corner]
         template = img[ref_corner[1]-template_size:ref_corner[1]+template_size, ref_corner[0]-template_size:ref_corner[0]+template_size]
         # match again in ROIs
         match = match_corner(roi, template)
@@ -270,7 +275,7 @@ def dump_csv(sheets_list, mae_list, rmse_list, outpath="eval_georef_result.csv",
         for sheet, mae, rmse in zip(sheets_list, mae_list, rmse_list):
             eval_fp.write("%s; %.2f; %.2f\n" % (sheet, mae, rmse))
 
-def eval_list(img_list, sheet_corners, inputpath, sheetsfile, images_path, plot=False, downscale_factor=6, outfile=None):
+def eval_list(img_list, sheet_corners, inputpath, sheetsfile, images_path, plot=False, downscale_factor=6, outfile=None ):
     error_results = []
     rmse_results = []
     sheet_names = []
@@ -322,7 +327,7 @@ def eval_list(img_list, sheet_corners, inputpath, sheetsfile, images_path, plot=
 
     return sheet_names, error_results, rmse_results
 
-def summary_and_fig(annotations_file, sheets_file, single=False, outfile=sys.stdout, debug_plot=False, append_to=None, downscale_factor=6):
+def summary_and_fig(annotations_file, sheets_file, single=False, outfile=sys.stdout, debug_plot=False, append_to=None, downscale_factor=6 ):
     inputpath = os.path.dirname(annotations_file)
 
     sheet_corners = read_corner_CSV(annotations_file)

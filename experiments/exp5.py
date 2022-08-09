@@ -89,3 +89,26 @@ finally:
     # reset config
     os.remove("config.py")
     shutil.move("config.py.old", "config.py")
+
+
+# 200
+# total mean error: 316.1678885584286 mae m
+# median MAE: 285.5234974131027 mae m
+
+# total mean error: 1.631699808909482 mae px
+# median MAE: 1.4999423041515558 mae px
+
+# 500
+# total mean error: 114.44170488243113 mae m
+# median MAE: 78.44914453058915 mae m
+
+# total mean error: 1.429459716697751 mae px
+# median MAE: 1.0258669189167278 mae px
+
+
+# 1200
+# total mean error: 42.33741066896848 mae m
+# median MAE: 10.075360889521775 mae m
+
+# total mean error: 1.364021995082409 mae px
+# median MAE: 0.3139840225790542 mae px

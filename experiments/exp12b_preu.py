@@ -81,10 +81,8 @@ try:
         #     summary_and_fig(annotations, sheets, outfile=outfile, append_to=f"{out_dir}/eval_georef_result.csv")
     else:
         with open(f"{out_dir}/georef_summary.txt","w") as outfile:
-            summary_and_fig(annotations, sheets, outfile=outfile, downscale_factor=3, debug_plot=True)
-        shutil.move("eval_georef_result.csv", f"{out_dir}/eval_georef_result.csv")
+            summary_and_fig(annotations, sheets, outfile=outfile, downscale_factor=2, debug_plot=False)
         shutil.move("georef_error.png", f"{out_dir}/georef_error.png")
-    exit()
 
     # make summary and figs
     percent_correct, mean_index, median_index, max_rank = get_all_results(out_dir)

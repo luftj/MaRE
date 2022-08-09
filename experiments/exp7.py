@@ -142,3 +142,31 @@ finally:
     # reset config
     os.remove("config.py")
     shutil.move("config.py.old", "config.py")
+
+
+# Flüsse
+# 655 sheets analysed
+# total mean error: 42.33741066896848 mae m
+# median MAE: 10.075360889521775 mae m
+# sheets < 200m: 647
+# sheets > 500m: 6
+# sheets > 1000m: 3
+# sheets > mean: 16
+
+# Straßen:
+# 650 sheets analysed
+# total mean error: 117.24569770508288 mae m
+# median MAE: 9.942743659078738 mae m
+# # sheets < 200m: 647
+# sheets > 500m: 3
+# sheets > 1000m: 3
+# sheets > mean: 3
+
+# Bahn:
+# 574 sheets analysed
+# total mean error: 300.36996103117247 mae m
+# median MAE: 10.589067649887932 mae m
+# sheets < 200m: 509
+# sheets > 500m: 56
+# sheets > 1000m: 30
+# sheets > mean: 61

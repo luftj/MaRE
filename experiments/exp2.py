@@ -89,7 +89,7 @@ try:
     results = filter_results(results, "E:/experiments/e1/eval_result.csv")
     if not os.path.isfile(f"{out_dir}/registration_summary.txt"):
         with open(f"{out_dir}/registration_summary.txt","w") as outfile:
-            mean, median = summary_and_fig(results, out_dir, outfile=outfile)
+            mean_mae, median_mae, error_results = summary_and_fig(results, out_dir, outfile=outfile)
 
     make_register_hist(out_dir,f="baseline_georef_scores.csv")
 
