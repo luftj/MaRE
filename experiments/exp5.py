@@ -112,3 +112,24 @@ finally:
 
 # total mean error: 1.364021995082409 mae px
 # median MAE: 0.3139840225790542 mae px
+
+# 200:
+# total mean error: 223.20731009628503 mae m
+# median MAE: 191.72402751522213 mae m
+# 200:
+# total mean error: 1.1424344829750268 mae px
+# median MAE: 1.0046619428489314 mae px
+
+# 500:
+# total mean error: 110.59817428496544 mae m
+# median MAE: 74.66316784363906 mae m
+# 500:
+# total mean error: 1.3780245593100375 mae px
+# median MAE: 0.975911671656641 mae px
+
+# 1200:
+# total mean error: 42.33741066896848 mae m
+# median MAE: 10.075360889521775 mae m
+# 1200:
+# total mean error: 1.364021995082409 mae px
+# median MAE: 0.3139840225790542 mae px

@@ -1,4 +1,4 @@
-base_path = "E:/experiments/e8/"
+base_path = "E:/experiments/e17c/"
 path_output = base_path # end with slash /
 path_logs = base_path # end with slash /
 base_path_index = "E:/experiments/idx_kdr100/"

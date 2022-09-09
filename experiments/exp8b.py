@@ -1,5 +1,4 @@
 import os
-from tkinter import TRUE
 from eval_scripts.eval_register import get_georef_error,compare_special_cases
 from eval_scripts.eval_helpers import load_errors_csv
 
@@ -9,7 +8,7 @@ annotations = "E:/data/deutsches_reich/SLUB/cut/raw/annotations.csv"
 exp_dir = "E:/experiments/e8_oldseg/"
 resultsfile = f"{exp_dir}/eval_georef_result.csv"
 out_dir = "E:/experiments/e8b"
-os.makedirs(out_dir, exist_ok=TRUE)
+os.makedirs(out_dir, exist_ok=True)
 
 errors = load_errors_csv(resultsfile)
 

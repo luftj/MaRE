@@ -1,4 +1,4 @@
-base_path = "E:/experiments/e8/"
+base_path = "E:/experiments/e17b/"
 path_output = base_path # end with slash /
 path_logs = base_path # end with slash /
 base_path_index = "E:/experiments/idx_kdr100/"
@@ -123,8 +123,7 @@ ransac_max_trials = 1000
 ransac_stop_probability = 0.99
 ransac_random_state = 1337 # only for profiling and validation. default: None
 
-skip_impossible_verification = False
-codebook_response_threshold = None #2 # maybe even 1.8 #set to None to disable
+codebook_response_threshold = 2 # maybe even 1.8 #set to None to disable
 from cv2 import NORM_INF, NORM_L1, NORM_L2, NORM_L2SQR, NORM_HAMMING, NORM_RELATIVE, NORM_MINMAX
 matching_norm = NORM_L2
 matching_crosscheck = True

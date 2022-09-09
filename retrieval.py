@@ -346,7 +346,7 @@ def retrieve_best_match_index(query_image, processing_size, sheets_path, restric
         logging.info("ratios: %s " % (ratios,))
         
         # don't to spatial verification if we have no chance of getting the correct prediction anyway
-        if truth and (truth_index < 0 or truth_index > restrict_number):
+        if config.skip_impossible_verification and truth and (truth_index < 0 or truth_index > restrict_number):
             logging.info("verification pointless, skipping sheet")
             print("verification pointless, skipping sheet")
             return None, -1, [], None
