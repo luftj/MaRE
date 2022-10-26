@@ -9,7 +9,7 @@ import config
 
 transform_sheet_to_out = Transformer.from_proj(config.proj_sheets, config.proj_out, skip_equivalent=True, always_xy=True)
 
-def register_ECC(query_image, reference_image, warp_matrix=None, warp_mode = cv2.MOTION_AFFINE):
+def register_ECC(query_image, reference_image, warp_matrix=None, warp_mode = cv2.MOTION_AFFINE, ret_cc=False):
     # adapted from https://www.learnopencv.com/image-alignment-ecc-in-opencv-c-python/
     
     logging.debug("starting registration...")
@@ -33,6 +33,8 @@ def register_ECC(query_image, reference_image, warp_matrix=None, warp_mode = cv2
     (cc, warp_matrix) = cv2.findTransformECC(reference_image, query_image, warp_matrix, warp_mode, termination_criteria)
     logging.info("found registration with score: %f" % cc)
 
+    if ret_cc:
+        return warp_matrix, cc
     return warp_matrix
 
 def warp(image, warp_matrix, warp_mode = cv2.MOTION_AFFINE):

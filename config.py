@@ -1,4 +1,4 @@
-base_path = "E:/experiments/e3/tmp/"
+base_path = "E:/experiments/e8/"
 path_output = base_path # end with slash /
 path_logs = base_path # end with slash /
 base_path_index = "E:/experiments/idx_kdr100/"
@@ -36,6 +36,27 @@ osm_query = """[out:json];
 force_osm_download = False
 download_timeout = (5,600) # connect timeout, read timeout
 draw_ocean_polygon = False
+line_thickness_line = {
+    "waterway=river": 2,
+    "natural=coastline": 0 if draw_ocean_polygon else 5,
+    "default": 1
+}
+line_thickness_poly = {
+    "natural=coastline": 3,
+    "default": 3
+}
+
+def get_thickness(properties, geom_type):
+    line_thickness = line_thickness_line if geom_type=="LineString" else line_thickness_poly
+    for key,thickness in line_thickness.items():
+        if key == "default": 
+            continue
+        key, value = key.split("=")
+        if key in properties and properties[key] == value:
+            return thickness
+    else:
+        return line_thickness["default"]
+
 fill_polys = True
 osm_image_size = [1000,850]
 sheet_name_field = "blatt_100"
@@ -79,6 +100,15 @@ reference_keypoints_folder = base_path_index+"index/keypoints"
 
 template_window_size = 30
 
+segmentation_steps = [
+            ("convert","lab"),
+            ("colourbalance",5),
+            ("blur",19),
+            ("threshold",[(0,0,10),(255, 90, 100)]),
+            ("open",5),
+            ("close",11)
+            ]
+
 segmentation_colourbalance_percent = 5
 segmentation_blurkernel = (19,19)
 segmentation_colourspace = "lab" # can be ["lab","hsv"]
@@ -93,6 +123,7 @@ ransac_max_trials = 1000
 ransac_stop_probability = 0.99
 ransac_random_state = 1337 # only for profiling and validation. default: None
 
+skip_impossible_verification = False
 codebook_response_threshold = None #2 # maybe even 1.8 #set to None to disable
 from cv2 import NORM_INF, NORM_L1, NORM_L2, NORM_L2SQR, NORM_HAMMING, NORM_RELATIVE, NORM_MINMAX
 matching_norm = NORM_L2
