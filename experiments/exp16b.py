@@ -37,3 +37,13 @@ if __name__ == "__main__":
     print("time per sheet:",time_taken/num_sheets)
     
     shutil.move("config.py.old", "config.py")
+
+# time: 352.35396242141724
+# #sheets: 196
+# time per sheet: 1.7977242980684554
+# time: 236.89027571678162
+# #sheets: 196
+# time per sheet: 1.2086238556978655
+# time: 238.18572640419006
+# #sheets: 196
+# time per sheet: 1.2152332979805616
