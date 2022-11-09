@@ -200,11 +200,11 @@ def estimate_transform(keypoints_q, keypoints_r, query_image, reference_image_bo
         plot_template_matches(keypoints_q,keypoints_r, inliers, query_image, reference_image_border)
         from skimage.transform import warp
         from matplotlib import pyplot as plt
-        plt.subplot("131")
+        plt.subplot(1,3,1)
         plt.imshow(reference_image_border)
-        plt.subplot("132")
+        plt.subplot(1,3,2)
         plt.imshow(query_image)
-        plt.subplot("133")
+        plt.subplot(1,3,3)
         y = query_image.shape[0]
         plt.plot([30,470,470,30,30], [y-30,y-30,30,30,y-30], "g", linewidth=1)
         image1_warp = warp(query_image, model)
