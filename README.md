@@ -11,8 +11,8 @@ This software allows you to georeference map sheets of historical topographic ma
 Theory, application and evaluation has been treated in the following pulbications:
 * 05/2023: *Automatische Georeferenzierung von Altkarten*, PhD Thesis. Coming soon.
 * 09/2022: *Georeferenzierung automatisieren?* Workshop presentation at the FID-Karten, Berlin (link tba)
-* 08/2021: *Automatic Content-Based Georeferencing of Historical Topographic Maps*, journal paper, Transactions in GIS [PDF](https://onlinelibrary.wiley.com/doi/10.1111/tgis.12794)
-* 12/2021: *Content-based Image Retrieval for Map Georeferencing*, conference paper, International Cartographic Conference 2021 [PDF](http://jonasluft.de/data/ICC21_full_paper_submission.pdf)
+* 08/2021: *Automatic Content-Based Georeferencing of Historical Topographic Maps*, journal paper, Transactions in GIS [full text](https://onlinelibrary.wiley.com/doi/10.1111/tgis.12794)
+* 12/2021: *Content-based Image Retrieval for Map Georeferencing*, conference paper, International Cartographic Conference 2021 [full text](http://jonasluft.de/data/ICC21_full_paper_submission.pdf)
 
 ## Licensing and distribution
 
