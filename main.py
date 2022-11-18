@@ -166,21 +166,25 @@ def process_list(list_path, sheets_path, plot=False, img=True, restrict=None, re
             process_sheet(img_path, sheets_path, plot=plot, img=img, ground_truth_name=str(ground_truth), resize=resize, crop=crop, restrict=restrict, debug=debug)
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("input", help="input file path string or .txt list of images")
-    parser.add_argument("sheets", help="sheets json file path string", default="data/blattschnitt_dr100.geojson")
+    parser = argparse.ArgumentParser(
+        description="Georeference a historical map image by aligning hydrological signatures with OpenStreetMap features.")
+    parser.add_argument("input", help="path to input image or textfile with list of images and ground truths. 3-channel images will be segmented, 1-channel images will be treated as segmentation masks.")
+    parser.add_argument("sheets", help="path to a geojson file describing the possible map sheet locations in the map series.", default="data/blattschnitt_dr100.geojson")
     
-    parser.add_argument("--gt", help="ground truth sheet name", default=None)
-    parser.add_argument("--crop", help="set this to true to crop the map margins", action="store_true")
-    
-    parser.add_argument("--noimg", help="match sheet only, don't save registered image files", action="store_true")
-    parser.add_argument("--plot", help="set this to true to show debugging plots", action="store_true")
-    parser.add_argument("-v", help="set this to true to print log info to stdout", action="store_true")
-    parser.add_argument("-ll", help="set this to get additional debug logging", action="store_true")
-    parser.add_argument("--debug", help="set this to store debug images", action="store_true")
+    parser.add_argument("--gt", help="ground truth sheet name. Only use this when input is a single image file.", default=None)
+    parser.add_argument("-r", help="number of hypotheses to verify during retrieval.", default=None, type=int)
 
-    parser.add_argument("--isize", help="resize input image to target width", default=None, type=int)
-    parser.add_argument("-r", help="restrict search space around ground truth", default=None, type=int)
+    parser.add_argument("--crop", help="set this to crop the map margins after georeferencing.", action="store_true")
+    parser.add_argument("--width", help="resize input image to target width in pixels before processing.", default=None, type=int)
+
+    parser.add_argument("--noimg", help="match sheet name only, don't save the georeferenced image file(s)", action="store_true")
+
+    parser.add_argument("--debug", help="set this to store debug images to disk.", action="store_true")
+    parser.add_argument("--plot", help="set this to show debugging images.", action="store_true")
+    parser.add_argument("-v", help="set this to print log info to stdout instead of logfile.", action="store_true")
+    parser.add_argument("-ll", help="set this to get additional debug logging.", action="store_true")
+    
+    parser.print_usage = parser.print_help
     args = parser.parse_args()
     
     # create necessary directories
@@ -200,6 +204,6 @@ if __name__ == "__main__":
     sheets_file = args.sheets
     
     if args.input[-4:] == ".txt":
-        process_list(args.input, sheets_file, plot=args.plot, img=(not args.noimg), resize=args.isize, crop=args.crop, restrict=args.r, debug=args.debug)
+        process_list(args.input, sheets_file, plot=args.plot, img=(not args.noimg), resize=args.width, crop=args.crop, restrict=args.r, debug=args.debug)
     else:
-        process_sheet(args.input, sheets_file, plot=args.plot, img=(not args.noimg), resize=args.isize, crop=args.crop, ground_truth_name=args.gt, restrict=args.r, debug=args.debug)
+        process_sheet(args.input, sheets_file, plot=args.plot, img=(not args.noimg), resize=args.width, crop=args.crop, ground_truth_name=args.gt, restrict=args.r, debug=args.debug)
