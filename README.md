@@ -1,6 +1,6 @@
 # MaRE
 
-Geoference map images by extracting water symbols and aligning them with OpenStreetMap.
+Automatically geoference map images by extracting symbols and aligning them with OpenStreetMap.
 
 ---
 
@@ -9,9 +9,10 @@ Geoference map images by extracting water symbols and aligning them with OpenStr
 This software allows you to georeference map sheets of historical topographic map series. The basic working principle is to use segmented map symbols for content-based image retrieval. The reference maps that will be retrieved and thus serve as ground control for georeferencing are fetched from OpenStreetMap.
 
 Theory, application and evaluation has been treated in the following pulbications:
-* 09/2022: Georeferenzierung automatisieren? Workshop presentation at the FID-Karten, Berlin (link tba)
-* 08/2021: Automatic Content-Based Georeferencing of Historical Topographic Maps, journal paper, Transactions in GIS [PDF](https://onlinelibrary.wiley.com/doi/10.1111/tgis.12794)
-* 12/2021: Content-based Image Retrieval for Map Georeferencing, conference paper, International Cartographic Conference 2021 [PDF](http://jonasluft.de/data/ICC21_full_paper_submission.pdf)
+* 05/2023: *Automatische Georeferenzierung von Altkarten*, PhD Thesis. Coming soon.
+* 09/2022: *Georeferenzierung automatisieren?* Workshop presentation at the FID-Karten, Berlin (link tba)
+* 08/2021: *Automatic Content-Based Georeferencing of Historical Topographic Maps*, journal paper, Transactions in GIS [PDF](https://onlinelibrary.wiley.com/doi/10.1111/tgis.12794)
+* 12/2021: *Content-based Image Retrieval for Map Georeferencing*, conference paper, International Cartographic Conference 2021 [PDF](http://jonasluft.de/data/ICC21_full_paper_submission.pdf)
 
 ## Licensing and distribution
 
