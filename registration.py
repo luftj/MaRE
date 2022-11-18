@@ -7,7 +7,7 @@ from pyproj import Transformer
 
 import config
 
-transform_sheet_to_out = Transformer.from_proj(config.proj_sheets, config.proj_out, skip_equivalent=True, always_xy=True)
+transform_sheet_to_out = Transformer.from_proj(config.proj_sheets, config.proj_out, always_xy=True) #, skip_equivalent=True # skip_equivalent is deprecated since some version
 
 def register_ECC(query_image, reference_image, warp_matrix=None, warp_mode = cv2.MOTION_AFFINE, ret_cc=False):
     # adapted from https://www.learnopencv.com/image-alignment-ecc-in-opencv-c-python/

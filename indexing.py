@@ -186,10 +186,11 @@ patch_size = 30 # relevant for plotting
 detector_dict = {
     "kaze_upright": cv2.KAZE_create(upright=True),
     "akaze_upright": cv2.AKAZE_create(descriptor_type=cv2.AKAZE_DESCRIPTOR_KAZE_UPRIGHT),
-    "surf_upright": cv2.xfeatures2d_SURF.create(upright=1),
-    # "sift": cv2.SIFT.create(),
+    # "surf_upright": cv2.SURF.create(upright=1),
+    "sift": cv2.SIFT.create(),
     "ski_fast": Skimage_fast_detector(min_dist=5,thresh=0),
-    "cv_fast": cv2.FastFeatureDetector.create()
+    "cv_fast": cv2.FastFeatureDetector.create(),
+    "orb": cv2.ORB_create()
     }
 
 kp_detector = detector_dict[config.kp_detector]
@@ -441,7 +442,7 @@ def predict(sample, clf, truth=None):
 def predict_annoy(descriptors):
     u = AnnoyIndex(config.index_descriptor_length, config.index_annoydist)
     u.load(config.reference_index_path) # super fast, will just mmap the file
-    from annoytest import get_sheet_for_id, sheets
+    from annoy_helper import get_sheet_for_id, sheets
 
     votes = {k:0 for k in sheets}
     for desc in descriptors:

@@ -6,7 +6,6 @@ import argparse
 import logging
 from datetime import datetime
 from matplotlib import pyplot as plt
-# from numpy import fromfile, uint8
 import numpy as np
 
 import segmentation
@@ -35,13 +34,6 @@ def process_sheet(img_path, sheets_path, plot=False, img=True, ground_truth_name
         map_img = cv2.resize(map_img, target_size, config.resizing_input)
 
     # usgs name fixes:
-    ground_truth_name = ground_truth_name.replace("Mts","Mountains")
-    ground_truth_name = ground_truth_name.replace("Mtns","Mountains")
-    # ground_truth_name = ground_truth_name.replace(" Of "," of ")
-    ground_truth_name = ground_truth_name.replace("St ","Saint ")
-    # ground_truth_name = ground_truth_name.replace(" Du "," du ")
-    # map_img = map_img[:,:,0] # hack for unet input
-    # map_img = cv2.erode(map_img,(9,9)) # hack for unet input
     if len(map_img.shape)>2:
         # seegment query sheet
         print("segmenting")
@@ -50,10 +42,7 @@ def process_sheet(img_path, sheets_path, plot=False, img=True, ground_truth_name
         print("not segmenting")
         # grayscale image - already segmented
         water_mask = map_img
-    # water_mask = segmentation.extract_blue(map_img) # extract rivers
-    # cv2.imshow("img",water_mask)
-    # cv2.waitKey(-1)
-    # exit()
+    
     if debug:
         os.makedirs(config.path_output + "/debug", exist_ok=True)
         cv2.imwrite(config.path_output + "/debug/maskimg_%s.png" % (ground_truth_name), water_mask)

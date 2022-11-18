@@ -1,7 +1,9 @@
 base_path = "E:/experiments/e21a/"
+base_path = "/mnt/experiments/e21a/"
 path_output = base_path # end with slash /
 path_logs = base_path # end with slash /
 base_path_index = "E:/experiments/idx_kdr100/"
+base_path_index = "/mnt/experiments/idx_kdr100/"
 path_osm = base_path_index+"/osm/" # end with slash /
 proj_map = "+proj=longlat +ellps=bessel +towgs84=598.1,73.7,418.2,0.202,0.045,-2.455,6.7 +no_defs" # Potsdam datum
 proj_sheets = proj_map

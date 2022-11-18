@@ -42,14 +42,14 @@ def get_query_image(images_list, sheet_query):
                 path += filename
                 return path
 
-def get_reference_image(sheet):
-    sheetfile = "E:/data/deutsches_reich/blattschnitt/blattschnitt_kdr100_fixed.geojson"
+def get_reference_image(sheet, sheetfile):
     closest_bbox = find_bbox_for_name(sheetfile, sheet)
     rivers_json = osm.get_from_osm(closest_bbox)
     closest_image = osm.paint_features(rivers_json, closest_bbox)
     return closest_image
 
 if __name__ == "__main__":
+    sheetfile = "E:/data/deutsches_reich/blattschnitt/blattschnitt_kdr100_fixed.geojson"
     images_list = "E:/data/deutsches_reich/SLUB/cut/raw/list.txt"
     exp_dir = "E:/experiments/e8"#_oldseg/"
     reg_resultsfile = f"{exp_dir}/eval_georef_result.csv"
@@ -80,7 +80,7 @@ if __name__ == "__main__":
         query_img_small = cv2.resize(query_img, processing_size, config.resizing_register_query)
         query_mask_small = cv2.resize(query_mask, processing_size, config.resizing_register_query)
         
-        reference_image = get_reference_image(sheet)
+        reference_image = get_reference_image(sheet, sheetfile)
         border_size = config.template_window_size
         reference_image = cv2.resize(reference_image, 
                                         (processing_size[0] - border_size*2,
