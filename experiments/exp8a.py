@@ -59,7 +59,8 @@ if __name__ == "__main__":
 
     errors = load_errors_csv(reg_resultsfile)
     eccs = get_eccs(loc_resultsfile)
-    sheets_of_interest = ["388","414"]#,"553","569","622","637"]
+    sheets_of_interest = ["388","414"]
+    sheets_of_interest = ["553","569","622","637"]
 
     for sheet in sheets_of_interest:
         print("sheet:",sheet)
@@ -98,6 +99,7 @@ if __name__ == "__main__":
         print(r_width,r_height)
         # for each part
         index = 1
+        
         for y in range(y_parts):
             for x in range(x_parts):
                 print(x,y)
@@ -115,8 +117,10 @@ if __name__ == "__main__":
                 
                 plt.subplot(y_parts*2,x_parts*3,index)
                 plt.imshow(query_img_small_part)
+                plt.axis('off')
                 plt.subplot(y_parts*2,x_parts*3,index+x_parts)
                 plt.imshow(query_mask_small_part)
+                plt.axis('off')
 
                 # run register_ECC
                 ecc = 0
@@ -125,12 +129,14 @@ if __name__ == "__main__":
                     map_img_aligned = warp(query_img_small_part, warp_matrix)
                     plt.subplot(y_parts*2,x_parts*3,index+x_parts*3*y_parts)
                     plt.imshow(map_img_aligned)
+                    plt.title(f"{float(ecc):.3f}")
+                    plt.axis('off')
                 except:
                     print("not converged")
 
                 plt.subplot(y_parts*2,x_parts*3,index+x_parts*3*y_parts+x_parts)
                 plt.imshow(reference_img_part)
-                plt.title(f"{float(ecc):.3f}")
+                plt.axis('off')
                 index += 1
             index += x_parts * 2
         
@@ -142,8 +148,10 @@ if __name__ == "__main__":
         # visualise all parts next to each other vs whole image registered
         plt.subplot(2,3,3)
         plt.imshow(query_img)
+        plt.axis('off')
         plt.subplot(2,3,6)
         plt.imshow(aligned_image)
+        plt.axis('off')
         # check ECC value
         plt.title(f"{float(eccs[sheet]):.3f}")
         plt.show()

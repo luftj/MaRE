@@ -186,7 +186,7 @@ patch_size = 30 # relevant for plotting
 detector_dict = {
     "kaze_upright": cv2.KAZE_create(upright=True),
     "akaze_upright": cv2.AKAZE_create(descriptor_type=cv2.AKAZE_DESCRIPTOR_KAZE_UPRIGHT),
-    "surf_upright": cv2.xfeatures2d_SURF.create(upright=1),
+    # "surf_upright": cv2.xfeatures2d_SURF.create(upright=1),
     # "sift": cv2.SIFT.create(),
     "ski_fast": Skimage_fast_detector(min_dist=5,thresh=0),
     "cv_fast": cv2.FastFeatureDetector.create()
@@ -199,7 +199,7 @@ if config.detector in ["ski_fast","cv_fast"]:
 
 detector = detector_dict[config.detector]
 
-def extract_features(image, first_n=None):
+def extract_features(image, first_n=None, plot=False):
     """Detect and extract features in given image.
 
     Arguments:
@@ -227,7 +227,9 @@ def extract_features(image, first_n=None):
         vis_img1 = None
         vis_img1 = cv2.drawKeypoints(image,kps,vis_img1, 
                                 flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+                                #,color=(0,99,66))#(255,100,50))#(0,100,255))
         plt.imshow(vis_img1)
+        # plt.axis('off')
         plt.show()
 
     return kps, dsc
