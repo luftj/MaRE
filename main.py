@@ -112,7 +112,7 @@ def process_sheet(img_path, sheets_path, plot=False, img=True, ground_truth_name
         # align map image
         try:
             if config.registration_mode == "ransac": # RANSAC only
-                map_img_aligned, border = registration.align_map_image_model(map_img, water_mask, closest_image, transform_model, processing_size, crop)
+                map_img_aligned, border, transform = registration.align_map_image_model(map_img, water_mask, closest_image, transform_model, processing_size, crop)
             elif config.registration_mode == "ecc": # ECC only
                 map_img_aligned, border, transform = registration.align_map_image(map_img, water_mask, closest_image, processing_size, crop)
             elif config.registration_mode == "both": # ECC with RANSAC prior

@@ -48,35 +48,6 @@ def warp(image, warp_matrix, warp_mode = cv2.MOTION_AFFINE):
 
     return im2_aligned
 
-def georeference_gcp(inputfile, outputfile, bbox, gcps):
-    time_start = time()
-    minxy = transform_sheet_to_out.transform(bbox[0], bbox[1]) # reproject lower left bbox corner
-    maxxy = transform_sheet_to_out.transform(bbox[2], bbox[3]) # reproject upper right bbox corner
-    # bb_br = transform_sheet_to_out.transform(bbox[2], bbox[1])
-    # bb_ul = transform_sheet_to_out.transform(bbox[0], bbox[3])
-    bbox = minxy+maxxy
-    print(bbox)
-
-    left, top, right, bottom = (bbox[0], bbox[3], bbox[2], bbox[1])
-    bbox_corners = [ transform_sheet_to_out.transform(left, top),
-                     transform_sheet_to_out.transform(left, bottom),
-                     transform_sheet_to_out.transform(right, top),
-                     transform_sheet_to_out.transform(right, bottom)]
-
-    command = "gdal_translate " + config.gdal_output_options + " "
-
-    for idx,gcp in enumerate(gcps):
-        print("point",(*gcp[0:2], *(bbox_corners[idx])))
-        command += "-gcp %f %f %f %f " % (*gcp[0:2], *(bbox_corners[idx]))  # pixel line easting northing
-    command += inputfile + " " + outputfile# " map-with-gcps.tif"
-
-    print(command)
-    logging.debug("gdal command: %s" % command)
-    os.system(command)
-
-    time_passed = time() - time_start
-    logging.info("time: %f s for georeferencing" % time_passed)
-
 def make_worldfile(inputfile, bbox, border):
     """ create a worldfile for a warped map image given bounding box GCPS
     bbox as [left_x, bottom_y, right_x, top_y]
@@ -238,7 +209,6 @@ def align_map_image_model(map_image, query_image, reference_image, warp_matrix, 
     print("corner point BR",botright,botright_query)
 
     warp_matrix = scale_mat @ warp_matrix @ np.linalg.inv(scale_mat) # complete transformation matrix
-    # warp_matrix = np.delete(warp_matrix, (2), axis=0) # drop homogeneous coordinates
 
     # do the warping with the full sized input image
     from skimage.transform import warp
@@ -260,4 +230,5 @@ def align_map_image_model(map_image, query_image, reference_image, warp_matrix, 
     else:
         border = (border_left, border_bot, border_right, border_top)
 
-    return map_img_aligned, border
+    warp_matrix = np.delete(warp_matrix, (2), axis=0) # drop homogeneous coordinates
+    return map_img_aligned, border, warp_matrix

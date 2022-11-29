@@ -5,7 +5,6 @@ import logging
 from operator import itemgetter
 import joblib
 
-import osm
 import progressbar
 
 import config
