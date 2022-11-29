@@ -169,96 +169,6 @@ def build_index(sheets_path, restrict_class=None, restrict_range=None, store_des
         for sheet, kps in keypoint_dict.items():
             joblib.dump(kps, config.reference_keypoints_folder+"/%s.clf" % sheet)
 
-bf = None
-
-def predict(sample, clf, truth=None, plot=False, plot_size=30):
-    """Predict the similarities of the descriptors of the samples with descriptors in the index.
-    
-    Arguments:
-    sample -- the descriptors of the query image.
-    clf -- the index (a dict with 'image name':[descriptors])
-
-    returns a tuple with 
-    - the predicted image name, 
-    - a list of all possible images ordered by similarity, 
-    - a dict with the matches for each image in the index.
-    """
-    # for feature matching only (not for annoy)
-    n_matches = 100
-    score_eq = "avg_score" # possible values: "avg_score","num_match"
-    if n_matches and score_eq == "num_match":
-        raise ValueError("can't use match count as similarity score, when matches are restricted")
-    norm = cv2.NORM_L2
-    cross_check = False
-    if config.index_lowes_test_ratio and cross_check:
-        raise ValueError("can't do cross-check with lowe's test")
-
-    prediction = []
-    match_dict = {}
-    progress = progressbar.ProgressBar(maxval=len(clf.keys()))
-    
-    bf = cv2.BFMatcher(norm, crossCheck=cross_check)
-
-    for label in progress(clf.keys()):
-        # Match descriptors.
-        if not config.index_lowes_test_ratio:
-            matches = bf.match(sample, clf[label]) # simple matching
-        else:
-            # Lowe's test ratio refinement
-            nn_matches = bf.knnMatch(sample, clf[label], 2)
-            if len(nn_matches[0]) < 2:
-                continue
-            matches = []
-            nn_match_ratio = config.index_lowes_test_ratio # Nearest neighbor matching ratio
-            for m,n in nn_matches:
-                if m.distance < nn_match_ratio * n.distance:
-                    matches.append(m)
-        
-        if n_matches:
-            # Sort them in the order of their distance.
-            matches = sorted(matches, key = lambda x:x.distance)
-            matches = matches[:n_matches] # only take n closest matches
-
-        if plot:
-            idx = 1
-            for m in (matches[:10]):
-                plt.subplot(10,2,idx)
-                plt.imshow(np.reshape(clf[label][m.trainIdx],(plot_size,plot_size)))
-                plt.title(int(m.distance))
-                idx+=1
-                plt.subplot(10,2,idx)
-                plt.imshow(np.reshape(sample[m.queryIdx],(plot_size,plot_size)))
-                idx+=1
-            plt.show()
-
-        ### reverse matching
-        # matches = bf.match(clf[label], sample)
-        # nn_matches_reverse = bf.knnMatch(clf[label], sample, 2)
-        # for m,n in nn_matches_reverse:
-        #     if m.distance < nn_match_ratio * n.distance:
-        #         matches.append(m)
-
-        # matches2 = bf.match(clf[label], sample)
-        # matches2 = sorted(matches2, key = lambda x:x.distance)
-        # matches2 = matches2[:100]
-        # matches.extend(matches2)
-
-        match_dict[label] = matches
-
-        if len(matches) == 0:
-            prediction.append((label,1))
-        else:
-            if score_eq == "num_match":
-                score = len(matches)
-            elif score_eq == "avg_score":
-                distances = [x.distance for x in matches]
-                score = sum(distances)/len(matches)
-            prediction.append((label,score))
-
-    prediction.sort(key=lambda x: x[1], reverse=(score_eq=="num_match"))
-    prediction_class = prediction[0][0]
-    return prediction_class, prediction, match_dict
-
 def predict_annoy(descriptors):
     u = AnnoyIndex(config.index_descriptor_length, config.index_annoydist)
     u.load(config.reference_index_path) # super fast, will just mmap the file
@@ -333,13 +243,6 @@ def search_in_index(img_path, class_label_truth, imgsize=None):
     # set up features as test set    
     prediction = predict_annoy(descriptors)
 
-    # classify sheet with BF feature matching
-    # prediction_class, prediction, _ = predict(descriptors, clf, truth=class_label_truth)
-    
-    # probabilities = list(zip(clf.classes_,prediction[0]))
-
-    # probabilities.sort(key=lambda x: x[1], reverse=True)
-    # print(probabilities)
     try:
         gt_index = [str(x[0]) for x in prediction].index(class_label_truth)
         print("Prediction", prediction[0][0], "Truth at index", gt_index)
