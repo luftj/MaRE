@@ -24,19 +24,7 @@ def convert_to_cv_keypoint(x, y, size=8.0, octave=1, response=1, angle=0.0):
     k.angle=angle
     return k
 
-plot = False
-
-# for feature matching only (not for annoy)
-n_matches = 100
-score_eq = "avg_score" # "num_match"
-norm = cv2.NORM_L2
-cross_check = False
-if config.index_lowes_test_ratio and cross_check:
-    raise ValueError("can't do cross-check with lowe's test")
-
-# the following parameters require rebuilding the index
-patch_size = 30 # relevant for plotting
-
+# initialise detectors
 detector_dict = {
     "kaze_upright": cv2.KAZE_create(upright=True),
     "akaze_upright": cv2.AKAZE_create(descriptor_type=cv2.AKAZE_DESCRIPTOR_KAZE_UPRIGHT),
@@ -89,7 +77,7 @@ def extract_features(image, first_n=None, plot=False):
 
     return kps, dsc
 
-def resize_by_width(shape, new_width):
+def resize_by_width(shape, new_width): # to do: move this to some central helper file. this shows up in a lot of places
     width = new_width
     f = width / shape[1]
     height = int(f * shape[0])
@@ -122,15 +110,6 @@ def build_index(sheets_path, restrict_class=None, restrict_range=None, store_des
     t.on_disk_build(config.reference_index_path)
     idx_id = 0
     
-    # print("downlaoding OSM...")
-    # progress = progressbar.ProgressBar(maxval=len(bboxes))
-    # for bbox in progress(bboxes):
-    #     try:
-    #         osm.get_from_osm(bbox)
-    #     except JSONDecodeError:
-    #         print("error in OSM data for bbox %s, skipping sheet" % bbox)
-    #         continue
-
     print("populating index...")
     index_dict = {}
     progress = progressbar.ProgressBar(maxval=len(bboxes))
@@ -150,7 +129,6 @@ def build_index(sheets_path, restrict_class=None, restrict_range=None, store_des
                                         config.index_border_train, config.index_border_train, config.index_border_train, config.index_border_train, 
                                         cv2.BORDER_CONSTANT, None, 0)
         # get class label
-        # class_label = find_sheet.find_name_for_bbox(sheets_path, bbox)
         class_label = list(bboxes_dict.keys())[bboxes.index(bbox)]
         if not class_label:
             print("error in class name. skipping bbox", bbox)
@@ -193,8 +171,8 @@ def build_index(sheets_path, restrict_class=None, restrict_range=None, store_des
 
 bf = None
 
-def predict(sample, clf, truth=None):
-    """Predict the similarities of the descriptors in the index.
+def predict(sample, clf, truth=None, plot=False, plot_size=30):
+    """Predict the similarities of the descriptors of the samples with descriptors in the index.
     
     Arguments:
     sample -- the descriptors of the query image.
@@ -205,6 +183,16 @@ def predict(sample, clf, truth=None):
     - a list of all possible images ordered by similarity, 
     - a dict with the matches for each image in the index.
     """
+    # for feature matching only (not for annoy)
+    n_matches = 100
+    score_eq = "avg_score" # possible values: "avg_score","num_match"
+    if n_matches and score_eq == "num_match":
+        raise ValueError("can't use match count as similarity score, when matches are restricted")
+    norm = cv2.NORM_L2
+    cross_check = False
+    if config.index_lowes_test_ratio and cross_check:
+        raise ValueError("can't do cross-check with lowe's test")
+
     prediction = []
     match_dict = {}
     progress = progressbar.ProgressBar(maxval=len(clf.keys()))
@@ -229,17 +217,17 @@ def predict(sample, clf, truth=None):
         if n_matches:
             # Sort them in the order of their distance.
             matches = sorted(matches, key = lambda x:x.distance)
-            matches = matches[:n_matches]
+            matches = matches[:n_matches] # only take n closest matches
 
         if plot:
             idx = 1
             for m in (matches[:10]):
                 plt.subplot(10,2,idx)
-                plt.imshow(np.reshape(clf[label][m.trainIdx],(patch_size,patch_size)))
+                plt.imshow(np.reshape(clf[label][m.trainIdx],(plot_size,plot_size)))
                 plt.title(int(m.distance))
                 idx+=1
                 plt.subplot(10,2,idx)
-                plt.imshow(np.reshape(sample[m.queryIdx],(patch_size,patch_size)))
+                plt.imshow(np.reshape(sample[m.queryIdx],(plot_size,plot_size)))
                 idx+=1
             plt.show()
 
@@ -256,7 +244,6 @@ def predict(sample, clf, truth=None):
         # matches.extend(matches2)
 
         match_dict[label] = matches
-        distances = [x.distance for x in matches]
 
         if len(matches) == 0:
             prediction.append((label,1))
@@ -264,6 +251,7 @@ def predict(sample, clf, truth=None):
             if score_eq == "num_match":
                 score = len(matches)
             elif score_eq == "avg_score":
+                distances = [x.distance for x in matches]
                 score = sum(distances)/len(matches)
             prediction.append((label,score))
 
@@ -403,6 +391,7 @@ def profile_index_building(sheets_path_reference, outfolder):
     # p.print_callers(1,"sort")
 
 def reproject_all_osm():
+    """in case you have a really weird projection in your query data, it might make sense to project reference maps to the SRS of the query maps (so the images stay rectangular)"""
     osm_path = config.path_osm
     outpath = config.path_osm[:-1]+"_reproj/"
     os.makedirs(outpath, exist_ok=True)
