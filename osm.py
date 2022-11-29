@@ -12,9 +12,9 @@ from pyproj import Transformer
 
 from config import path_osm, proj_map, proj_osm, proj_sheets, osm_query, force_osm_download, osm_url, draw_ocean_polygon, download_timeout, fill_polys
 
-transform_osm_to_map = Transformer.from_proj(proj_osm, proj_map, skip_equivalent=True, always_xy=True)
-transform_sheet_to_osm = Transformer.from_proj(proj_sheets, proj_osm, skip_equivalent=True, always_xy=True)
-transform_sheet_to_map = Transformer.from_proj(proj_sheets, proj_map, skip_equivalent=True, always_xy=True)
+transform_osm_to_map = Transformer.from_proj(proj_osm, proj_map, always_xy=True) #skip_equivalent=True, # deprecated after some version
+transform_sheet_to_osm = Transformer.from_proj(proj_sheets, proj_osm, always_xy=True) #skip_equivalent=True, # deprecated after some version
+transform_sheet_to_map = Transformer.from_proj(proj_sheets, proj_map, always_xy=True) #skip_equivalent=True, # deprecated after some version
 
 def get_from_osm(bbox=[16.3,54.25,16.834,54.5], url = osm_url):
     os.makedirs(path_osm, exist_ok=True)
@@ -29,7 +29,6 @@ def get_from_osm(bbox=[16.3,54.25,16.834,54.5], url = osm_url):
     ocean_file_path = "%s/water_poly_%s.geojson" % (path_osm, "-".join(map(str,bbox)))
     if draw_ocean_polygon and not os.path.isfile( ocean_file_path ):
         clip_ocean_poly(bbox)
-    
     try:
         # don't query if we already have the data on disk
         if not force_osm_download and os.path.isfile( data_path ):

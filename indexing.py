@@ -1,14 +1,12 @@
 from json.decoder import JSONDecodeError
 import joblib
 from time import time
-import random
 from matplotlib import pyplot as plt
 import cv2
 import numpy as np
 import progressbar    
 import os
 import logging
-# from extract_patches.core import extract_patches
 
 import segmentation
 import find_sheet, osm
@@ -16,145 +14,8 @@ import config
 
 from annoy import AnnoyIndex
 
-class Skimage_fast_detector:
-    def __init__(self, min_dist, thresh):
-        self.min_dist = min_dist
-        self.thresh = thresh
-
-    def detect(self, image):
-        from skimage.feature import corner_fast, corner_peaks
-
-        keypoints = corner_peaks(corner_fast(image), min_distance=self.min_dist, threshold_rel=self.thresh)
-        random.shuffle(keypoints) # in case we want to limit the number of keypoints. since they don't have a response to sort by
-        keypoints = [convert_to_cv_keypoint(x,y) for (x,y) in keypoints]
-        return keypoints
-    
-    def detectAndCompute(image, kps):
-        raise NotImplementedError("this detector only detects, doesn't compute")
-    def compute(image, kps):
-        raise NotImplementedError("this detector only detects, doesn't compute")
-
-class Patch_extractor:
-    def __init__(self, patch_size_desc, patch_mag, minArea=0.15, maxArea=0.9, binary=False, plot=False):
-        self.binary = binary
-        self.plot = plot
-        self.patch_size_desc = patch_size_desc
-        self.minArea = minArea # in percent
-        self.maxArea = maxArea
-        self.patch_mag = patch_mag
-
-    def detect(self, image):
-        raise NotImplementedError("this detector only computes, doesn't detect")
-    
-    def detectAndCompute(image, kps):
-        raise NotImplementedError("this detector only detects, doesn't compute")
-    def compute(self, image, keypoints):
-        """Extract patch features around given keypoints from an image"""
-        patches = extract_patches(keypoints, image, self.patch_size_desc, self.patch_mag)
-
-        patches = [p for p in patches if (self.patch_size_desc**2)*self.maxArea > np.count_nonzero(p) > (self.patch_size_desc**2)*self.minArea]
-
-        if self.binary:
-            patches = [(p>0).astype(np.uint8) for p in patches]
-
-        if self.plot:
-            vis_img1 = None
-            vis_img1 = cv2.drawKeypoints(image,keypoints,vis_img1, 
-                                    flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-            plt.imshow(vis_img1)
-            plt.show()
-            show_idx = 0
-            fig = plt.figure()
-            num_plots_root = 5
-            for i in range(1,num_plots_root**2+1):
-                fig.add_subplot(num_plots_root, num_plots_root, i) 
-                plt.imshow(patches[show_idx+i])
-                plt.xticks([])
-                plt.yticks([])
-                plt.title("r:%f s:%f" % (keypoints[i].response, keypoints[i].size))
-            plt.show()
-
-        descriptors = [p.flatten() for p in patches]
-        descriptors = np.vstack(descriptors)
-        return keypoints, descriptors
-
-class Patch_extractor_2:
-    def __init__(self, patch_size_desc, scale_range, minArea=0.15, maxArea=0.9, binary=False, plot=False):
-        self.binary = binary
-        self.plot = plot
-        self.patch_size_desc = patch_size_desc
-        self.minArea = minArea # in percent
-        self.maxArea = maxArea
-        self.scale_range = scale_range
-
-    def detect(self, image):
-        raise NotImplementedError("this detector only computes, doesn't detect")
-    def detectAndCompute(image, kps):
-        raise NotImplementedError("this detector only detects, doesn't compute")
-
-    def compute(self, image, keypoints):
-        """Extract patch features around given keypoints from an image"""
-        # pad = scale_range[-1] if scale_range else 30
-        pad = self.scale_range[-1] if self.scale_range else 30#max([int(2*k.size) for k in keypoints])
-        # image2 = cv2.drawKeypoints(image, keypoints, None, color=(255,0,0))
-
-        image_border = cv2.copyMakeBorder(image, 
-                                        pad, pad, pad, pad, 
-                                        cv2.BORDER_CONSTANT, None, 0)
-        
-        patch_size = self.patch_size_desc // 2
-        descriptors = []
-        for corner in keypoints:
-            x,y = corner.pt
-            x += pad
-            y += pad # adjust for padding padding
-            
-            if self.scale_range:
-                patch_size_now = random.uniform(*self.scale_range)
-            else:
-                patch_size_now = patch_size#int(2*corner.size) # patch_size
-
-            patch = image_border[int(y-patch_size_now):int(y+patch_size_now),int(x-patch_size_now):int(x+patch_size_now)]
-
-            if self.scale_range:
-                #resize to 16x16
-                # print(patch.shape)
-                # print(2*patch_size,2*patch_size)
-                patch = cv2.resize(patch,(2*patch_size,2*patch_size), interpolation=cv2.INTER_AREA)
-
-            descriptor = patch.flatten()
-            if np.count_nonzero(descriptor) < ((patch_size*2)**2)*self.minArea:
-                continue
-            if self.binary:
-                descriptor = descriptor > 0
-                descriptor.astype(np.uint8)
-            descriptors.append(descriptor)
-            if descriptor.shape[0] != (patch_size*2)**2:
-                print("irregular patch",descriptor.shape[0],x,y,patch_size_now,image_border.shape)
-
-        if self.plot:
-            vis_img1 = None
-            vis_img1 = cv2.drawKeypoints(image,keypoints,vis_img1, 
-                                    flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-            plt.imshow(vis_img1)
-            plt.show()
-            show_idx = 0
-            fig = plt.figure()
-            num_plots_root = 5
-            patches = [np.reshape(d,(self.patch_size_desc,self.patch_size_desc)) for d in descriptors]
-            for i in range(1,num_plots_root**2+1):
-                fig.add_subplot(num_plots_root, num_plots_root, i) 
-                plt.imshow(patches[show_idx+i])
-                plt.xticks([])
-                plt.yticks([])
-                plt.title("r:%f s:%f" % (keypoints[i].response, keypoints[i].size))
-            plt.show()
-
-
-        descriptors = np.vstack(descriptors)
-        return keypoints, descriptors
-
 def convert_to_cv_keypoint(x, y, size=8.0, octave=1, response=1, angle=0.0):
+    """Use this to convert to opencv syntax when using skimage feature detectors"""
     k = cv2.KeyPoint()
     k.pt=(y,x)
     k.response = response
@@ -174,22 +35,16 @@ if config.index_lowes_test_ratio and cross_check:
     raise ValueError("can't do cross-check with lowe's test")
 
 # the following parameters require rebuilding the index
-
-# detector = cv2.xfeatures2d_LATCH.create(rotationInvariance=False, half_ssd_size=3)
-# detector = cv2.xfeatures2d_LATCH.create(rotationInvariance=False)
 patch_size = 30 # relevant for plotting
-# detector = Patch_extractor(patch_size_desc=patch_size, minArea=0.15, maxArea=0.9, 
-#                             plot=False, patch_mag = 8.0)
-# detector = Patch_extractor_2(patch_size_desc=patch_size, scale_range=[30,30], minArea=0.1, maxArea=0.8)
-# kp_detector = cv2.AgastFeatureDetector.create()
 
 detector_dict = {
     "kaze_upright": cv2.KAZE_create(upright=True),
     "akaze_upright": cv2.AKAZE_create(descriptor_type=cv2.AKAZE_DESCRIPTOR_KAZE_UPRIGHT),
-    # "surf_upright": cv2.xfeatures2d_SURF.create(upright=1),
-    # "sift": cv2.SIFT.create(),
-    "ski_fast": Skimage_fast_detector(min_dist=5,thresh=0),
-    "cv_fast": cv2.FastFeatureDetector.create()
+    # "surf_upright": cv2.SURF.create(upright=1),
+    "sift": cv2.SIFT.create(),
+    # "ski_fast": Skimage_fast_detector(min_dist=5,thresh=0),
+    "cv_fast": cv2.FastFeatureDetector.create(),
+    "orb": cv2.ORB_create()
     }
 
 kp_detector = detector_dict[config.kp_detector]
@@ -354,32 +209,9 @@ def predict(sample, clf, truth=None):
     match_dict = {}
     progress = progressbar.ProgressBar(maxval=len(clf.keys()))
     
-    # create BFMatcher object
     bf = cv2.BFMatcher(norm, crossCheck=cross_check)
-    # FLANN_INDEX_KDTREE = 1
-    # FLANN_INDEX_LSH = 6
-    # index_params = dict(algorithm =
-    #             # FLANN_INDEX_LSH,
-    #             # table_number = 6, # 12
-    #             # key_size = 12,     # 20
-    #             # multi_probe_level = 1) #2
-    #             FLANN_INDEX_KDTREE, trees = 5)
-    # search_params = dict(checks=50)   # or pass empty dictionary
-    # trainTime = time()
-    # global bf
-    # if not bf:
-    #     bf = cv2.DescriptorMatcher.create(cv2.DescriptorMatcher_FLANNBASED)
-    #     # bf = cv2.FlannBasedMatcher(index_params,search_params)
-    #     print("add")
-    #     bf.add([ x for x in clf.values() if len(x)>0])
-    #     print("train")
-    #     bf.train()
-    # print("FLANN training time %0.2fs" % (time()-trainTime))
 
     for label in progress(clf.keys()):
-        # if label != truth:
-        #     continue
-
         # Match descriptors.
         if not config.index_lowes_test_ratio:
             matches = bf.match(sample, clf[label]) # simple matching
@@ -394,7 +226,6 @@ def predict(sample, clf, truth=None):
                 if m.distance < nn_match_ratio * n.distance:
                     matches.append(m)
         
-        # print("#matches", len(matches))
         if n_matches:
             # Sort them in the order of their distance.
             matches = sorted(matches, key = lambda x:x.distance)
@@ -443,7 +274,7 @@ def predict(sample, clf, truth=None):
 def predict_annoy(descriptors):
     u = AnnoyIndex(config.index_descriptor_length, config.index_annoydist)
     u.load(config.reference_index_path) # super fast, will just mmap the file
-    from annoytest import get_sheet_for_id, sheets
+    from annoy_helper import get_sheet_for_id, sheets
 
     votes = {k:0 for k in sheets}
     for desc in descriptors:
@@ -499,8 +330,6 @@ def search_in_index(img_path, class_label_truth, imgsize=None):
     except FileNotFoundError:
         print("couldn't find input file at %s" % img_path)
         return -1
-    # map_img = map_img[:,:,0] # hack for unet input
-    # map_img = cv2.erode(map_img,(9,9)) # hack for unet input
     if len(map_img.shape)>2:
         print("segmenting")
         # seegment query sheet

@@ -41,8 +41,8 @@ def run_exp(param_name, value, changeFunc, sheets_path_reference, list_path, out
     
     t1 = time()
     # query index
-    import annoytest
-    importlib.reload(annoytest)
+    import annoy_helper
+    importlib.reload(annoy_helper)
     lps = indexing.search_list(list_path)
 
     # profile lookup

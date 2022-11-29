@@ -3,8 +3,9 @@ cython
 
 # general
 numpy
-#opencv-python  #opencv-python            3.4.3.18
-opencv-contrib-python==3.4.2.17
+# opencv-python  #opencv-python            3.4.3.18
+opencv-contrib-python #==3.4.2.17
+# from https://pypi.org/project/opencv-python/: "Non-free algorithms such as SURF are not included in these packages because they are patented / non-free and therefore cannot be distributed as built binaries. Note that SIFT is included in the builds due to patent expiration since OpenCV versions 4.3.0 and 3.4.10"
 argparse
 pyproj
 scikit-image

@@ -1,4 +1,3 @@
-from tkinter.tix import Tree
 import cv2
 from simple_cb import simplest_cb, better_cb
 import random
