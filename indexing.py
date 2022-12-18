@@ -72,7 +72,7 @@ def extract_features(image, first_n=None, plot=False):
                                 flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
                                 #,color=(0,99,66))#(255,100,50))#(0,100,255))
         plt.imshow(vis_img1)
-        # plt.axis('off')
+        plt.axis('off')
         plt.show()
 
     return kps, dsc

@@ -6,7 +6,8 @@ import glob
 from matplotlib import pyplot as plt
 
 # colors = [(0,100,255)]
-for image_path in glob.glob("figures/reference_samples/*-inv.png"):
+#for image_path in glob.glob("figures/reference_samples/*-inv.png"):
+for image_path in glob.glob("figures/066*_inv_1500.png"):
     # image_path = "figures/reference_samples/11-inv.png"
     print(image_path)
     image = cv2.imdecode(np.fromfile(image_path, dtype=np.uint8), cv2.IMREAD_UNCHANGED)

@@ -12,7 +12,7 @@ import indexing
 import find_sheet
 from eval_logs import mahalanobis_distance
 
-def plot_matches(keypoints_q, keypoints_r, inliers, query_image, reference_image_border, bordersize=30):
+def plot_matches(keypoints_q, keypoints_r, inliers, query_image, reference_image_border, bordersize=None):
     import matplotlib.pyplot as plt
     from skimage.feature import plot_matches
 
@@ -23,18 +23,20 @@ def plot_matches(keypoints_q, keypoints_r, inliers, query_image, reference_image
     print(f"Number of matches: {matches.shape[0]}")
     print(f"Number of inliers: {inliers.sum()}")
     fig, ax = plt.subplots(nrows=2, ncols=1)
+    for a in ax:
+        a.get_xaxis().set_visible(False)
+        a.get_yaxis().set_visible(False)
 
-    plot_matches(ax[0], (255-query_image), (255-reference_image_border), keypoints_q, keypoints_r,
+    plot_matches(ax, (255-query_image), (255-reference_image_border), keypoints_q, keypoints_r,
                 matches)#,alignment="vertical")
-    plot_matches(ax[1], (255-query_image), (255-reference_image_border), keypoints_q, keypoints_r,
+    # plt.savefig(f"pre_{len(matches)}.png")
+    plot_matches(ax, (255-query_image), (255-reference_image_border), keypoints_q, keypoints_r,
                 matches[inliers])#,alignment="vertical")
-    y =query_image.shape[0]
-    plt.plot([500,1000,1000,500,500],[y,y,0,0,y],"r",linewidth=2)
-    plt.plot([500+bordersize,1000-bordersize,1000-bordersize,500+bordersize,500+bordersize],[y-bordersize,y-bordersize,bordersize,bordersize,y-bordersize],"g",linewidth=1)
-    plt.xticks([],[])
-    plt.yticks([],[])
-    for spine in ax.spines:
-        ax.spines[spine].set_visible(False)
+    # plt.savefig(f"post_{sum(inliers)}.png")
+    if bordersize:
+        y =query_image.shape[0]
+        plt.plot([500,1000,1000,500,500],[y,y,0,0,y],"r",linewidth=2) # border around reference map
+        plt.plot([500+bordersize,1000-bordersize,1000-bordersize,500+bordersize,500+bordersize],[y-bordersize,y-bordersize,bordersize,bordersize,y-bordersize],"g",linewidth=1) # border around reference map sans map border
     plt.show()
 
 def estimate_transform(keypoints_q, keypoints_r, query_image, reference_image_border, plot=False):
@@ -64,8 +66,10 @@ def estimate_transform(keypoints_q, keypoints_r, query_image, reference_image_bo
     model = np.linalg.inv(model)
     model = model.astype(np.float32) # opencv.warp doesn't take double
 
-    if plot:
+    if plot=="matches":
         plot_matches(keypoints_q,keypoints_r, inliers, query_image, reference_image_border)
+    elif plot:
+        plot_matches(keypoints_q,keypoints_r, inliers, query_image, reference_image_border, bordersize=30)
         from skimage.transform import warp
         from matplotlib import pyplot as plt
         plt.subplot(1,3,1)
