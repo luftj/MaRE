@@ -50,7 +50,7 @@ def make_figure(results, out_dir, degrade_type, max_error=400, x_type="percent")
 
     plt.close()
     ax = plt.gca()
-    if x_type == "precent":
+    if x_type == "percent":
         plt.xlabel(f"Anteil {degrade_type} [%]")
     elif x_type == "string":
         plt.xlabel(f"{degrade_type}")
@@ -72,7 +72,7 @@ def make_figure(results, out_dir, degrade_type, max_error=400, x_type="percent")
     if "Mittel Genauigkeit Pixel" in results[0]:
         reg_mean_scores_px = [x["Mittel Genauigkeit Pixel"] for x in results]
         ax3 = ax.twinx()
-        ax3.spines['right'].set_position(('axes', 1.1))
+        ax3.spines['right'].set_position(('axes', 1.115))
         ax3.plot(reg_mean_scores_px,marker="x",label="Mittel [px]", linestyle="dashed",color="g")
         ax3.set_ylabel('Fehler [px]')
     if "Median Genauigkeit Pixel" in results[0]:
@@ -80,6 +80,7 @@ def make_figure(results, out_dir, degrade_type, max_error=400, x_type="percent")
         ax3.plot(reg_median_scores_px,marker="+",label="Median [px]", linestyle="dashed",color="tab:orange")
     plt.legend()
     plt.xticks(ticks=range(len(xs)),labels=xs)
+    out_dir = "docs/eval_diagrams/"
     plt.savefig(f"{out_dir}/comparison_{degrade_type}.png",bbox_inches='tight')
 
 if __name__ == "__main__":

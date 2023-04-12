@@ -11,17 +11,23 @@ out_dir = "E:/experiments/e8b"
 os.makedirs(out_dir, exist_ok=True)
 
 errors = load_errors_csv(resultsfile)
-
+translation_mapping = {
+    "coast": "Küste",
+    "nocoast": "Inland",
+    "total": "Gesamt",
+    "A": "Auflage A",
+    "B": "Auflage B",
+}
 # look at special cases
 with open(f"{out_dir}/special_cases_summary.txt","w") as fw:
     # coast vs no coast
     coast_annotation = "E:/data/deutsches_reich/SLUB/cut/coast.txt"
-    compare_special_cases(errors, "coast", coast_annotation, out_dir, logfile=fw)
+    compare_special_cases(errors, "coast", coast_annotation, out_dir, logfile=fw, translation=translation_mapping)
 
     print(file=fw)
     # edition
     editions_annotation = "E:/data/deutsches_reich/SLUB/cut/editions.txt"
-    compare_special_cases(errors, "editions", editions_annotation, out_dir, logfile=fw)
+    compare_special_cases(errors, "editions", editions_annotation, out_dir, logfile=fw, translation=translation_mapping)
 
     print(file=fw)
     # overedge

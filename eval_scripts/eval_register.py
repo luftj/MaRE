@@ -51,7 +51,7 @@ def get_georef_error_snub(input_file, sheets_file, ground_truth_annotations_file
     mean_error = sum(errors.values())/len(errors)
     return {"mean error": mean_error, "errors":errors}
 
-def compare_special_cases(errors, specialcase_label, list_path, outpath, logfile=sys.stdout):
+def compare_special_cases(errors, specialcase_label, list_path, outpath, logfile=sys.stdout, translation=None):
     cases = {}
     with open(list_path) as fr:
         for line in fr:
@@ -70,7 +70,9 @@ def compare_special_cases(errors, specialcase_label, list_path, outpath, logfile
         print(f"{case} mean: {mean_error_case} ({len(errors_case)} sheets)", file=logfile)
         bars.append(mean_error_case)
     labels = ["total"]+possible_cases
-    plt.bar(labels,bars,label="mean")
+    if translation:
+        labels = [translation.get(x,x) for x in labels]
+    plt.bar(labels,bars,label="Mittel")
 
     # median
     median_error_total = float(sorted(errors.values())[len(errors)//2])
@@ -81,12 +83,29 @@ def compare_special_cases(errors, specialcase_label, list_path, outpath, logfile
         median_error_case = sorted(errors_case)[len(errors_case)//2]
         print(f"{case} median: {median_error_case} ({len(errors_case)} sheets)", file=logfile)
         bars.append(median_error_case)
-    plt.bar(labels,bars,label="median")
+    plt.bar(labels,bars,label="Median")
 
-    plt.title(specialcase_label)
-    plt.ylabel("mean error [m]")
+    # plt.title(specialcase_label)
+    plt.ylabel("Georeferenzierungsfehler [m]")
     plt.legend()
-    plt.savefig(outpath + "/errors_" + specialcase_label + ".png")
+    filetype="pdf"
+    dpi_text = 1/72
+    fig_width=420
+    fig_height=250
+    dpi = 600
+    params = {'backend': filetype,
+                'axes.labelsize': 11,
+                'font.size': 11,
+                'legend.fontsize': 9,
+                'xtick.labelsize': 9,
+                'ytick.labelsize': 9,
+                # 'figure.figsize': [7, 4.5],
+                'text.usetex': True,
+                'figure.figsize': [fig_width*dpi_text,fig_height*dpi_text]
+                }
+    plt.rcParams.update(params)
+    plt.savefig(outpath + "/errors_" + specialcase_label + "." + filetype,dpi=dpi, bbox_inches = 'tight')
+    # plt.savefig(outpath + "/errors_" + specialcase_label + ".png")
     plt.close()
 
 def compare_state_of_the_art(errors, outpath):

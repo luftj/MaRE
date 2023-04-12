@@ -108,14 +108,32 @@ print(min_maha)
 print(f"num correct below {min_maha} (max wrong maha)",len([x for x in maha if x <=min_maha]))
 
 plt.close()
-plt.scatter(maha,lowes, label="correct")
-plt.scatter(maha_wrong,lowes_wrong, color="r", marker="+", label="incorrect")
-plt.axhline(0.7, c="y", linestyle="-.", label="0.7 test ratio")
-plt.axvline(min_maha, c="g", linestyle="--", label="%.2fσ"%min_maha)
-plt.ylabel("Lowe's test ratio")
-plt.xlabel("Mahalanobis distance")
+plt.scatter(maha,lowes, label="Korrekte Vorhersage")
+plt.scatter(maha_wrong,lowes_wrong, color="r", marker="+", label="Falsche Vorhersage")
+plt.axhline(0.7, c="y", linestyle="-.", label="Lowe's Grenzwert 0.7")
+plt.axvline(min_maha, c="g", linestyle="--", label="Mahalanobis-Distanz %.2f σ"%min_maha)
+plt.ylabel("Lowe's Test")
+plt.xlabel("Mahalanobis-Distanz")
 plt.legend()
-plt.savefig(f"{out_dir}/maha_lowe_scatter.png")
+out_dir = "./docs/eval_diagrams/"
+
+filetype="pdf"
+dpi_text = 1/72
+fig_width=420
+fig_height=250
+dpi = 600
+params = {'backend': filetype,
+        'axes.labelsize': 11,
+        'font.size': 11,
+        'legend.fontsize': 9,
+        'xtick.labelsize': 9,
+        'ytick.labelsize': 9,
+        # 'figure.figsize': [7, 4.5],
+        'text.usetex': True,
+        'figure.figsize': [fig_width*dpi_text,fig_height*dpi_text]
+        }
+plt.rcParams.update(params)
+plt.savefig(f"{out_dir}/maha_lowe_scatter."+filetype,dpi=dpi, bbox_inches = 'tight')
 plt.show()
 
 
@@ -124,6 +142,8 @@ plt.show()
 # metriken:
 # mahalonobis
 
+
+plt.rcParams.update({'figure.figsize': [fig_width/2*dpi_text,fig_height*dpi_text]})
 import numpy as np
 fns = []
 fps = []
@@ -144,11 +164,13 @@ plt.title("ROC Mahalanobis")
 plt.plot(fps,fns)
 for t,x,y in pois:
     plt.annotate(t,(x,y))
-plt.ylabel('False Negative')# Rate
-plt.xlabel('False Positive')# Rate
+plt.ylabel('Falsch negativ')# Rate
+plt.xlabel('Falsch positiv')# Rate
 # plt.xticks(np.arange(0.0,0.2,0.1))
 # plt.yticks(np.arange(0.0,1.0,0.1))
-plt.savefig(f"{out_dir}/roc_maha.png")
+
+# plt.rcParams.update(params)
+plt.savefig(f"{out_dir}/roc_maha."+filetype,dpi=dpi, bbox_inches = 'tight')
 plt.show()
 
 # lowes test
@@ -172,11 +194,14 @@ plt.title("ROC Lowe's")
 plt.plot(fps,fns)
 for t,x,y in pois:
     plt.annotate(t,(x,y))
-plt.ylabel('False Negative')# Rate
-plt.xlabel('False Positive')# Rate
+plt.ylabel('Falsch negativ')# Rate
+plt.xlabel('Falsch positiv')# Rate
 # plt.xticks(np.arange(0.0,0.2,0.1))
 # plt.yticks(np.arange(0.0,1.0,0.1))
-plt.savefig(f"{out_dir}/roc_lowe.png")
+
+# plt.rcParams.update(params)
+# plt.rcParams.update({'figure.figsize': [fig_width/2*dpi_text,fig_height*dpi_text]})
+plt.savefig(f"{out_dir}/roc_lowe."+filetype,dpi=dpi, bbox_inches = 'tight')
 plt.show()
 
 # codebook response threshold not possible to extract like this

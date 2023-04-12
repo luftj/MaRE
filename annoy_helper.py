@@ -60,10 +60,18 @@ if __name__ == "__main__":
     # print(NN_names)
 
     u = AnnoyIndex(64, "euclidean")
-    u.load('eval/index_annoydist_dot/index.ann')
+    # u.load('eval/index_annoydist_dot/index.ann')
+    u.load('E:/experiments/idx_kdr100/index/index.ann')
     print(u)
     print(u.get_n_items())
     print(u.get_nns_by_item(0,2))
+    Ks = []
+    for i in range (270713):
+        K = len(u.get_nns_by_item(i,1000,search_k=1))
+        Ks.append(K)
+    print(sum(Ks)/len(Ks))
+    print(max(Ks))
+    print(min(Ks))
     print(get_sheet_for_id(337))
     exit()
     kp = joblib.load("sheets.clf")

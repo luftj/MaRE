@@ -61,6 +61,8 @@ if __name__ == "__main__":
     eccs = get_eccs(loc_resultsfile)
     sheets_of_interest = ["388","414"]
     sheets_of_interest = ["553","569","622","637"]
+    sheets_of_interest = [ "388", "389", "413", "414"] + ["553", "554", "568", "569"]
+    sheets_of_interest = ["568"]
 
     for sheet in sheets_of_interest:
         print("sheet:",sheet)
@@ -95,14 +97,33 @@ if __name__ == "__main__":
         y_parts = 2
         q_height, q_width = query_mask_small.shape
         r_height, r_width = reference_image.shape
-        print(q_width,q_height)
-        print(r_width,r_height)
+        # print(q_width,q_height)
+        # print(r_width,r_height)
         # for each part
         index = 1
+
+        dpi = 600
+        filetype="pdf"
+        dpi_text = 1/72
+        fig_width=420
+        fig_height=250
+        params = {'backend': filetype,
+                    'axes.labelsize': 11,
+                    'font.size': 11,
+                    'legend.fontsize': 9,
+                    'xtick.labelsize': 9,
+                    'ytick.labelsize': 9,
+                    # 'figure.figsize': [7, 4.5],
+                    'text.usetex': True,
+                    'figure.figsize': [fig_width*dpi_text,fig_height*dpi_text],
+                    'axes.titley': 1.0,    # y is in axes-relative coordinates.
+                    'axes.titlepad': -14  # pad is in points...
+                    }
+        plt.rcParams.update(params)
         
         for y in range(y_parts):
             for x in range(x_parts):
-                print(x,y)
+                # print(x,y)
                 # cut query image + segmentation mask in parts
                 query_img_small_part = query_img_small[
                                         y*q_height//y_parts:(y+1)*q_height//y_parts,
@@ -154,4 +175,9 @@ if __name__ == "__main__":
         plt.axis('off')
         # check ECC value
         plt.title(f"{float(eccs[sheet]):.3f}")
-        plt.show()
+        # fig = plt.figure()
+        # fig.suptitle("Blatt "+sheet)
+        # plt.show()
+        plt.savefig("figures/exp8a/2x2_"+sheet+"."+filetype,dpi=dpi, bbox_inches = 'tight', pad_inches = 0)
+        plt.close()
+        # exit()

@@ -14,20 +14,24 @@ ours_dk50 = 24/25
 ours_tudr200 = 32/41
 ours_total = (542+24+32)/(656+25+41) # 598/722 = 0.828
 ours_tgis = 53/55
+bahgat_runfola_synth = 92.2/100
+bahgat_runfola_real = 84.7/100
 
 scores = {
     "Heitzler et al.": heitzler,
     "Howe et al.": howe,
     "Burt et al.": burt_total,
     "Luft & Schiewe": ours_tgis,
+    "Bahgat & Runfola": bahgat_runfola_real,
     "vorl.": ours_total
 }
-plt.bar(
-    scores.keys(),
+plt.barh(
+    list(scores.keys()),
     scores.values(),
-    color=["tab:blue"]*4+["tab:orange"])
-plt.yticks(np.arange(0,1.01,0.1),[f"{round(y*100)} %" for y in np.arange(0,1.01,0.1)])
-plt.ylabel("Erfolgsquote")
+    color=["tab:blue"]*5+["tab:orange"],
+    )
+plt.xticks(np.arange(0,1.01,0.1),[f"{round(y*100)} %" for y in np.arange(0,1.01,0.1)])
+plt.xlabel("Erfolgsquote")
 
 filetype="pdf"
 dpi_text = 1/72
@@ -80,6 +84,12 @@ exp_dir = "E:/experiments/e12a"
 errors_dk50 = load_errors_csv(f"{exp_dir}/eval_georef_result.csv").values()
 exp_dir = "E:/experiments/e12b_preu"
 errors_tudr200 = load_errors_csv(f"{exp_dir}/eval_georef_result.csv").values()
+errors_bahgar_runfola_synth = [0.33,0.66]*10+[2,4]*10+[10,15]*13+[40,60,80]*8+[110]*7
+
+print("median kdr 100",list(sorted(errors_kdr100))[len(errors_kdr100)//2])
+print("median dk50",list(sorted(errors_dk50))[len(errors_dk50)//2])
+print("median tüdr200",list(sorted(errors_tudr200))[len(errors_tudr200)//2])
+print("median total",sorted(list(errors_kdr100)+list(errors_dk50)+list(errors_tudr200))[len((list(errors_kdr100)+list(errors_dk50)+list(errors_tudr200)))//2])
 
 # to do: get beter Burt et al errors?
 all_errors = {
@@ -90,6 +100,7 @@ all_errors = {
     "Howe et al. (TPS)": [61.3,93.3,81.8,33.8,32.5,74.5,34.0,29.4,42.8,56.7,41.9,50.5,53.1,51.4,43.1,59.8,27.7,26.5,26.2,27.8],
     "Howe et al. (Affin)": [66.5,94.6,89.8,49.0,38.7,74.8,37.2,33.5,43.5,63.6,40.0,46.1,41.7,64.1,60.7,52.8,27.5,35.5,27.7,29.0],
     "Luft \& Schiewe": error_luft_schiewe,
+    "Bahgat \& Runfola synth. 2000px": [(x/100)*2000 for x in errors_bahgar_runfola_synth],
     "vorl. TÜDR200": [x/(3000/208) for x in errors_tudr200],
     "vorl. DK50": [x/(1000/191) for x in errors_dk50],
     "vorl. KDR100": [x/(3000/526) for x in errors_kdr100],
@@ -97,14 +108,15 @@ all_errors = {
 
 plt.rcParams.update(params)
 
-plt.boxplot(all_errors.values(), vert=False, showmeans=True, medianprops={"color":"r"})
+bp = plt.boxplot(all_errors.values(), vert=False, showmeans=True, medianprops={"color":"r"})
+print([x.get_xdata() for x in bp["medians"]])
 plt.yticks(range(1,len(all_errors)+1),all_errors.keys())
 plt.xlim(0,400)
 plt.xlabel("Registrierungsfehler [px]")
 plt.scatter([],[], c="g", marker="^", label="Mittelwert")
 plt.axhline(0, xmax=0, c="r", label="Median")
 plt.legend(loc='lower right')
-# plt.show()
+plt.show()
 plt.savefig("soa_registration_compare."+filetype,dpi=dpi, bbox_inches = 'tight')
 
 exit()

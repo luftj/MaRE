@@ -99,10 +99,22 @@ def run_segmentation_step(img, step):
         img = cv2.inRange(img, lowerBound, upperBound)
     return img
 
-def run_segmentation_chain(img, plot=False):
-    for step in config.segmentation_steps:
+def run_segmentation_chain(img, plot=False, sample=False, sample_box=(1000,1000,1500,1500)):
+    for idx,step in enumerate(config.segmentation_steps):
         # print(step)
         ret_img = run_segmentation_step(img,step)
+
+        if sample:
+            plot_image = ret_img[sample_box[0]:sample_box[2],sample_box[1]:sample_box[3]]
+            plt.axis('off')
+            if step[0] in ["colourbalance","blur"]:
+                plot_image = cv2.cvtColor(plot_image, cv2.COLOR_BGR2RGB)
+            if step[0] in ["threshold","open","close"]:
+                plt.gray()
+            plt.imshow(plot_image)
+            plt.savefig(f"docs/method_diagrams/segmentation/segmentation_sample_{idx}.png", bbox_inches='tight')
+            plt.close()
+
         if plot:
             ax1 = plt.subplot(1, 2, 1)
             plt.title(f"before")
@@ -202,11 +214,13 @@ def load_and_run(map_path):
 
 if __name__ == "__main__":
     import experiments.config_e12b_preu as config
+    # import experiments.config_e8 as config
     import argparse
 
     parser = argparse.ArgumentParser()
     parser.add_argument("input", help="input file path string")
     parser.add_argument("--plot", help="show segmented image", action="store_true")
+    parser.add_argument("--savesample", help="save sample cutour from every step", action="store_true")
     parser.add_argument("--save", help="save segmented image", action="store_true")
     parser.add_argument("--isize", help="resize input image to target width", default=None, type=int)
     args = parser.parse_args()
@@ -216,12 +230,14 @@ if __name__ == "__main__":
     map_img = cv2.imread(args.input) # load map image # todo: allow utf8 filenames
 
     if args.isize:
+        print("resizing...")
         scale = args.isize / map_img.shape[0] # keep aspect by using width factor
         map_img = cv2.resize(map_img, None, 
                             fx=scale, fy=scale,
                             interpolation=config.resizing_index_query)
 
-    segmented_image = run_segmentation_chain(map_img,plot=args.plot)
+    print("segmenting...")
+    segmented_image = run_segmentation_chain(map_img,plot=args.plot,sample=args.savesample)
 
     if args.save:
         import os

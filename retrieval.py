@@ -97,6 +97,7 @@ def retrieve_best_match_index(query_image, processing_size, sheets_path, restric
 
     # extract features from query sheet
     keypoints, descriptors_query = indexing.extract_features(query_image_small, first_n=config.index_n_descriptors_query)
+    logging.info("found %d features in query image." % len(keypoints))
     descriptors_query = np.asarray(descriptors_query)
 
     if preload_reference:

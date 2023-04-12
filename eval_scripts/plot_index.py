@@ -18,7 +18,7 @@ def plot_single_distribution(ranks,figure_path):
 
     counts = np.bincount(ranks)
     counts = np.cumsum(counts)
-    plt.plot(counts, label="rank distribution")
+    plt.plot(counts, label="Blätter unter den ersten r Hypothesen")
     # plt.vlines(mean,counts[0],counts[-1], color="red", label="r<%d (mean)"%mean)
     plt.vlines(30,counts[0],counts[-1], linestyles="--", color="red", 
                                             label="r<30 (%0.2f%%)"%perc_30)
@@ -36,8 +36,8 @@ def plot_single_distribution(ranks,figure_path):
     # perc99 = np.searchsorted(counts,0.99*counts[-1])
     # plt.vlines(perc99,counts[0],counts[-1], linestyles=(0,(1,10)), label="r<%d (99%%)"%perc99)
 
-    plt.xlabel("index rank")
-    plt.ylabel("# sheets")
+    plt.xlabel("Stelle (r) in der Ähnlichkeitsordnung")
+    plt.ylabel("# Kartenblätter")
     # plt.title("rank distribution of %s %s" % (param_to_tune,val))
     plt.legend()
     plt.savefig(figure_path+"/index_ranks.png")
@@ -55,4 +55,4 @@ if __name__ == "__main__":
             if rank != "-1":
                 ranks.append(int(rank))
 
-    plot_single_distribution(ranks,"icc_eval")
+    plot_single_distribution(ranks,"docs/eval_diagrams")

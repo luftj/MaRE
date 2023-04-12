@@ -181,7 +181,7 @@ def plot_results(wrong=False):
     plt.rcParams.update({'figure.figsize': [fig_width/2*dpi_text,fig_height*dpi_text]})
     plt.xticks(rotation=45)#,ha='right')
     plt.xlabel('Detektor/Deskriptor') 
-    plt.ylabel('\O{} Anzahl korrespondierende Features') 
+    plt.ylabel('\O{} Anzahl Korrespondenzen') 
     plt.bar(descriptor_types.keys(),avgs_matches,label="vor Verifizierung")
     plt.bar(descriptor_types.keys(),avgs_inliers,label="nach Verifizierung")
     plt.legend()

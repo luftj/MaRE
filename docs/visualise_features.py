@@ -22,4 +22,14 @@ for image_path in glob.glob("figures/066*_inv_1500.png"):
                                                             plot=True
                                                             )
     outpath = image_path.replace(".png","_kps.png")
-    plt.savefig(outpath,bbox_inches='tight')
+    # plt.savefig(outpath,bbox_inches='tight')
+    plt.close()
+
+    for idx,descriptor in enumerate(descriptors_query[::10]):
+        mat = np.reshape(descriptor, (8,8))
+        plt.imshow(mat)
+        plt.gray()
+        plt.axis('off')
+        outpath2 = outpath.replace("_kps",f"_desc{idx}")
+        print(outpath2)
+        plt.savefig(outpath2, bbox_inches='tight')
