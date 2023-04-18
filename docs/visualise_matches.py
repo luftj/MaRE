@@ -37,7 +37,7 @@ for sheet in reference_maps:
     print("ref sheet:",sheet)
 
     reference_image = get_reference_image(sheet, sheetfile)
-    border_size = config.template_window_size
+    border_size = config.reference_map_padding
     reference_image = cv2.resize(reference_image, 
                                     (processing_size[0] - border_size*2,
                                     processing_size[1] - border_size*2),

@@ -77,7 +77,7 @@ reference_descriptors_folder = base_path_index+"index/descriptors"
 reference_keypoints_path = base_path_index+"index/keypoints.clf"
 reference_keypoints_folder = base_path_index+"index/keypoints"
 
-template_window_size = 30
+reference_map_padding = 30
 
 segmentation_colourbalance_percent = 5
 segmentation_blurkernel = (19,19)

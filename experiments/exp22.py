@@ -17,13 +17,21 @@ ours_tgis = 53/55
 bahgat_runfola_synth = 92.2/100
 bahgat_runfola_real = 84.7/100
 
+# scores = {
+#     "Heitzler et al.": heitzler,
+#     "Howe et al.": howe,
+#     "Burt et al.": burt_total,
+#     "Luft & Schiewe": ours_tgis,
+#     "Bahgat & Runfola": bahgat_runfola_real,
+#     "vorl.": ours_total
+# }
 scores = {
-    "Heitzler et al.": heitzler,
-    "Howe et al.": howe,
-    "Burt et al.": burt_total,
-    "Luft & Schiewe": ours_tgis,
-    "Bahgat & Runfola": bahgat_runfola_real,
-    "vorl.": ours_total
+    "[6]": heitzler,
+    "[5]": howe,
+    "[4]": burt_total,
+    "[3]": ours_tgis,
+    "[2]": bahgat_runfola_real,
+    "[1]": ours_total
 }
 plt.barh(
     list(scores.keys()),
@@ -105,6 +113,19 @@ all_errors = {
     "vorl. DK50": [x/(1000/191) for x in errors_dk50],
     "vorl. KDR100": [x/(3000/526) for x in errors_kdr100],
 }
+all_errors = {
+    "[10]": [0.74,2.25],
+    "[9]": [1.09,3.03],
+    "[8]": [2.72,5.46],
+    # "weinman_km_sc_aff": [2.72,11.61,11.74,4.42,4.47,7.55,3.81,3.44,4.29,40.91,6.71,3.13,3.55,7.16,6.98,7.99,2.40,2.48,2.37,2.68],
+    "[7]": [61.3,93.3,81.8,33.8,32.5,74.5,34.0,29.4,42.8,56.7,41.9,50.5,53.1,51.4,43.1,59.8,27.7,26.5,26.2,27.8],
+    "[6]": [66.5,94.6,89.8,49.0,38.7,74.8,37.2,33.5,43.5,63.6,40.0,46.1,41.7,64.1,60.7,52.8,27.5,35.5,27.7,29.0],
+    "[5]": error_luft_schiewe,
+    "[4]": [(x/100)*2000 for x in errors_bahgar_runfola_synth],
+    "[3]": [x/(3000/208) for x in errors_tudr200],
+    "[2]": [x/(1000/191) for x in errors_dk50],
+    "[1]": [x/(3000/526) for x in errors_kdr100],
+}
 
 plt.rcParams.update(params)
 
@@ -116,7 +137,7 @@ plt.xlabel("Registrierungsfehler [px]")
 plt.scatter([],[], c="g", marker="^", label="Mittelwert")
 plt.axhline(0, xmax=0, c="r", label="Median")
 plt.legend(loc='lower right')
-plt.show()
+# plt.show()
 plt.savefig("soa_registration_compare."+filetype,dpi=dpi, bbox_inches = 'tight')
 
 exit()

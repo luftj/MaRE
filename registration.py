@@ -111,7 +111,7 @@ def align_map_image(map_image, query_image, reference_image, target_size=(500,50
     query_image_small = cv2.resize(query_image, target_size, config.resizing_register_query)
     
     # we need some padding to make sure, we keep most of the map margins
-    border_size = config.template_window_size
+    border_size = config.reference_map_padding
     reference_image = cv2.resize(reference_image, 
                                     (target_size[0] - border_size*2,
                                      target_size[1] - border_size*2),
@@ -186,7 +186,7 @@ def align_map_image_model(map_image, query_image, reference_image, warp_matrix, 
     scale_mat[2,2] = 1
 
     # corner points of ref image
-    window_size = config.template_window_size
+    window_size = config.reference_map_padding
     upleft = np.array([window_size,window_size,1],dtype=np.float32)
     upleft_query = scale_mat @ ((warp_matrix) @ upleft)
     print("corner point",upleft,upleft_query)
@@ -200,7 +200,7 @@ def align_map_image_model(map_image, query_image, reference_image, warp_matrix, 
     botright_query = scale_mat @ ((warp_matrix) @ botright)
     print("corner point",botright,botright_query)
 
-    window_size=0 #template_window_size
+    window_size=0 
     upleft = np.array([window_size,window_size,1],dtype=np.float32)
     upleft_query = scale_mat @ ((warp_matrix) @ upleft)
     print("corner point UL",upleft,upleft_query)
