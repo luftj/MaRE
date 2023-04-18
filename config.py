@@ -1,6 +1,6 @@
 ### general & data parameters
 
-base_path = "./output/" # end with slash /
+base_path = "output/" # end with slash /
 path_output = base_path # end with slash /
 path_logs = base_path # end with slash /
 base_path_index = base_path + "/idx/" # end with slash /
@@ -12,7 +12,6 @@ sheet_name_field = "blatt_100" # the property in your sheets/quadrangle geojson 
 ### reference map parameters
 
 path_osm = base_path_index+"/osm/" # end with slash /
-osm_url = "https://nc.hcu-hamburg.de/api/interpreter"
 osm_url = "http://overpass-api.de/api/interpreter"
 #"https://overpass.openstreetmap.ru/api/interpreter"
 #"https://overpass.osm.ch/api/interpreter"
@@ -126,7 +125,7 @@ ransac_stop_probability = 0.99
 ransac_random_state = 1337 # only for profiling and validation. default: None
 
 early_terminaten_heuristic = False
-skip_impossible_verification = False
+skip_impossible_verification = True
 codebook_response_threshold = None #2 # maybe even 1.8 #set to None to disable
 from cv2 import NORM_INF, NORM_L1, NORM_L2, NORM_L2SQR, NORM_HAMMING, NORM_RELATIVE, NORM_MINMAX
 matching_norm = NORM_L2
@@ -145,15 +144,16 @@ registration_ecc_eps = 1e-4 # termination threshold of the increment in the corr
 
 proj_out = proj_osm
 save_transform=False
+
 # save disk space by using a strongly compressed file format
-# gdal_output_options = '-a_srs "' + proj_out + '" -a_nodata 0 -of JP2OpenJPEG -co "QUALITY=5"'# -co "TILED=YES"'# -co "COMPRESS=JPEG" -co "PHOTOMETRIC=YCBCR" '
-# output_file_ending = "jp2" # without dot . # for georeferenced map
+gdal_output_options = '-a_srs "' + proj_out + '" -a_nodata 0 -of JP2OpenJPEG -co "QUALITY=5"'# -co "TILED=YES"'# -co "COMPRESS=JPEG" -co "PHOTOMETRIC=YCBCR" '
+output_file_ending = "jp2" # without dot . # for georeferenced map
 # jpg2k options: https://gdal.org/drivers/raster/jp2openjpeg.html
 # QUALITY defaults to 25
 
 # save georeferencing time by using an uncompressed file format
-gdal_output_options = '-a_srs "' + proj_out + '" -a_nodata 0 -of GTiff --config GDAL_CACHEMAX 15000'# -co NUM_THREADS=ALL_CPUS'# -co NUM_THREADS=ALL_CPUS'
-output_file_ending = "tiff" # without dot . # for georeferenced map
+# gdal_output_options = '-a_srs "' + proj_out + '" -a_nodata 0 -of GTiff --config GDAL_CACHEMAX 15000'# -co NUM_THREADS=ALL_CPUS'# -co NUM_THREADS=ALL_CPUS'
+# output_file_ending = "tiff" # without dot . # for georeferenced map
 
 # for aligned (not georeferenced) map image
-jpg_compression = None # default 95
+jpg_compression = 95 #None # default 95

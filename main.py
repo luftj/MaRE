@@ -157,13 +157,21 @@ def process_list(list_path, sheets_path, plot=False, img=True, restrict=None, re
     with open(list_path, encoding="utf-8") as list_file:
         for line in list_file:
             line = line.strip()
-            if not "," in line:
-                logging.warning("skipping line: no ground truth given %s" % line)
-                continue
-            img_path, ground_truth = line.split(",")
+            # if not "," in line:
+            #     logging.warning("skipping line: no ground truth given %s" % line)
+            #     continue
+            if "," in line:
+                # groun truth given
+                img_path, ground_truth = line.split(",")
+                ground_truth=str(ground_truth)
+            else:
+                logging.warning("no ground truth given for %s" % line)
+                img_path = line
+                ground_truth = None
+            
             if not os.path.isabs(img_path[0]):
                 img_path = os.path.join(list_dir,img_path)
-            process_sheet(img_path, sheets_path, plot=plot, img=img, ground_truth_name=str(ground_truth), resize=resize, crop=crop, restrict=restrict, debug=debug)
+            process_sheet(img_path, sheets_path, plot=plot, img=img, ground_truth_name=ground_truth, resize=resize, crop=crop, restrict=restrict, debug=debug)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(

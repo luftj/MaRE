@@ -345,7 +345,7 @@ def summary_and_fig(annotations_file, sheets_file, single=False, outfile=sys.std
                 done_sheets.append(sheet_name.zfill(3))
         img_list = list(filter(lambda x: x.split(".")[0] not in done_sheets, img_list))
 
-    outpath=(append_to if append_to else config.path_output+"/eval_georef_result.csv")
+    outpath=(append_to if append_to else config.path_output+"/summary/eval_georef_result.csv")
     with open(outpath, "a" if append_to else "w", encoding="utf-8") as eval_fp:
         if not append_to:
             eval_fp.write("sheet name; MAE [m]; RMSE [m]\n") # header
@@ -409,7 +409,7 @@ def summary_and_fig(annotations_file, sheets_file, single=False, outfile=sys.std
     plt.axhline(median_error_rmse, xmax=0, c="r", label="median")
     plt.legend()
     if not debug_plot:
-        plt.savefig("georef_error.png")
+        plt.savefig(config.path_output+"/summary/georef_error.png")
     else:
         plt.show()
 
@@ -419,9 +419,13 @@ if __name__ == "__main__":
     parser.add_argument("sheets", help="sheets json file path string", default="data/blattschnitt_dr100.geojson")
     parser.add_argument("--plot", help="set this to true to show debugging plots", action="store_true")
     parser.add_argument("--single", help="provide sheet number to test only a single sheet", default=None)
-    parser.add_argument("--output", help="store result figures and summary here", type=str, default=None)
+    parser.add_argument("--output", help="store result summary here", type=str, default=None)
     args = parser.parse_args()
     # python eval_georef.py /e/data/deutsches_reich/wiki/highres/382.csv data/blattschnitt_dr100_merged_digi.geojson
     # py -3.7 -m cProfile -s "cumulative" eval_georef.py /e/data/deutsches_reich/wiki/highres/annotations_wiki.csv data/blattschnitt_dr100_merged.geojson > profile2.txt
-    
-    summary_and_fig(args.input,args.sheets, single=args.single, outfile=args.output, debug_plot=args.plot, downscale_factor=6)
+    os.makedirs(config.path_output+"/summary", exist_ok=True)
+    if args.output:
+        with open(args.output,"w") as fw:
+            summary_and_fig(args.input,args.sheets, single=args.single, outfile=fw, debug_plot=args.plot, downscale_factor=6)
+    else:
+        summary_and_fig(args.input,args.sheets, single=args.single, debug_plot=args.plot, downscale_factor=6)

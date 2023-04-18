@@ -1,4 +1,4 @@
-Karte_des_Deutschen_Reiches_-_001_-_Nimmersatt_-_002_-_Schattern_(1880).jpg,1-2
+Karte_des_Deutschen_Reiches_-_001_-_Nimmersatt_-_002_-_Schattern_(1880).jpg,1
 Karte_des_Deutschen_Reiches_-_003_-_Memel_(1906).jpg,3
 Karte_des_Deutschen_Reiches_-_004_-_Paaschken_(1880).jpg,4
 Karte_des_Deutschen_Reiches_-_005_-_Hvidding_(1881).jpg,5
@@ -6,7 +6,7 @@ Karte_des_Deutschen_Reiches_-_006_-_Gramm_(1880).jpg,6
 Karte_des_Deutschen_Reiches_-_007_-_Hadersleben_(1880).jpg,7
 Karte_des_Deutschen_Reiches_-_008_-_Kinten_(1880).jpg,8
 Karte_des_Deutschen_Reiches_-_009_-_Heydekrug_(1880).jpg,9
-Karte_des_Deutschen_Reiches_-_010_-_Medischkehmen_-_018_-_Tilsit_(1861).jpg,10-18
+Karte_des_Deutschen_Reiches_-_010_-_Medischkehmen_-_018_-_Tilsit_(1861).jpg,10
 Karte_des_Deutschen_Reiches_-_011_-_Röm_(1881).jpg,11
 012_-_Lügumkloster_(1881).jpg,12
 Karte_des_Deutschen_Reiches_-_168_Ortelsburg_(1880).jpg,168

@@ -1,10 +1,10 @@
-from os import listdir
+from os import listdir,makedirs
 from os.path import isfile, join
 import re
 import json
 from math import sqrt
 
-from config import path_logs
+from config import path_logs, path_output
 
 def dump_csv(experiments, resultpath):
     print("writing to file...")
@@ -254,4 +254,5 @@ def eval_logs(logpath, resultpath="eval_result"):
     dump_json(experiments, resultpath)
 
 if __name__ == "__main__":
-    eval_logs(path_logs)
+    makedirs(path_output+"/summary", exist_ok=True)
+    eval_logs(path_logs, resultpath=path_output+"/summary/eval_result")
