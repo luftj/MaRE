@@ -49,6 +49,6 @@ with open(file, encoding="utf-8") as fr:
 # print(output)
 
 with open(outfile, "w", encoding="utf-8") as fw:
-    fw.write("\\usepackage[toc]{glossaries}\n")
+    fw.write("\\usepackage[toc,nonumberlist]{glossaries}\n")
     fw.write("\\makeglossaries\n\n")
     fw.writelines(output)
