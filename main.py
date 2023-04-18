@@ -63,6 +63,8 @@ def process_sheet(img_path, sheets_path, plot=False, img=True, ground_truth_name
         except:
             truth_pos = -1
         logging.info("ground truth at position: %d" % (truth_pos))
+    else:
+        truth_pos = -1
 
     eval_entry = ["gt: %s pred: %s dist %f"%(ground_truth_name,sheet_name,dist),"gt at pos %d"%truth_pos,"registration: success","correct %r"%(str(ground_truth_name)==str(sheet_name))]
     logging.info("result: %s" % eval_entry)
