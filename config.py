@@ -1,19 +1,29 @@
-base_path = "E:/experiments/test1noimg/"
+### general & data parameters
+
+base_path = "./output/" # end with slash /
 path_output = base_path # end with slash /
 path_logs = base_path # end with slash /
-base_path_index = "E:/experiments/idx_kdr100/"
-path_osm = base_path_index+"/osm/" # end with slash /
+base_path_index = base_path + "/idx/" # end with slash /
 proj_map = "+proj=longlat +ellps=bessel +towgs84=598.1,73.7,418.2,0.202,0.045,-2.455,6.7 +no_defs" # Potsdam datum
 proj_sheets = proj_map
-proj_osm = "+proj=longlat +datum=WGS84 +ellps=WGS84 +no_defs" # EPSG:4326#
-proj_out = proj_osm
-# proj_osm = proj_map
 
+sheet_name_field = "blatt_100" # the property in your sheets/quadrangle geojson file containing unique map names/ids
+
+### reference map parameters
+
+path_osm = base_path_index+"/osm/" # end with slash /
 osm_url = "https://nc.hcu-hamburg.de/api/interpreter"
-#"http://overpass-api.de/api/interpreter"
+osm_url = "http://overpass-api.de/api/interpreter"
 #"https://overpass.openstreetmap.ru/api/interpreter"
 #"https://overpass.osm.ch/api/interpreter"
 #"http://overpass-api.de/api/interpreter"
+
+force_osm_download = False # force re-download of reference data
+download_timeout = (5,600) # connect timeout, read timeout
+
+# changing below values requires re-downloading the reference data
+proj_osm = "+proj=longlat +datum=WGS84 +ellps=WGS84 +no_defs" # EPSG:4326#
+
 osm_query = """[out:json];
                 (
                 nwr ({{bbox}}) [water=lake]; 
@@ -32,9 +42,9 @@ osm_query = """[out:json];
                 out body;
                 >;
                 out skel qt;"""
-                # way ({{bbox}}) [waterway=riverbank];
-force_osm_download = False
-download_timeout = (5,600) # connect timeout, read timeout
+# changing above values requires re-downloading the reference data
+
+# define rasterisation of reference maps
 draw_ocean_polygon = False
 line_thickness_line = {
     "waterway=river": 2,
@@ -59,18 +69,24 @@ def get_thickness(properties, geom_type):
 
 fill_polys = True
 osm_image_size = [1000,850]
-sheet_name_field = "blatt_100"
-save_transform=True
+
+### processing parameters
 
 process_image_width = 500 # image size to do all the processing in (retrieval and registration)
+
+segmentation_steps = [
+    ("convert","lab"),
+    ("colourbalance",5),
+    ("blur",19),
+    ("threshold",[(0,0,10),(255, 90, 100)]),
+    ("open",5),
+    ("close",11)
+]
 
 # opencv default resizing is linear.
 # area looks good for downscaling, cubic looks good or upscaling
 from cv2 import INTER_AREA, INTER_LINEAR, INTER_CUBIC
-resizing_index_building = INTER_AREA
 resizing_input = INTER_AREA
-# resizing_template_query = INTER_LINEAR
-# resizing_template_reference = INTER_AREA
 resizing_index_query = INTER_AREA
 resizing_register_query = INTER_LINEAR
 resizing_register_reference = INTER_CUBIC
@@ -82,13 +98,17 @@ index_voting_scheme = "antiprop"
 index_lowes_test_ratio = None # 0.8
 
 # the following indexing parameters require rebuilding the index
+reference_map_padding = 30
 index_img_width_train = 500
-index_border_train = 30
-index_annoydist = "euclidean"
+resizing_index_building = INTER_AREA
+index_border_train = reference_map_padding
+
 index_n_descriptors_train = 300
 detector = kp_detector = "kaze_upright"
 # possible detectors: "kaze_upright","akaze_upright","sift","surf_upright","ski_fast","cv_fast"
+# possible descriptors: "kaze_upright","akaze_upright","sift","surf_upright"
 index_descriptor_length = 64 # depends on detector!
+index_annoydist = "euclidean"
 index_num_trees = 10
 
 reference_sheets_path = base_path_index+"index/sheets.clf"
@@ -97,27 +117,9 @@ reference_descriptors_path = base_path_index+"index/index.clf"
 reference_descriptors_folder = base_path_index+"index/descriptors"
 reference_keypoints_path = base_path_index+"index/keypoints.clf"
 reference_keypoints_folder = base_path_index+"index/keypoints"
+# the above indexing parameters require rebuilding the index
 
-template_window_size = 30
-
-segmentation_steps = [
-            ("convert","lab"),
-            ("colourbalance",5),
-            ("blur",19),
-            ("threshold",[(0,0,10),(255, 90, 100)]),
-            ("open",5),
-            ("close",11)
-            ]
-
-segmentation_colourbalance_percent = 5
-segmentation_blurkernel = (19,19)
-segmentation_colourspace = "lab" # can be ["lab","hsv"]
-# HSV segmentation_lowerbound = (120,  0,  90)
-# HSV segmentation_upperbound = (255, 255, 255)
-segmentation_lowerbound = (0,0,10)
-segmentation_upperbound = (255, 90, 100)#(255,70,80) #(255, 90, 80) # (255, 90, 70)
-segmentation_openingkernel = (0,0)# (11,11)
-segmentation_closingkernel = (11,11)
+### matching & registration parameters
 
 ransac_max_trials = 1000
 ransac_stop_probability = 0.99
@@ -130,23 +132,28 @@ from cv2 import NORM_INF, NORM_L1, NORM_L2, NORM_L2SQR, NORM_HAMMING, NORM_RELAT
 matching_norm = NORM_L2
 matching_crosscheck = True
 
-warp_mode_retrieval = "similarity"
-warp_mode_registration = "affine"
+warp_mode_retrieval = "similarity" # possible ["similarity","affine"]
+warp_mode_registration = "affine" # possible ["euclidean","affine","homography"]
 
 registration_mode = "both" # possible: ["ransac","ecc","both"]
 
 registration_ecc_iterations = 500 # maximum number of ECC iterations
-registration_ecc_eps = 1e-4 #threshold of the increment in the correlation coefficient between two iterations
+registration_ecc_eps = 1e-4 # termination threshold of the increment in the correlation coefficient between two iterations
 
-# save disk space:
+
+### output parameters
+
+proj_out = proj_osm
+save_transform=False
+# save disk space by using a strongly compressed file format
 # gdal_output_options = '-a_srs "' + proj_out + '" -a_nodata 0 -of JP2OpenJPEG -co "QUALITY=5"'# -co "TILED=YES"'# -co "COMPRESS=JPEG" -co "PHOTOMETRIC=YCBCR" '
 # output_file_ending = "jp2" # without dot . # for georeferenced map
 # jpg2k options: https://gdal.org/drivers/raster/jp2openjpeg.html
 # QUALITY defaults to 25
 
-# save georeferencing time:
+# save georeferencing time by using an uncompressed file format
 gdal_output_options = '-a_srs "' + proj_out + '" -a_nodata 0 -of GTiff --config GDAL_CACHEMAX 15000'# -co NUM_THREADS=ALL_CPUS'# -co NUM_THREADS=ALL_CPUS'
-output_file_ending = "tiff"#"jp2" # without dot . # for georeferenced map
+output_file_ending = "tiff" # without dot . # for georeferenced map
 
 # for aligned (not georeferenced) map image
 jpg_compression = None # default 95
