@@ -70,9 +70,10 @@ To process the sample data do the following:
 4. install required python dependancies with `$ pip install -r requirements.txt`
 5. download and process sample data `$ bash process_sample_data.sh`. The first time this might take a while to download all reference data.
 6. georeferenced maps will appear in ./output/
+7. statistics of the results will appear in ./output/summary
 
 ## Future work
-There are a couple of venues, how the performance of this system can be improved. I will probably not get to doing it myself in the near future. If you would like to work in this, give me a shout :)
+There are a couple of venues, how the performance of this system can be improved. I will probably not get to doing it myself in the near future. If you would like to work on this, give me a shout :)
 
 * find feature descriptors that better work with high-contrast/low-texture segmentation masks
 * find a dense registration method that is less susceptible to local minima and bad initialisation
