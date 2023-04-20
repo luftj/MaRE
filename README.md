@@ -12,7 +12,7 @@ Theory, application and evaluation has been treated in the following pulbication
 * 05/2023: *Automatische Georeferenzierung von Altkarten*, PhD thesis. Coming soon.
 * 09/2022: *Georeferenzierung automatisieren?* Workshop presentation at the FID-Karten, Berlin [slides](https://kartdok.staatsbibliothek-berlin.de/receive/kartdok_mods_00000486)
 * 08/2021: *Automatic Content-Based Georeferencing of Historical Topographic Maps*, journal paper, Transactions in GIS [full text](https://onlinelibrary.wiley.com/doi/10.1111/tgis.12794)
-* 12/2021: *Content-based Image Retrieval for Map Georeferencing*, conference paper, International Cartographic Conference 2021 [full text](http://jonasluft.de/data/ICC21_full_paper_submission.pdf)
+* 12/2021: *Content-based Image Retrieval for Map Georeferencing*, conference paper, International Cartographic Conference 2021 [full text](https://doi.org/10.5194/ica-proc-4-69-2021)
 
 ## Licensing and distribution
 
@@ -71,6 +71,18 @@ To process the sample data do the following:
 5. download and process sample data `$ bash process_sample_data.sh`. The first time this might take a while to download all reference data.
 6. georeferenced maps will appear in ./output/
 7. statistics of the results will appear in ./output/summary
+
+## Notes
+
+* there are some helper scripts in eval_scripts to analyse result files. There are some hard-coded bits in there you might want to change before using them
+* the scripts that where used for all evaluation during writing of the thesis are in experiments/. You will have to change paths etc. in there to reproduce them
+* there are some drawio figures in docs/ that were used in the dissertation. When you want to use them, please cite the dissertation (citation info will follow after publication)
+
+## How to cite this work
+
+to do -- citation info will follow after publication of the dissertation. 
+
+For now you can cite the [ICC paper](https://doi.org/10.5194/ica-proc-4-69-2021).
 
 ## Future work
 There are a couple of venues, how the performance of this system can be improved. I will probably not get to doing it myself in the near future. If you would like to work on this, give me a shout :)
