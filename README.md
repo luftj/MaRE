@@ -52,13 +52,13 @@ Outputh paths, OpenStreetMap mirror and processing parameters are set in the [co
 
 The most simple usage is as follows:
 `$ python3 main.py [input] [sheets]`
-This will georeference the image contained at __input__. At the path __sheets__ there should be a GeoJSON file, containing polygon features describing all possible map sheet/quadrangle locations' bounding boxes (make sure there are only 5 points per geometry). See the [sample data](blattschnitt_kdr100_fixed_dhdn.geojson) as an example.
+This will georeference the image contained at __input__. At the path __sheets__ there should be a GeoJSON file, containing polygon features describing all possible map sheet/quadrangle locations' bounding boxes (make sure there are only 5 points per geometry). See the [sample data](sampledata/blattschnitt_kdr100_fixed_dhdn.geojson) as an example.
 
 If __input__ is not an image, it should be a text file with a line-delimited list of image paths and ground truths to be georeferenced. See the [sample data](sampledata/list.txt) for formatting.
 
 The image(s) given with __input__ can either be 3- to 4-channel colour images, which will then be segmented. If thei are 1-channel images, they are assumed to already be segmentation masks.
 
-The number of hypotheses to spatially verify during retrievel can be set with the parameter __-r__. Use a low number to save computation time. Use a higher number to reduce the likelihood of wrongfully discarding the correct location hypotheses (and thus increase possible prediction accuracy).
+The number of hypotheses to spatially verify during retrieval can be set with the parameter __-r__. Use a low number to save computation time. Use a higher number to reduce the likelihood of wrongfully discarding the correct location hypotheses (and thus increase possible prediction accuracy). 30 was a sensible number for most experiments.
 
 You can automatically crop map margins in the output images by providing the __--crop__ parameter.
 
