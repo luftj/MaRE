@@ -7,12 +7,20 @@ import logging
 from datetime import datetime
 from matplotlib import pyplot as plt
 import numpy as np
+from PIL import Image
 
 import segmentation
 import registration
 from retrieval import retrieve_best_match_index
 
 import config
+
+def save_img_to_disk(image, filename):
+    """opencv does not allow umlaut/unicode in filenames, convert to pillow first"""
+    cv2_im = cv2.cvtColor(image,cv2.COLOR_BGR2RGB)     
+    img_pil = Image.fromarray(cv2_im)     
+    img_pil.save(filename)
+    # to do: how to influence jpg compression params?
 
 def scale_proportional(shape, new_width):
     width = new_width
@@ -52,11 +60,11 @@ def process_sheet(img_path, sheets_path, plot=False, img=True, ground_truth_name
     
     # retrieval step: find the best bbox prediction for this query image
     closest_bbox, dist, score_list, transform_model = retrieve_best_match_index(water_mask, processing_size, sheets_path, restrict_number=restrict, truth=ground_truth_name)
-    
+    print("retrieved")
     # find sheet name for prediction
     sheet_name = score_list[0][-1] if len(score_list) > 0 else "unknown"
     logging.info("best sheet: %s with score %d" % (sheet_name, dist))
-
+    print("best sheet: %s with score %d" % (sheet_name, dist))
     if ground_truth_name:
         try:
             truth_pos = [s[-1] for s in score_list].index(ground_truth_name) # todo: score_list (without index) is actually just indices, convert to sheet names
@@ -68,7 +76,6 @@ def process_sheet(img_path, sheets_path, plot=False, img=True, ground_truth_name
 
     eval_entry = ["gt: %s pred: %s dist %f"%(ground_truth_name,sheet_name,dist),"gt at pos %d"%truth_pos,"registration: success","correct %r"%(str(ground_truth_name)==str(sheet_name))]
     logging.info("result: %s" % eval_entry)
-
     if ground_truth_name and img and ground_truth_name != sheet_name:
         logging.info("incorrect prediction, skipping registration.")
         return
@@ -112,6 +119,7 @@ def process_sheet(img_path, sheets_path, plot=False, img=True, ground_truth_name
             cv2.imwrite(config.path_output + "/debug/refimg_%s_%s.png" % (sheet_name, "-".join(map(str,closest_bbox))), closest_image)
 
         # align map image
+        print("aligning...")
         try:
             if config.registration_mode == "ransac": # RANSAC only
                 map_img_aligned, border, transform = registration.align_map_image_model(map_img, water_mask, closest_image, transform_model, processing_size, crop)
@@ -126,7 +134,9 @@ def process_sheet(img_path, sheets_path, plot=False, img=True, ground_truth_name
             logging.warning("%s - could not register %s with prediction %s!" % (e, img_path, sheet_name))
             eval_entry = ["gt: %s pred: %s dist %d gt ar pos %d" % (sheet_name,ground_truth_name,dist,truth_pos),"registration: fail","correct: no"]
             logging.info("result: %s" % eval_entry)
+            print("alignment failed!")
             return 
+        print("alignment successfull!")
         
         if plot:
             plt.imshow(map_img_aligned) # show the warped map
@@ -134,17 +144,22 @@ def process_sheet(img_path, sheets_path, plot=False, img=True, ground_truth_name
             plt.show()
 
         # save aligned map image
-        aligned_map_path = config.path_output + "aligned_%s_%s" % (sheet_name, "-".join(map(str,closest_bbox)))
+        print("saving image...")
+        input_basename = os.path.splitext(os.path.basename(img_path))[0]
+        print(input_basename)
+        aligned_map_path = config.path_output + "/" + input_basename + "_aligned_%s_%s" % (sheet_name, "-".join(map(str,closest_bbox)))
         if crop:
             aligned_map_path += "_cropped"
-        
+        print(aligned_map_path)
         if config.jpg_compression:
             aligned_map_path += ".jpg"
-            cv2.imwrite(aligned_map_path, map_img_aligned, [cv2.IMWRITE_JPEG_QUALITY, config.jpg_compression])
+            # cv2.imwrite(aligned_map_path, map_img_aligned, [cv2.IMWRITE_JPEG_QUALITY, config.jpg_compression])
+            save_img_to_disk(map_img_aligned, aligned_map_path)
         else:
             # save uncompresed as raw bitmap
             aligned_map_path += ".bmp"
-            cv2.imwrite(aligned_map_path, map_img_aligned)
+            # cv2.imwrite(aligned_map_path, map_img_aligned)
+            save_img_to_disk(map_img_aligned, aligned_map_path)
         logging.info("saved aligned image file to: %s" % aligned_map_path)
         if config.save_transform:
             np.save(config.path_output+"transform_"+sheet_name,transform)

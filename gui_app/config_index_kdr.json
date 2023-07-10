@@ -1,0 +1,74 @@
+{
+    "proj_sheets": {
+        "default": "+proj=longlat +ellps=bessel +towgs84=598.1,73.7,418.2,0.202,0.045,-2.455,6.7 +no_defs"
+    },
+    "sheet_name_field": {
+        "description": "the property name in the sheets/quadrangle geojson file to use as a unique identifier of every sheet location.",
+        "default": "blatt_100"
+    },
+    "osm_url": {
+        "default": "http://overpass-api.de/api/interpreter"
+    },
+    "force_osm_download": {
+        "description": "force re-download of reference data",
+        "default": false
+    },
+    "download_timeout": {
+        "description": "2-element array with connect timeout, read timeout",
+        "default": [5,600]
+    },
+
+    "proj_osm": {
+        "default": "+proj=longlat +datum=WGS84 +ellps=WGS84 +no_defs"
+    },
+    "osm_query": {
+        "default": "[out:json]; ( nwr ({{bbox}}) [water=lake];  nwr ({{bbox}}) [water=reservoir];  way ({{bbox}}) [natural=water] [name];  way ({{bbox}}) [type=waterway] [name];  way ({{bbox}}) [waterway=river] [name]; way ({{bbox}}) [waterway=canal] [name]; way ({{bbox}}) [water=river]; way ({{bbox}}) [waterway=stream] [name]; way ({{bbox}}) [natural=coastline]; way ({{bbox}}) [waterway=ditch]; way ({{bbox}}) [waterway=drain]; way ({{bbox}}) [waterway=riverbank]; ); out body; >; out skel qt;"
+    },
+    "draw_ocean_polygon": { 
+        "default": false
+    },
+    "fill_polys": { 
+        "default": true
+    },
+    "osm_image_size": { 
+        "default": [1000,850]
+    },
+    "reference_map_padding": {
+        "default": 30
+    },
+    "index_img_width_train": {
+        "default": 2000
+    },
+    "resizing_index_building": {
+        "description": "area looks good for downscaling, cubic looks good or upscaling",
+        "possible_values": ["INTER_AREA", "INTER_LINEAR", "INTER_CUBIC"],
+        "default": "INTER_AREA"
+    },
+    "index_border_train": {
+        "default": 30
+    },
+    "index_n_descriptors_train": {
+        "default": 300
+    },
+    "detector": {
+        "possible_values": ["kaze_upright","akaze_upright","sift","surf_upright","ski_fast","cv_fast"],
+        "default": "kaze_upright"
+    },
+    "kp_detector": {
+        "possible_values": ["kaze_upright","akaze_upright","sift","surf_upright"],
+        "default": "kaze_upright"
+    },
+    "index_descriptor_length": {
+        "description": "depends on detector!",
+        "default": 64 
+    },
+    "index_annoydist": {
+        "default": "euclidean"
+    },
+    "index_num_trees": {
+        "default": 10
+    }
+}
+
+
+
