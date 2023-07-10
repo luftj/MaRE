@@ -8,8 +8,9 @@ from flask import Flask, request, render_template, session, url_for
 
 
 app = Flask(__name__)
-app.secret_key = b"testkey"
+app.secret_key = b"testkey" # to do: get from env var
 
+data_dir = "data/"  # to do: get from env var
 
 def make_config():
     # to do: load some default values from file
@@ -29,7 +30,7 @@ def index():
         # create user session and data dir
         session["session_id"] = make_session_id()
         session["config"] = make_config()
-        os.makedirs(f"""data/{session["session_id"]}/""")
+        os.makedirs(f"""{data_dir}/{session["session_id"]}/""")
     
     return render_template("index.html", session=session)
 
@@ -39,7 +40,7 @@ def reset():
     session = {}
     session["session_id"] = make_session_id()
     session["config"] = make_config()
-    os.makedirs(f"""data/{session["session_id"]}/""")
+    os.makedirs(f"""{data_dir}/{session["session_id"]}/""")
     
     return render_template("index.html", session=session)
 
@@ -49,7 +50,7 @@ def create_preview_img(file_path, size=(512,512)):
     im = Image.open(file_path)
     im.thumbnail(size, Image.ANTIALIAS)
     outfile = f"""{session["session_id"]}_preview.jpg"""
-    im.save("gui_app/static/"+outfile, "JPEG")
+    im.save(f"{os.path.dirname(os.path.abspath(__file__))}/static/"+outfile, "JPEG")
     return url_for('static', filename=outfile)
 
 @app.route('/upload', methods=['POST'])
@@ -57,7 +58,7 @@ def upload_file():
     print("upload")
     file = request.files['filename']
     print(file)
-    file_path = f"""data/{session["session_id"]}/{secure_filename(file.filename)}"""
+    file_path = f"""{data_dir}/{session["session_id"]}/{secure_filename(file.filename)}"""
     file.save(file_path)
 
     session["filename"] = file.filename
@@ -82,13 +83,11 @@ def run_georef():
     # call georef backend
     restrict_hypos = 3 # to do: should be in config
     sheets = "sampledata/blattschnitt_kdr100_fixed_dhdn.geojson" # to do: should be in index config
-    # print(session["filename"])
-    # print(secure_filename(session["filename"])) 
-    input_image = f"""data/{session["session_id"]}/{secure_filename(session["filename"])}""" # this removes umlaut
-    cmd = f""" python main.py {input_image} {sheets} -r {restrict_hypos} """
+    input_image = f"""{data_dir}/{session["session_id"]}/{secure_filename(session["filename"])}""" # this removes umlaut
+    cmd = f""" python main.py {input_image} {sheets} -r {restrict_hypos} """ # to do: import and run or call backend api instead
     os.system(cmd)
 
-    outfile = "output/"#f"""data/{session["id"]}/output"""
+    outfile = "output/"#f"""{data_dir}/{session["id"]}/output""" # to do: set better output path for georeferencing script
     os.makedirs(outfile, exist_ok=True)
     # find result file
     base_filename = secure_filename(os.path.splitext(session["filename"])[0])

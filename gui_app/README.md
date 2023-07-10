@@ -39,8 +39,6 @@ To do: provide Dockerfile
 * get possible indexes from file
 * make config param list smarter: disable if from index, add info text, ...
 * call georeferencing backend
-* outfile should have filename including input filename
 * allow to set output path for georeferencing
 * implement way of prvoding config file to georef method
-* allow umlaute in output filename
 * get error messages from backend
