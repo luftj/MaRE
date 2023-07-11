@@ -35,10 +35,12 @@ To do: provide Dockerfile
 
 ## to do
 
+* show error message if no georeferencing success
+* implement way of prvoding config file to georef method: pass config.json as cli param, else default path
+* allow to set output path for georeferencing
+* get error messages from backend
+* add description hints to config params
+* show index config params 
 * prod deployment
 * get possible indexes from file
-* make config param list smarter: disable if from index, add info text, ...
-* call georeferencing backend
-* allow to set output path for georeferencing
-* implement way of prvoding config file to georef method
-* get error messages from backend
+* call georeferencing backend more cleanly
