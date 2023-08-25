@@ -11,7 +11,7 @@ input_list_file="sampledata/list.txt"
 python sampledata/download_sample_data.py
 
 # create index
-if [[ "output/idx/index/index.ann" ]] 
+if [[ -f "output/idx/index/index.ann" ]] 
 then 
   echo "index already exists." 
 else 
@@ -24,7 +24,7 @@ fi
 # run georeferencing
 python main.py $input_list_file $sheets_file -r 30
 
-# evaluate logs to colelct result data
+# evaluate logs to collect result data
 python eval_logs.py
 
 # collect some statistics for retrieval

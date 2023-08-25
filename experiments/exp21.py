@@ -200,7 +200,8 @@ def plot_results(wrong=False):
         plt.close()
 
 def do_eval():
-    results = run_comparison()
+    results = run_comparison(wrong=False)
+    outfile = "feature_comparison_correct.csv"
     print(results)
     with open(outfile,"w") as fw:
         fw.write(",".join(results[0].keys()))

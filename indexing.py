@@ -264,7 +264,7 @@ def search_list(list_path):
             if not "," in line:
                 print("skipping line: no ground truth given %s" % line)
                 continue
-            img_path, class_label = line.split(",")
+            img_path, class_label = line.rsplit(",",1)
             if not os.path.isabs(img_path[0]):
                 list_dir = os.path.dirname(list_path) + "/"
                 img_path = os.path.join(list_dir,img_path)

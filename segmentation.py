@@ -213,8 +213,6 @@ def load_and_run(map_path):
     return segmented_image
 
 if __name__ == "__main__":
-    import experiments.config_e12b_preu as config
-    # import experiments.config_e8 as config
     import argparse
 
     parser = argparse.ArgumentParser()

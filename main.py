@@ -162,9 +162,9 @@ def process_list(list_path, sheets_path, plot=False, img=True, restrict=None, re
             # if not "," in line:
             #     logging.warning("skipping line: no ground truth given %s" % line)
             #     continue
-            if "," in line:
+            if "," in line: # todo: might be in filename, too
                 # groun truth given
-                img_path, ground_truth = line.split(",")
+                img_path, ground_truth = line.rsplit(",",1)
                 ground_truth=str(ground_truth)
             else:
                 logging.warning("no ground truth given for %s" % line)
