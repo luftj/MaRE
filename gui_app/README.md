@@ -40,7 +40,9 @@ To do: provide Dockerfile
 * allow to set output path for georeferencing
 * get error messages from backend
 * add description hints to config params
-* show index config params 
+* show index config params
+* show index description
+* show index sheets/quadrangles preview
 * prod deployment
 * get possible indexes from file
 * call georeferencing backend more cleanly
