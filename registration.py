@@ -48,33 +48,73 @@ def warp(image, warp_matrix, warp_mode = cv2.MOTION_AFFINE):
 
     return im2_aligned
 
-def make_worldfile(inputfile, bbox, border):
+def make_worldfile(inputfile, bbox, crop, target_size=None, input_size=None, warp=None):
     """ create a worldfile for a warped map image given bounding box GCPS
     bbox as [left_x, bottom_y, right_x, top_y]
-    border as [min_col, min_row, max_col, max_row]
     """
+
+    # reproject the bounding box coordinates
     minxy = transform_sheet_to_out.transform(bbox[0], bbox[1]) # reproject lower left bbox corner
     maxxy = transform_sheet_to_out.transform(bbox[2], bbox[3]) # reproject upper right bbox corner
     bbox = minxy+maxxy
 
-    pixel_width = (bbox[2]-bbox[0])/(border[2]-border[0])
-    pixel_height = (bbox[3]-bbox[1])/(border[3]-border[1])
+    # create border points from inv-warped reference border
+    scale_mat = np.eye(3,3,dtype=np.float32)
+    scale_mat[0,0] = input_size[1] / target_size[0] # x scaling factor
+    scale_mat[1,1] = input_size[0] / target_size[1] # y scaling factor
 
-    left_edge = bbox[0] - (border[0]-0.5) * pixel_width # subtract half pixel to get to the center of topleft corner
-    top_edge = bbox[3] - (border[3]-0.5) * pixel_height # subtract half pixel to get to the center of topleft corner
+    if warp is None:
+        warp = np.identity(3)
+    else:
+        warp = np.vstack([warp,[0,0,1]])
+    
+    if crop:
+        p0 = warp @ scale_mat @ np.array([
+            0,
+            0,
+            1]) # upper left border point
+        p1 = warp @ scale_mat @ np.array([
+            0,
+            target_size[1] - 2 * config.reference_map_padding,
+            1]) # bottom left border point
+        p2 = warp @ scale_mat @ np.array([
+            target_size[0] - 2 * config.reference_map_padding,
+            0,
+            1]) # upper right border point
+    else:
+        p0 = warp @ scale_mat @ np.array([
+            config.reference_map_padding,
+            config.reference_map_padding,
+            1]) # upper left border point
+        p1 = warp @ scale_mat @ np.array([
+            config.reference_map_padding,
+            target_size[1]-config.reference_map_padding,
+            1]) # bottom left border point
+        p2 = warp @ scale_mat @ np.array([
+            target_size[0]-config.reference_map_padding,
+            config.reference_map_padding,
+            1]) # upper right border point
 
+    transform = cv2.getAffineTransform(
+        np.vstack([p0[:2],p2[:2],p1[:2]]), 
+        np.array([[bbox[0],bbox[3]],[bbox[2],bbox[3]],[bbox[0],bbox[1]]], dtype=np.float32))
+    
     outputfile = os.path.splitext(inputfile)[0]+".wld"
     with open(outputfile,"w") as fw:
-        fw.write("%.20f\n" % pixel_width)
-        fw.write("0.0"+"\n")
-        fw.write("0.0"+"\n")
-        fw.write("%.20f\n" % pixel_height)
-        fw.write("%.20f\n" % left_edge)
-        fw.write("%.20f\n" % top_edge)
+        fw.write("%.20f\n" % transform[0,0])
+        fw.write("%.20f\n" % transform[1,0])
+        fw.write("%.20f\n" % transform[0,1])
+        fw.write("%.20f\n" % transform[1,1])
+        fw.write("%.20f\n" % transform[0,2])
+        fw.write("%.20f\n" % transform[1,2])
     
     logging.info("saved worldfile to: %s" % outputfile)
+    return
 
 def georeference(inputfile, outputfile, bbox, border=None):
+    """use gdal to create a georeferenced output file.
+    TO DO: use of border has been deprecated, needs to be changed to use border points/warp_matrix"""
+    raise NotImplementedError("TO DO: use of border has been deprecated, needs to be changed to use border points/warp_matrix")
     time_start = time()
     minxy = transform_sheet_to_out.transform(bbox[0], bbox[1]) # reproject lower left bbox corner
     maxxy = transform_sheet_to_out.transform(bbox[2], bbox[3]) # reproject upper right bbox corner
@@ -146,12 +186,12 @@ def align_map_image(map_image, query_image, reference_image, target_size=(500,50
         # convert affine parameters to homogeneous coordinates
         warp_matrix = np.vstack([warp_matrix, [0,0,1]])
 
-    # scale by factor of target/original size
+    # scale by factor of target/original size: downscale original imput iamge to processing size
     scale_mat = np.eye(3,3,dtype=np.float32)
     scale_mat[0,0] *= map_image.shape[1] / target_size[0] # x scaling factor
     scale_mat[1,1] *= map_image.shape[0] / target_size[1] # y scaling factor
 
-    warp_matrix = scale_mat @ warp_matrix @ np.linalg.inv(scale_mat) # complete transformation matrix
+    warp_matrix = scale_mat @ warp_matrix @ np.linalg.inv(scale_mat) # complete transformation matrix in scale of original input map
     
     if config.warp_mode_registration != "homography":
         warp_matrix = np.delete(warp_matrix, (2), axis=0) # drop homogeneous coordinates
@@ -168,10 +208,7 @@ def align_map_image(map_image, query_image, reference_image, target_size=(500,50
     if crop:
         # crop out border
         map_img_aligned = map_img_aligned[border_y:map_img_aligned.shape[0]-border_y, border_x:map_img_aligned.shape[1]-border_x]
-        border = (0, map_img_aligned.shape[0], map_img_aligned.shape[1], 0)
-    else:
-        border = (border_x, map_image.shape[0]-border_y, map_image.shape[1]-border_x, border_y)
-    return map_img_aligned, border, warp_matrix
+    return map_img_aligned, warp_matrix
 
 def align_map_image_model(map_image, query_image, reference_image, warp_matrix, target_size=(500,500), crop=False):
     time_start = time()
@@ -226,9 +263,6 @@ def align_map_image_model(map_image, query_image, reference_image, warp_matrix, 
     if crop:
         # crop out border
         map_img_aligned = map_img_aligned[border_top:border_bot, border_left:border_right]
-        border= (0, map_img_aligned.shape[0], map_img_aligned.shape[1], 0)
-    else:
-        border = (border_left, border_bot, border_right, border_top)
 
     warp_matrix = np.delete(warp_matrix, (2), axis=0) # drop homogeneous coordinates
-    return map_img_aligned, border, warp_matrix
+    return map_img_aligned, warp_matrix

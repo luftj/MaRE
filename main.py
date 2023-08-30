@@ -1,6 +1,7 @@
 
 import sys
 import os
+import shutil
 import cv2
 import argparse
 import logging
@@ -15,10 +16,24 @@ from retrieval import retrieve_best_match_index
 import config
 
 def scale_proportional(shape, new_width):
+    if not new_width:
+        return shape[:2] # do not rescale
+    
     width = new_width
     f = width / shape[1]
     height = int(f * shape[0])
     return (width, height)
+
+def save_warped_output(aligned_map_path, map_img_aligned):
+    aligned_map_path = os.path.splitext(aligned_map_path)[0]
+    if config.jpg_compression:
+        aligned_map_path += ".jpg"
+        cv2.imwrite(aligned_map_path, map_img_aligned, [cv2.IMWRITE_JPEG_QUALITY, config.jpg_compression])
+    else:
+        # save uncompresed as raw bitmap
+        aligned_map_path += ".bmp"
+        cv2.imwrite(aligned_map_path, map_img_aligned)
+    logging.info("saved aligned image file to: %s" % aligned_map_path)
 
 def process_sheet(img_path, sheets_path, plot=False, img=True, ground_truth_name=None, restrict=None, resize=None, crop=False, debug=False):
     logging.info("Processing file %s with gt: %s" % (img_path,ground_truth_name))
@@ -114,11 +129,11 @@ def process_sheet(img_path, sheets_path, plot=False, img=True, ground_truth_name
         # align map image
         try:
             if config.registration_mode == "ransac": # RANSAC only
-                map_img_aligned, border, transform = registration.align_map_image_model(map_img, water_mask, closest_image, transform_model, processing_size, crop)
+                map_img_aligned, transform = registration.align_map_image_model(map_img, water_mask, closest_image, transform_model, processing_size, crop)
             elif config.registration_mode == "ecc": # ECC only
-                map_img_aligned, border, transform = registration.align_map_image(map_img, water_mask, closest_image, processing_size, crop)
+                map_img_aligned, transform = registration.align_map_image(map_img, water_mask, closest_image, processing_size, crop)
             elif config.registration_mode == "both": # ECC with RANSAC prior
-                map_img_aligned, border, transform = registration.align_map_image(map_img, water_mask, closest_image, processing_size, crop, transform_model)
+                map_img_aligned, transform = registration.align_map_image(map_img, water_mask, closest_image, processing_size, crop, transform_model)
             else:
                 raise NotImplementedError("registration mode %s not implemented" % config.registration_mode)
             
@@ -133,25 +148,21 @@ def process_sheet(img_path, sheets_path, plot=False, img=True, ground_truth_name
             plt.title("aligned map")
             plt.show()
 
-        # save aligned map image
-        aligned_map_path = config.path_output + "aligned_%s_%s" % (sheet_name, "-".join(map(str,closest_bbox)))
-        if crop:
-            aligned_map_path += "_cropped"
-        
-        if config.jpg_compression:
-            aligned_map_path += ".jpg"
-            cv2.imwrite(aligned_map_path, map_img_aligned, [cv2.IMWRITE_JPEG_QUALITY, config.jpg_compression])
+        output_map_path = config.path_output + os.path.basename(img_path)
+        if crop or config.warp_mode_registration == "homography":
+            # save aligned map image
+            save_warped_output(output_map_path, map_img_aligned)
+            # georeference aligned query image with bounding box
+            registration.make_worldfile(output_map_path, closest_bbox, crop, target_size=processing_size, input_size=map_img.shape)
         else:
-            # save uncompresed as raw bitmap
-            aligned_map_path += ".bmp"
-            cv2.imwrite(aligned_map_path, map_img_aligned)
-        logging.info("saved aligned image file to: %s" % aligned_map_path)
+            # copy original input image instead
+            shutil.copy(img_path, output_map_path)
+            # join transform with worldfile and save
+            registration.make_worldfile(output_map_path, closest_bbox, crop, target_size=processing_size, input_size=map_img.shape, warp=transform)
+            
+        # optional debugging output of transform and border
         if config.save_transform:
             np.save(config.path_output+"transform_"+sheet_name,transform)
-            np.save(config.path_output+"border_"+sheet_name,border)
-
-        # georeference aligned query image with bounding box
-        registration.make_worldfile(aligned_map_path, closest_bbox, border)
 
 def process_list(list_path, sheets_path, plot=False, img=True, restrict=None, resize=None, crop=False, debug=False):
     import os

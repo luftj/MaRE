@@ -56,11 +56,13 @@ This will georeference the image contained at __input__. At the path __sheets__ 
 
 If __input__ is not an image, it should be a text file with a line-delimited list of image paths and ground truths to be georeferenced. See the [sample data](sampledata/list.txt) for formatting.
 
-The image(s) given with __input__ can either be 3- to 4-channel colour images, which will then be segmented. If thei are 1-channel images, they are assumed to already be segmentation masks.
+The image(s) given with __input__ can either be 3- to 4-channel colour images, which will then be segmented. If they are 1-channel images, they are assumed to already be segmentation masks.
 
 The number of hypotheses to spatially verify during retrieval can be set with the parameter __-r__. Use a low number to save computation time. Use a higher number to reduce the likelihood of wrongfully discarding the correct location hypotheses (and thus increase possible prediction accuracy). 30 was a sensible number for most experiments.
 
 You can automatically crop map margins in the output images by providing the __--crop__ parameter.
+
+The output files will be created in the directory specified in [config.py](config.py). They comprise of an image file and am ESRI worldfile for every input image. If you used the --crop parameter or set the homography transform for registration in config.py, the output image will be rectified, i.e. warped by the calculated transform. Otherwise it will be an identical copy of the input image.
 
 ## Run with sample data
 To process the sample data do the following:
