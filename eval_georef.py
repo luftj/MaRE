@@ -290,13 +290,14 @@ def eval_list(img_list, sheet_corners, inputpath, sheetsfile, images_path, plot=
 
         img_path = inputpath + "/" + img_name
         georef_path = images_path + "/aligned_%s_*" % sheet_name
-        georef_path_glob = glob.glob(georef_path)
+        georef_path_glob = glob.glob(georef_path)+[images_path+"/"+img_name]
         georef_path_glob = [x for x in georef_path_glob if x[-4:] != ".wld"]
         
         if len(georef_path_glob) == 0:
             print("Couldn't find file for registered sheet %s.\nIt probably failed to get a registration solution" % sheet_name)
             continue
         georef_path = georef_path_glob[0]
+        print(georef_path)
 
         # find corner coordinates of registered image (geo-coordinates)
         corner_coords = cascadeCorners(img_path, georef_path, sheet_corners[img_name], plot=plot, downscale_factor=downscale_factor)

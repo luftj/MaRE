@@ -6,7 +6,7 @@ import config
 import segmentation
 import indexing
 from retrieval import estimate_transform
-from main import scale_proportional
+from common import scale_proportional
 from experiments.exp8a import get_query_image
 from experiments.exp8a import get_reference_image
 

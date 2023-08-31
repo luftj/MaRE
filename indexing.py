@@ -12,6 +12,8 @@ import segmentation
 import find_sheet, osm
 import config
 
+from common import make_mask
+
 from annoy import AnnoyIndex
 
 def convert_to_cv_keypoint(x, y, size=8.0, octave=1, response=1, angle=0.0):
@@ -42,19 +44,21 @@ if config.detector in ["ski_fast","cv_fast"]:
 
 detector = detector_dict[config.detector]
 
-def extract_features(image, first_n=None, plot=False):
+def extract_features(image, first_n=None, plot=False, mask=None):
     """Detect and extract features in given image.
 
     Arguments:
     image -- the image to extract features from,
     first_n -- the number of keypoints to use. Will be the keypoints with the highest response value. Set to None to use all keypoints. (default: None)
+    plot -- set to True if you want to see a plot of the extracted features for debugging
+    mask -- a matrix to mask where to detect keypoints. Set to None to disable (default).
 
     Returns a list of keypoints and a list of descriptors """
 
     if detector == kp_detector:
-        kps, dsc = detector.detectAndCompute(image, None)
+        kps, dsc = detector.detectAndCompute(image, mask=mask)
     else:
-        kps = kp_detector.detect(image)
+        kps = kp_detector.detect(image, mask=mask)
         kps, dsc = detector.compute(image, kps)
     
     if len(kps) == 0:
@@ -238,8 +242,15 @@ def search_in_index(img_path, class_label_truth, imgsize=None):
     # image size for intermediate processing
     processing_size = resize_by_width(map_img.shape, config.index_img_width_query)
     water_mask_small = cv2.resize(water_mask, processing_size, interpolation=config.resizing_index_query)
+    
+    # optional: mask input image
+    if config.masking_border:
+        mask = make_mask(processing_size)
+    else:
+        mask = None
+
     # extract features from query sheet
-    kps, descriptors = extract_features(water_mask_small, first_n=config.index_n_descriptors_query)
+    kps, descriptors = extract_features(water_mask_small, first_n=config.index_n_descriptors_query, mask=mask)
     # set up features as test set    
     prediction = predict_annoy(descriptors)
 

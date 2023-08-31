@@ -47,6 +47,7 @@ Outputh paths, OpenStreetMap mirror and processing parameters are set in the [co
 * skip_impossible_verification -- save some time on georeferencing, when it is not possible to get a correct result. Only works when supplying ground truth
 * warp_mode_retrieval/warp_mode_registration -- set the transform class for retrieval/registration to fit to the expected deformation in your input maps.
 * proj_out -- the desired projection of the georeferenced output maps
+* masking_border -- set a margin at the image borders which will be ignored during keypoint detection and registration. This is helpful when the images have a background (e.g. with colour correction cards) whith a negative influence on matching performance.
 
 ## Usage
 
@@ -62,7 +63,7 @@ The number of hypotheses to spatially verify during retrieval can be set with th
 
 You can automatically crop map margins in the output images by providing the __--crop__ parameter.
 
-The output files will be created in the directory specified in [config.py](config.py). They comprise of an image file and am ESRI worldfile for every input image. If you used the --crop parameter or set the homography transform for registration in config.py, the output image will be rectified, i.e. warped by the calculated transform. Otherwise it will be an identical copy of the input image.
+The output files will be created in the directory specified in [config.py](config.py). They comprise of an image file and am ESRI worldfile for every input image. If you used the --crop parameter or set the homography transform for registration in config.py, the output image will be rectified, i.e. warped by the calculated transform. Otherwise it will be an identical copy of the input image (ignoring compression options etc).
 
 ## Run with sample data
 To process the sample data do the following:

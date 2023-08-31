@@ -6,10 +6,11 @@ from time import time
 from pyproj import Transformer
 
 import config
+from common import make_mask
 
 transform_sheet_to_out = Transformer.from_proj(config.proj_sheets, config.proj_out, always_xy=True) #, skip_equivalent=True # skip_equivalent is deprecated since some version
 
-def register_ECC(query_image, reference_image, warp_matrix=None, warp_mode = cv2.MOTION_AFFINE, ret_cc=False):
+def register_ECC(query_image, reference_image, warp_matrix=None, warp_mode = cv2.MOTION_AFFINE, ret_cc=False, mask=None):
     # adapted from https://www.learnopencv.com/image-alignment-ecc-in-opencv-c-python/
     
     logging.debug("starting registration...")
@@ -30,7 +31,7 @@ def register_ECC(query_image, reference_image, warp_matrix=None, warp_mode = cv2
                             config.registration_ecc_eps)
 
     # Run the ECC algorithm. The resulting transformation is stored in warp_matrix.
-    (cc, warp_matrix) = cv2.findTransformECC(reference_image, query_image, warp_matrix, warp_mode, termination_criteria)
+    (cc, warp_matrix) = cv2.findTransformECC(reference_image, query_image, warp_matrix, warp_mode, termination_criteria, inputMask=mask)
     logging.info("found registration with score: %f" % cc)
 
     if ret_cc:
@@ -96,7 +97,7 @@ def make_worldfile(inputfile, bbox, crop, target_size=None, input_size=None, war
             1]) # upper right border point
 
     transform = cv2.getAffineTransform(
-        np.vstack([p0[:2],p2[:2],p1[:2]]), 
+        np.vstack([p0[:2],p2[:2],p1[:2]]).astype(np.float32), 
         np.array([[bbox[0],bbox[3]],[bbox[2],bbox[3]],[bbox[0],bbox[1]]], dtype=np.float32))
     
     outputfile = os.path.splitext(inputfile)[0]+".wld"
@@ -179,8 +180,14 @@ def align_map_image(map_image, query_image, reference_image, target_size=(500,50
         border_transform[1,2] = -border_size
         transform_prior = border_transform @ transform_prior
     
+    # optional: mask input image
+    if config.masking_border:
+        mask = make_mask(target_size)
+    else:
+        mask = None
+    
     # get transformation matrix (map query=source to reference=target)
-    warp_matrix = register_ECC(query_image_small, reference_image_border, warp_matrix=transform_prior, warp_mode=warp_mode)
+    warp_matrix = register_ECC(query_image_small, reference_image_border, warp_matrix=transform_prior, warp_mode=warp_mode, mask=mask)
     
     if config.warp_mode_registration != "homography":
         # convert affine parameters to homogeneous coordinates

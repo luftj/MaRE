@@ -12,17 +12,9 @@ import numpy as np
 import segmentation
 import registration
 from retrieval import retrieve_best_match_index
+from common import scale_proportional
 
 import config
-
-def scale_proportional(shape, new_width):
-    if not new_width:
-        return shape[:2] # do not rescale
-    
-    width = new_width
-    f = width / shape[1]
-    height = int(f * shape[0])
-    return (width, height)
 
 def save_warped_output(aligned_map_path, map_img_aligned):
     aligned_map_path = os.path.splitext(aligned_map_path)[0]

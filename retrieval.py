@@ -12,6 +12,8 @@ import indexing
 import find_sheet
 from eval_logs import mahalanobis_distance
 
+from common import make_mask
+
 def plot_matches(keypoints_q, keypoints_r, inliers, query_image, reference_image_border, bordersize=None):
     import matplotlib.pyplot as plt
     from skimage.feature import plot_matches
@@ -95,8 +97,14 @@ def retrieve_best_match_index(query_image, processing_size, sheets_path, restric
     # reduce image size for performance with fixed aspect ratio
     query_image_small = cv2.resize(query_image, (width,height), interpolation=config.resizing_index_query)
 
+    # optional: mask input image
+    if config.masking_border:
+        mask = make_mask(processing_size)
+    else:
+        mask = None
+    
     # extract features from query sheet
-    keypoints, descriptors_query = indexing.extract_features(query_image_small, first_n=config.index_n_descriptors_query)
+    keypoints, descriptors_query = indexing.extract_features(query_image_small, first_n=config.index_n_descriptors_query, mask=mask)
     logging.info("found %d features in query image." % len(keypoints))
     descriptors_query = np.asarray(descriptors_query)
 
