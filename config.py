@@ -72,6 +72,7 @@ osm_image_size = [1000,850]
 ### processing parameters
 
 process_image_width = 500 # image size to do all the processing in (retrieval and registration)
+masking_border = None # [45,35,30,30] # 4-elem list with left,top,right,bottom Pixels from the border to mask for KP detection and registration (is applied to processing size, not original input dimensions). Set to None to dactivate
 
 segmentation_steps = [
     ("convert","lab"),

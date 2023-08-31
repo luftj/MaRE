@@ -21,6 +21,7 @@ from find_sheet import find_poly_for_name, get_poly_dict
 import config
 
 def match_sheet_name(img_name):
+    img_name = os.path.basename(img_name)
     # s = re.findall(r"(?<=_)[0-9][0-9][0-9a](?=_)",img_name)
     # s = re.findall(r"[0-9][0-9][0-9a](?=_)",img_name)
     # s = re.findall(r"(?<=[\s_])*[0-9]?[0-9][0-9a](?=[_\s])",img_name) # also matches invventory key in SBB set
@@ -290,14 +291,13 @@ def eval_list(img_list, sheet_corners, inputpath, sheetsfile, images_path, plot=
 
         img_path = inputpath + "/" + img_name
         georef_path = images_path + "/aligned_%s_*" % sheet_name
-        georef_path_glob = glob.glob(georef_path)+[images_path+"/"+img_name]
+        georef_path_glob = glob.glob(georef_path)+glob.glob(images_path+"/"+os.path.basename(img_name))
         georef_path_glob = [x for x in georef_path_glob if x[-4:] != ".wld"]
         
         if len(georef_path_glob) == 0:
             print("Couldn't find file for registered sheet %s.\nIt probably failed to get a registration solution" % sheet_name)
             continue
         georef_path = georef_path_glob[0]
-        print(georef_path)
 
         # find corner coordinates of registered image (geo-coordinates)
         corner_coords = cascadeCorners(img_path, georef_path, sheet_corners[img_name], plot=plot, downscale_factor=downscale_factor)
